@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { heldPose, MOVE_GRID_LDU } from '../../src/domain/build/engine';
+import { heldPose } from '../../src/domain/build/engine';
 import { rotationAngleDeg } from '../../src/domain/ldraw/matrix';
 import { equivalentTargets } from '../../src/domain/ldraw/symmetry';
 import type { Matrix4Tuple } from '../../src/domain/ldraw/types';
@@ -22,8 +22,8 @@ const model = (set: string) => path.join(DATA, 'models', set, `${set}.mpd`);
 const pdf = (set: string, id: string) => path.join(DATA, 'instructions', set, `${set}_notice_${id}.pdf`);
 
 const SETS = [
-  { set: '31040-1', name: 'Desert Racers', occurrences: 65, officialPieces: 65, steps: 11, pdf: pdf('31040-1', '6145903') },
-  { set: '31009-1', name: 'Small Cottage', occurrences: 270, officialPieces: 271, steps: 77, pdf: pdf('31009-1', '6038244') },
+  { set: '31040-1', name: 'Desert Racers', occurrences: 65, officialPieces: 65, steps: 11, inventory: 'concordance exacte', pdf: pdf('31040-1', '6145903') },
+  { set: '31009-1', name: 'Small Cottage', occurrences: 270, officialPieces: 271, steps: 77, inventory: 'Inventaire indéterminé', pdf: pdf('31009-1', '6038244') },
 ] as const;
 
 test.describe.configure({ mode: 'serial' });
@@ -33,7 +33,7 @@ test.setTimeout(40 * 60_000);
 test.use({ launchOptions: { args: ['--enable-gpu', '--ignore-gpu-blocklist'] } });
 
 interface Candidate { id: string; partKey: string; colorCode: string; matrix: number[] }
-interface Held { previewXZ: number[] | null; partKey: string; colorCode: string; quarterTurns: number; layerY: number; orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number }
+interface Held { bottom: number; previewPose: number[] | null; previewLayerY: number | null; previewSource: string | null; targetId: string | null; layerMode: 'auto' | 'manual'; partKey: string; colorCode: string; quarterTurns: number; layerY: number; orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number }
 
 const game = <T,>(page: Page, fn: string, arg?: unknown) =>
   page.evaluate(([f, a]) => (window.__brickLabGame as unknown as Record<string, (x?: unknown) => unknown>)[f as string]!(a) as T, [fn, arg] as const);
@@ -47,9 +47,45 @@ async function importModel(page: Page, file: string) {
 
 const progressCount = async (page: Page) => Number((await page.getByTestId('progress').textContent())!.split('/')[0]);
 
-export interface DropStats { nudges: number; drops: number; retries: number; symmetricVariants: number; orientationChanges: number; layerChanges: number; failures: string[] }
+export interface DropStats {
+  drops: number; retries: number; symmetricVariants: number; orientationKeys: number; rotationKeys: number;
+  /** placed by pointing: on the supporting surface, at the spot itself (in the air), or after a small move */
+  autoFirstHover: number; autoAimSpot: number; autoAfterMove: number;
+  /** surface placement failed (e.g. spot hidden behind other bricks): PageUp/PageDown used */
+  manualFallbacks: number; layerKeys: number;
+  /** camera drags (orbit) done before giving up pointing, like a player looking for a hidden spot */
+  cameraMoves: number;
+  failures: string[];
+}
+export const newStats = (): DropStats => ({ drops: 0, retries: 0, symmetricVariants: 0, orientationKeys: 0, rotationKeys: 0, autoFirstHover: 0, autoAimSpot: 0, autoAfterMove: 0, manualFallbacks: 0, layerKeys: 0, cameraMoves: 0, failures: [] });
 
-/** Places the first open candidate exactly like a player would: tray, layer, orientation, R turns, pointer click. */
+async function settle(page: Page) {
+  // wait until the canvas size used for picking is stable (see report, I4)
+  let last = '';
+  for (let i = 0; i < 20; i++) {
+    const b = JSON.stringify(await page.getByTestId('build-canvas').boundingBox());
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    if (b === last && (await page.evaluate(() => window.__brickLab!.sizeInSync()))) break;
+    last = b;
+  }
+}
+
+async function hover(page: Page, ldraw: [number, number, number]): Promise<Held> {
+  await settle(page);
+  const p = await page.evaluate((pt) => window.__brickLab!.project(pt), ldraw);
+  const box = (await page.getByTestId('build-canvas').boundingBox())!;
+  if (p.x < box.x || p.x > box.x + box.width || p.y < box.y || p.y > box.y + box.height) throw new Error(`Cible hors champ : ${ldraw}`);
+  await page.mouse.move(p.x, p.y, { steps: 3 });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  return (await game<Held>(page, 'held'))!;
+}
+
+/**
+ * Places the first open candidate like a player: tray, orientation (O), quarter turns (R), then
+ * the pointer over the spot. The HEIGHT comes from the surface under the pointer; PageUp/PageDown
+ * are only used (and counted) when that fails. The test hooks only tell the "player" where the
+ * spot is on screen, they never place anything.
+ */
 async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVariant: boolean, pickIndex = 0): Promise<void> {
   const cands = await game<Candidate[]>(page, 'candidates');
   const target = cands[Math.min(pickIndex, cands.length - 1)]!;
@@ -57,22 +93,13 @@ async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVa
   await page.getByTestId(`tray-${target.partKey}-${target.colorCode}`).click();
   let held = (await game<Held>(page, 'held'))!;
 
-  const layers = await game<number[]>(page, 'layers');
-  const wanted = layers.indexOf(Math.round(target.matrix[13]!));
-  while (held.layerIndex !== wanted) {
-    await page.keyboard.press(held.layerIndex < wanted ? 'PageUp' : 'PageDown');
-    stats.layerChanges++;
-    held = (await game<Held>(page, 'held'))!;
-  }
-
-  // Choose orientation + quarter turns the way a player aligns the brick with the ghost.
   const symmetries = await game<number[]>(page, 'symmetries', target.partKey);
   const t = target.matrix as unknown as Matrix4Tuple;
   let choice: { o: number; q: number; variant: boolean } | null = null;
   for (let o = 0; o < held.orientationCount && !choice; o++) {
     while (held.orientationIndex !== o) {
       await page.keyboard.press('o');
-      stats.orientationChanges++;
+      stats.orientationKeys++;
       held = (await game<Held>(page, 'held'))!;
     }
     const options = [0, 1, 2, 3].map((q) => {
@@ -86,35 +113,51 @@ async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVa
   if (!choice) throw new Error(`Aucune orientation atteignable pour ${target.id}`);
   while (((held.quarterTurns % 4) + 4) % 4 !== choice.q) {
     await page.keyboard.press('r');
+    stats.rotationKeys++;
     held = (await game<Held>(page, 'held'))!;
   }
   if (choice.variant) stats.symmetricVariants++;
 
-  // Pointer: hover then click where the target sits on the current layer.
   for (let attempt = 0; attempt < 3; attempt++) {
-    // wait until the canvas stops resizing (the parts tray can change height): see report, UX defect
-    let last = '';
-    for (let i = 0; i < 20; i++) {
-      const b = JSON.stringify(await page.getByTestId('build-canvas').boundingBox());
-      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-      if (b === last && (await page.evaluate(() => window.__brickLab!.sizeInSync()))) break;
-      last = b;
+    // 1) hover the spot; 2) move a little around it, as a player would; 3) manual layer keys
+    // point at the surface the brick rests on: its own bottom, at the target spot
+    const surfaceY = t[13] + held.bottom;
+    held = await hover(page, [t[12], surfaceY, t[14]]);
+    if (held.targetId) stats.autoFirstHover++;
+    else if ((held = await hover(page, [t[12], t[13], t[14]])).targetId) stats.autoAimSpot++;
+    else {
+      for (const [dx, dz] of [[5, 0], [-5, 0], [0, 5], [0, -5], [10, 10], [-10, -10]] as const) {
+        held = await hover(page, [t[12] + dx, surfaceY, t[14] + dz]);
+        if (held.targetId) { stats.autoAfterMove++; break; }
+      }
     }
-    const p = await page.evaluate((pt) => window.__brickLab!.project(pt), [t[12], held.layerY, t[14]] as [number, number, number]);
-    const box = (await page.getByTestId('build-canvas').boundingBox())!;
-    if (p.x < box.x || p.x > box.x + box.width || p.y < box.y || p.y > box.y + box.height) throw new Error(`Cible hors champ : ${target.id}`);
-    await page.mouse.move(p.x, p.y, { steps: 3 });
-    // like a player: look at where the held brick is shown, nudge the mouse until it sits on the ghost
-    for (let nudge = 0; nudge < 6; nudge++) {
-      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-      const preview = (await game<Held>(page, 'held'))?.previewXZ;
-      // the preview sits on a grid cell next to the target (at most one grid step away)
-      if (preview && Math.hypot(preview[0]! - t[12], preview[1]! - t[14]) <= MOVE_GRID_LDU) break;
-      stats.nudges++;
-      await page.mouse.move(p.x + 3, p.y + 3);
-      await page.mouse.move(p.x, p.y);
+    // spot hidden behind placed bricks: orbit the camera with the mouse and look again
+    for (let orbit = 0; orbit < 3 && !held.targetId; orbit++) {
+      const box = (await page.getByTestId('build-canvas').boundingBox())!;
+      const cx = box.x + box.width * 0.5, cy = box.y + box.height * 0.85;
+      await page.mouse.move(cx, cy);
+      await page.mouse.down();
+      await page.mouse.move(cx + 140, cy - (orbit === 1 ? 60 : 0), { steps: 8 });
+      await page.mouse.up();
+      stats.cameraMoves++;
+      held = await hover(page, [t[12], t[13] + held.bottom, t[14]]);
+      if (!held.targetId) held = await hover(page, [t[12], t[13], t[14]]);
     }
-    await page.mouse.click(p.x, p.y);
+    if (!held.targetId) {
+      stats.manualFallbacks++;
+      const layers = await game<number[]>(page, 'layers');
+      const wanted = layers.indexOf(Math.round(t[13]));
+      for (let k = 0; k < 200 && (held.layerMode !== 'manual' || held.layerIndex !== wanted); k++) {
+        const current = held.layerIndex; // manual starts from the default layer
+        await page.keyboard.press(current < wanted ? 'PageUp' : 'PageDown');
+        stats.layerKeys++;
+        held = (await game<Held>(page, 'held'))!;
+      }
+      held = await hover(page, [t[12], t[13], t[14]]);
+    }
+    // click exactly where the pointer already is (no extra move)
+    await page.mouse.down();
+    await page.mouse.up();
     stats.drops++;
     try {
       await expect.poll(() => progressCount(page), { timeout: 2_000 }).toBe(before + 1);
@@ -122,9 +165,7 @@ async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVa
     } catch {
       stats.retries++;
       const last = await page.evaluate(() => window.__brickLabLastDrop);
-      const plane = await page.evaluate(() => window.__brickLab!.dropPlane());
-      const h = await game<Held>(page, 'held');
-      stats.failures.push(`${target.id}: ${await page.getByTestId('message').textContent()} | cible ${[t[12], t[13], t[14]].map((v) => v.toFixed(0))} | reçu ${last?.pose.slice(12, 15).map((v) => v.toFixed(0))} | niveau tenu ${h?.layerY} (attendu ${held.layerY}) | plan ${JSON.stringify(plane)} | aperçu ${JSON.stringify(h?.previewXZ)}`);
+      stats.failures.push(`${target.id}: ${await page.getByTestId('message').textContent()} | cible ${[t[12], t[13], t[14]].map((v) => v.toFixed(0))} | reçu ${last?.pose.slice(12, 15).map((v) => v.toFixed(0))} | source ${held.previewSource} mode ${held.layerMode}`);
     }
   }
   throw new Error(`Pose refusée 3 fois : ${stats.failures.at(-1)}`);
@@ -152,6 +193,7 @@ for (const s of SETS) {
       await expect(page.getByTestId('missing-parts')).toHaveCount(0);
       await expect(page.getByTestId('quality')).toHaveText('Jouable avec étapes 3D');
       await expect(page.getByTestId('step-count')).toContainText(String(s.steps));
+      await expect(page.getByTestId('inventory-check')).toContainText(s.inventory);
       const scene = await page.evaluate(() => window.__brickLab!.sceneSummary());
       expect(scene.solid).toBe(s.occurrences);
       mkdirSync(PROOFS, { recursive: true });
@@ -161,7 +203,7 @@ for (const s of SETS) {
     test('guided build to completion with pointer only, symmetric variants included', async ({ page }) => {
       await importModel(page, model(s.set));
       await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
-      const stats: DropStats = { nudges: 0, drops: 0, retries: 0, symmetricVariants: 0, orientationChanges: 0, layerChanges: 0, failures: [] };
+      const stats = newStats();
       const stepOrder: number[] = [];
       const start = Date.now();
       for (let i = 0; i < s.occurrences; i++) {
@@ -181,7 +223,7 @@ for (const s of SETS) {
     test('progress restored after reload mid-build', async ({ page }) => {
       await importModel(page, model(s.set));
       await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
-      const stats: DropStats = { nudges: 0, drops: 0, retries: 0, symmetricVariants: 0, orientationChanges: 0, layerChanges: 0, failures: [] };
+      const stats = newStats();
       for (let i = 0; i < 12; i++) await placeOneByPointer(page, stats, false);
       const step = await page.getByTestId('step-indicator').textContent();
       await page.reload();
@@ -191,6 +233,15 @@ for (const s of SETS) {
       expect((await page.evaluate(() => window.__brickLab!.sceneSummary())).solid).toBe(12);
       await placeOneByPointer(page, stats, false);
       await expect(page.getByTestId('progress')).toHaveText(`13/${s.occurrences} pièces posées`);
+    });
+
+    test('free mode in natural build order (file order), pointer only', async ({ page }) => {
+      await importModel(page, model(s.set));
+      await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
+      const stats = newStats();
+      for (let i = 0; i < s.occurrences; i++) await placeOneByPointer(page, stats, i % 2 === 1, 0);
+      await expect(page.getByTestId('progress')).toHaveText(`${s.occurrences}/${s.occurrences} pièces posées`);
+      saveProof(`${s.set}-free-natural.json`, { ...stats, placed: s.occurrences });
     });
 
     test('free mode with the official PDF open, any order', async ({ page }) => {
@@ -204,7 +255,7 @@ for (const s of SETS) {
       await expect(page.getByTestId('pdf-page')).toHaveText(/PDF p\. 5 \//);
       await expect(page.locator('.pdf-panel [role=alert]')).toHaveCount(0);
       await expect(page.getByTestId('step-indicator')).toHaveCount(0);
-      const stats: DropStats = { nudges: 0, drops: 0, retries: 0, symmetricVariants: 0, orientationChanges: 0, layerChanges: 0, failures: [] };
+      const stats = newStats();
       // free mode: pick from the END of the remaining stock, i.e. not the file order
       const total = s.occurrences;
       for (let i = 0; i < total; i++) await placeOneByPointer(page, stats, i % 2 === 1, 10_000);

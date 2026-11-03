@@ -128,7 +128,8 @@ export function cloneTemplate(template: Group, variant: 'solid' | 'ghost' | 'hel
     if ((child as Mesh).isMesh) {
       const mesh = child as Mesh;
       if (variant === 'ghost') mesh.material = ghostMaterial;
-      if (variant !== 'solid') mesh.raycast = () => {};
+      // the held brick must not hide what is under the pointer; ghosts stay pickable (magnet)
+      if (variant === 'held') mesh.raycast = () => {};
     } else if ('isLineSegments' in child && child.isLineSegments && variant === 'ghost') {
       child.visible = false;
     }

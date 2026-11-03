@@ -28,3 +28,13 @@ Ce journal **prolonge** `docs/09_DECISIONS_ET_RISQUES.md`, qui reste figé dans 
 | Ajout d'une dépendance npm | `npm i <paquet>` supprime les bindings natifs optionnels de rolldown du lockfile (bug npm/cli#4828). → Pour ajouter une dépendance : `rm -rf node_modules package-lock.json && npm i`, puis vérifier `node_modules/@rolldown/binding-*`. | lockfile P5 |
 | Écarts déclarés au manifeste | L'ancien contrôle ne vérifiait que l'empreinte d'origine : une seconde modification d'un fichier déjà déclaré passait. → `currentSha256` obligatoire, contrôlé à chaque recette. | `npm run check:spec` |
 | Journal dans `docs/09` | Décision du propriétaire : `docs/09` reste figé (v1.0), le journal vit ici ; `CLAUDE.md` corrigé et déclaré comme écart. | `spec-deviations.json` |
+
+## Journal — 04/11/2026, levée des conditions P5
+
+| Hypothèse | Constat mesuré / décision | Preuve |
+|---|---|---|
+| Choisir le niveau au clavier (défaut : le plus bas compatible) | Coût mesuré, reproduit exactement par `scripts/level-baseline.ts` : 31009 libre = 1 194 appuis (ordre inverse) / 246 (ordre naturel) ; guidé = 7. → **Placement par les surfaces** : la pièce se pose **sur** la surface pointée (sol ou dessus d'une pièce), à la hauteur du niveau compatible le plus proche (±6 LDU, base réelle de la géométrie). PageUp/PageDown restent en secours (mode manuel, `A` pour revenir). | `surface.ts`, `tests/unit/surface.test.ts`, `tests/e2e/surface-placement.spec.ts` |
+| La surface sous le centre suffit | Faux pour les pièces en porte-à-faux, fixées de côté ou posées avant leur support : 15 à 56 secours manuels mesurés sur 31040. → Repli : cible compatible **traversée par le rayon** (≤ 10 LDU), sauf si elle est cachée derrière une surface visible. L'aperçu s'y cale visiblement ; rien n'est posé sans clic. | E2E OMR v3 |
+| Aimantation | Seulement sur un fantôme **compatible** survolé, ou si la pose serait acceptée par le moteur ; jamais vers une cible éloignée du pointeur. Rotation toujours vérifiée. | tests unitaires « far », « wrong orientation » |
+| Fidélité d'inventaire 31009 | Comparaison par référence et couleur : 31 éléments décodés identiques, 2 divergences prouvées (+2 `3020` blanc, +2 `3069` blanc dans la boîte), 1 élément sans équivalent (4211087, visuel), minifig décomposée (+4). Bilan exact 271 − 5 + 4 = 270. Appartenance au modèle principal **non prouvée** → verdict **INDÉTERMINÉ**, avertissement dans l'UI. | `P5_INVENTAIRE_31009.md` |
+| Afficher un verdict d'inventaire sans catalogue | Registre local des validations faites à la main, indexé par SHA-256 du fichier exact (2 entrées) ; tout autre fichier = « non vérifié ». Rien n'est téléchargé ni listé. | `known-validations.ts` |

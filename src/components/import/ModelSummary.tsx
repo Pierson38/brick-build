@@ -1,6 +1,7 @@
 'use client';
 
 import type { ModelAnalysis, QualityReport } from '@/domain/import/analyze';
+import type { InventoryCheck } from '@/domain/import/known-validations';
 
 const QUALITY_LABEL: Record<QualityReport['quality'], string> = {
   INVALID: 'Invalide',
@@ -18,10 +19,11 @@ interface Props {
   readonly quality: QualityReport;
   readonly renderStatus: string;
   readonly missingParts: readonly string[];
+  readonly inventory: InventoryCheck;
   readonly onChooseRoot: (name: string) => void;
 }
 
-export function ModelSummary({ fileName, analysis, quality, renderStatus, missingParts, onChooseRoot }: Props) {
+export function ModelSummary({ fileName, analysis, quality, renderStatus, missingParts, inventory, onChooseRoot }: Props) {
   const { model, plan } = analysis;
   const meta = analysis.document.sections.find((s) => s.name === model.rootName)?.meta;
   const issues = analysis.diagnostics.filter((d) => d.severity !== 'info');
@@ -51,6 +53,9 @@ export function ModelSummary({ fileName, analysis, quality, renderStatus, missin
       {missingParts.length > 0 && (
         <p className="error small" data-testid="missing-parts">Pièces absentes de la bibliothèque locale : {missingParts.join(', ')}</p>
       )}
+      <p className={`small inventory-${inventory.verdict}`} data-testid="inventory-check" role={inventory.verdict === 'COHERENT' ? undefined : 'note'}>
+        {inventory.verdict === 'COHERENT' ? '✓ ' : '⚠ '}{inventory.message}
+      </p>
       <ul className="reasons small">{quality.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
       {(issues.length > 0 || infos.length > 0) && (
         <details className="small">

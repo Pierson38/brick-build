@@ -82,7 +82,7 @@ npm run perf                                                                    
 - **Navigation par niveaux** : en mode libre sur 31009 (45 niveaux), il faut de nombreux PageUp/PageDown. Une pose « sur la surface visée » serait plus naturelle (lot suivant).
 - **Validation par joueur scripté** : la construction est pilotée par Playwright avec de vrais événements souris/clavier. Elle ne remplace pas une séance de recette humaine sur Mac (Chrome et Safari), pas encore faite.
 
-## 7. Verdict
+## 7. Verdict (03/11/2026, avant levée des conditions)
 
 **GO sous conditions.**
 
@@ -94,3 +94,67 @@ Conditions avant de déclarer un **GO** sans réserve :
 3. **Ergonomie des niveaux** en mode libre (pose sur la surface visée) : correction limitée, mais nécessaire pour qu'un humain termine 31009 en mode libre sans fatigue.
 
 Hors conditions : les étapes LDraw **ne sont pas** celles de la notice (prouvé sur 31040 : 11 contre 21) ; l'application ne le prétend pas.
+
+
+---
+
+## 8. Levée des conditions (04/11/2026)
+
+### 8.1 Ergonomie : placement assisté par les surfaces
+
+**Principe** (`src/domain/build/surface.ts`). Le moteur et ses règles de validation (`tryPlace`) ne changent pas. Quand une pièce est tenue :
+1. **Fantôme compatible survolé** (emplacements affichés) : la pièce s'y cale en position. L'orientation reste vérifiée.
+2. **Surface pointée** (sol, ou dessus d'une pièce posée, par raycasting) : la pièce se pose **sur** cette surface, à l'endroit pointé. Sa hauteur vient de la **base réelle de sa géométrie** dans l'orientation courante, ajustée au niveau compatible le plus proche (±6 LDU, les sommets de tenons comptent).
+3. **Rien de valable sous le pointeur** (pièce en porte-à-faux, fixée de côté, posée avant son support) : cible compatible **traversée par le rayon**, à 10 LDU au plus et non cachée derrière une surface visible.
+4. Sinon, la pièce reste là où le pointeur la place, et le clic est refusé avec un message.
+
+L'aperçu ne se cale sur une cible que si le moteur accepterait la pose (« emplacement trouvé, clic pour poser »). Jamais vers une cible éloignée, jamais une cible déjà posée. **PageUp/PageDown** restent en secours (mode manuel, à partir du niveau par défaut) et **A** revient au mode automatique. Clic ou tap avec un léger glissement (≤ 4 px) : pose ; au-delà : rotation de caméra (souris et trackpad).
+
+**Mesure de navigation entre niveaux** (appuis PageUp/PageDown pour une construction complète au pointeur). L'ancien schéma est recalculé exactement par `scripts/level-baseline.ts` : il reproduit les mesures du 03/11, 1 194 et 48 en ordre inverse, 7 et 0 en guidé.
+
+| Scénario | Ancien schéma | Surfaces (E2E réel) | Poses par pointage seul | Rotations de caméra |
+|---|---|---|---|---|
+| 31040 guidé | 0 | **0** | 65/65 | 6 |
+| 31040 libre, ordre naturel | 11 | **0** | 65/65 | 6 |
+| 31040 libre, ordre inverse | 48 | **0** | 65/65 | 10 |
+| 31009 guidé | 7 | **2** | 269/270 | 21 |
+| 31009 libre, ordre naturel | 246 | **2** | 269/270 | 21 |
+| 31009 libre, ordre inverse (avec notice) | **1 194** | **0** | 270/270 | 4 |
+
+0 refus de pose dans les 6 constructions complètes (1 005 poses au pointeur). Tests ajoutés : 15 unitaires (`surface.test.ts`, dont 1 sur le verdict d’inventaire) et 6 E2E sur fixtures (`surface-placement.spec.ts`). Le test « deux niveaux » vérifie qu'**aucune touche** n'est pressée pendant toute la construction.
+
+**Honnêteté de la mesure** : le joueur scripté sait *où* pointer : les crochets de test lui donnent la position écran de la cible, comme des yeux. En revanche il ne pose rien lui-même : c'est la logique de surface de l'application qui choisit la hauteur et le clic réel qui pose. Cette mesure prouve que la mécanique fonctionne, **pas** qu'elle est agréable pour un humain. C'est l'objet de la recette humaine.
+
+**Performances après changement** (build de production, GPU Metal, M2 Pro, médiane de 3, `npm run perf`) :
+- 31040 : 1,16 s import → 1re image, 60/60 FPS, 28 Mo ;
+- 31009 : 1,16 s, 60/60 FPS, 40 Mo.
+
+Pas de régression par rapport au 03/11.
+
+### 8.2 Fidélité d'inventaire de 31009
+
+Analyse complète : [`P5_INVENTAIRE_31009.md`](P5_INVENTAIRE_31009.md). Bilan exact : 271 (boîte) − 5 éléments absents du fichier + 4 (décomposition de la minifig) = 270.
+- Divergences **prouvées** : 2 plaques 2×4 blanches et 2 tuiles 1×2 blanches.
+- Divergence **visuelle** : 1 élément gris foncé (4211087).
+
+Leur appartenance au modèle principal d'un set 3-en-1 n'est pas prouvable hors ligne. **Verdict : INDÉTERMINÉ.** L'application affiche un avertissement pour ce fichier exact. 31040 : **COHÉRENT**. Tout autre fichier : « inventaire non comparé à la notice officielle ».
+
+### 8.3 Recette humaine
+
+Protocole : [`RECETTE_HUMAINE_P5.md`](RECETTE_HUMAINE_P5.md) (Chrome et Safari, set 31040, guidé puis libre avec la notice, hauteurs, R/O, annuler, rechargement, console). **Non réalisée à ce jour : condition ouverte.**
+
+### 8.4 Problèmes résiduels
+
+- Les emplacements masqués exigent de tourner la caméra (jusqu'à 21 rotations sur 31009) ; aucune aide automatique de caméra.
+- Pour 1 pièce de 31009, ni la surface ni la visée ne suffisent : PageUp/PageDown restent nécessaires.
+- L'orientation (`O`) reste un choix au clavier parmi les orientations du modèle.
+- La performance du raycasting au survol n'a pas été chiffrée à part (les FPS sont mesurés au repos et en rotation de caméra).
+- Inventaire 31009 indéterminé (voir 8.2).
+- Étapes LDraw ≠ notice (31040 : 11 contre 21), inchangé.
+
+### 8.5 Nouveau verdict
+
+**GO sous conditions** : une seule condition reste ouverte.
+- ✅ Ergonomie des niveaux : corrigée et mesurée (1 194 → 0 ; 246 → 2), sans régression du moteur.
+- ✅ Inventaire de 31009 : écart localisé à la pièce près, verdict **indéterminé** documenté et **affiché** dans l'UI (traitement prévu quand l'écart n'est pas résoluble de façon fiable).
+- ⏳ **Recette humaine Chrome + Safari** : à faire par le propriétaire ; seule condition avant un GO sans réserve.

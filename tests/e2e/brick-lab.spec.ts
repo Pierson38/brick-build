@@ -16,10 +16,13 @@ async function sceneSummary(page: Page) {
   return page.evaluate(() => window.__brickLab!.sceneSummary());
 }
 
-/** Real pointer drop: hover the LDraw point on the drop plane and click. */
+/**
+ * Real pointer drop for a 3001 brick whose origin would be `ldraw`: point at the surface it rests
+ * on (24 LDU lower, the top of the brick below or the ground) and click.
+ */
 async function dropAt(page: Page, ldraw: [number, number, number]) {
   await page.waitForTimeout(150); // let the canvas settle after layout changes
-  const p = await page.evaluate((pt) => window.__brickLab!.project(pt), ldraw);
+  const p = await page.evaluate((pt) => window.__brickLab!.project(pt), [ldraw[0], ldraw[1] + 24, ldraw[2]] as [number, number, number]);
   await page.mouse.move(p.x, p.y, { steps: 4 });
   await page.mouse.click(p.x, p.y);
 }
@@ -36,6 +39,7 @@ test('mini-4-pieces: import, real LDraw render, guided build with pointer drops,
   await expect(page.getByTestId('step-count')).toContainText('2');
   await expect(page.getByTestId('quality')).toHaveText('Jouable avec étapes 3D');
   await expect(page.getByTestId('render-status')).toContainText('0 référence(s) manquante(s)');
+  await expect(page.getByTestId('inventory-check')).toContainText('non comparé à la notice officielle');
   const preview = await sceneSummary(page);
   expect(preview.solid).toBe(4);
   expect(preview.meshes).toBeGreaterThanOrEqual(4);
@@ -62,7 +66,8 @@ test('mini-4-pieces: import, real LDraw render, guided build with pointer drops,
 
   // upper layer
   await page.getByTestId('tray-3001.dat-2').click();
-  await expect(page.getByTestId('held-info')).toContainText('Niveau 2/2');
+  // no PageUp/PageDown: the height comes from the brick below the pointer
+  await expect(page.getByTestId('held-info')).toContainText('Niveau auto (surface)');
   await dropAt(page, [0, -24, 0]);
   await expect(page.getByTestId('progress')).toHaveText('3/4 pièces posées');
   await page.getByTestId('tray-3001.dat-14').click();

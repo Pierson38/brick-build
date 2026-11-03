@@ -12,6 +12,8 @@ Le dépôt contient deux familles de documents :
 - [Écarts par rapport au manifeste de spécification](ECARTS_SPECIFICATION.md)
 - [Preuves du lot P0/P1](preuves/lot-p0-p1/)
 - [Validation P5 sur sets OMR réels](P5_VALIDATION_OMR.md)
+- [Inventaire 31009 contre notice officielle](P5_INVENTAIRE_31009.md)
+- [Recette humaine P5 (à faire par le propriétaire)](RECETTE_HUMAINE_P5.md)
 
 ## Démarrage développeur
 
@@ -38,6 +40,7 @@ Les modèles OMR et les notices restent hors dépôt, dans `~/Documents/brick-la
 npm run compat-report -- ~/Documents/brick-lab-data/models/31040-1/31040-1.mpd
 npx playwright test tests/e2e/omr-validation.spec.ts   # GPU, joueur scripté pointeur/clavier
 npm run perf                                           # build de production, 3 passages, médiane
+npx tsx scripts/level-baseline.ts <model.mpd>          # appuis PageUp/PageDown de l'ancien schéma (référence)
 ```
 
 Ajouter une dépendance npm : `rm -rf node_modules package-lock.json && npm i`, puis vérifier que `node_modules/@rolldown/binding-*` existe (bug npm des dépendances optionnelles).
