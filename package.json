@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:ldraw": "node scripts/check-ldraw-library.mjs",
-    "recette": "npm run typecheck && npm test && npm run test:e2e"
+    "recette": "npm run check:spec && npm run typecheck && npm test && npm run test:e2e",
+    "check:spec": "node scripts/check-spec-manifest.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

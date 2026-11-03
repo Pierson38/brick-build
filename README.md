@@ -54,19 +54,3 @@
 Un utilisateur ouvre `http://localhost:3000`, importe le modèle de test + la bibliothèque locale de pièces LDraw, voit une scène 3D correcte, progresse sur des étapes définies, peut placer plusieurs pièces avec snap, voit les pièces déjà posées, et reprend après rechargement. Il peut également importer **son** PDF et naviguer dans les pages, indépendamment des étapes 3D.
 
 La prise en charge d'un **vrai modèle OMR** constitue un second test de validation, jamais un prérequis caché du premier scénario synthétique.
-
-## Démarrage développeur (lot P0/P1)
-
-Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm.
-
-1. Bibliothèque de pièces LDraw (une fois, hors dépôt) : télécharger `complete.zip` depuis https://library.ldraw.org/library/updates/complete.zip, le décompresser par exemple dans `~/Documents/brick-lab-data/` (dossier `ldraw/`), puis créer `.env.local` à la racine du projet :
-   ```
-   LDRAW_LIBRARY_DIR=/Users/<toi>/Documents/brick-lab-data/ldraw
-   ```
-   Licence : CC BY 4.0, voir `CAreadme.txt` dans la bibliothèque. Ne jamais la commiter.
-2. `npm ci` puis `npx playwright install chromium`.
-3. `npm run check:ldraw` vérifie la bibliothèque.
-4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée).
-5. Recette : `npm run recette` (typecheck + Vitest + Playwright).
-
-Note technique du spike et limites : `docs/10_SPIKE_ET_LOT_P0_P1.md`.
