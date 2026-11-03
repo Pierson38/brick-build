@@ -1,0 +1,15 @@
+node_modules/
+.next/
+dist/
+coverage/
+test-results/
+playwright-report/
+.env*
+# Fichiers utilisateurs tiers à ne jamais intégrer à Git
+local-models/
+local-instructions/
+local-ldraw-library/
+*.downloaded.mpd
+*.downloaded.ldr
+*.downloaded.pdf
+.DS_Store

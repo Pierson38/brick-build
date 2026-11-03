@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "date": "2026-11-03",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 252,
+      "sha256": "c0ffa7342a5978c60c81f8e0822d3cf4fd2583dd9bbbd55884378e438c6d2b27"
+    },
+    {
+      "path": "CLAUDE.md",
+      "bytes": 3869,
+      "sha256": "e218ab57a655fde93b57f98b9264ed1298e464968f1d079836214441e161c0af"
+    },
+    {
+      "path": "PROMPT_CLAUDE_CODE.md",
+      "bytes": 5025,
+      "sha256": "99656b9d7759cee1a443fd3527a2f7c85da6bb37cba02961d754310e79099c94"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4182,
+      "sha256": "bd441a932dcdf1278161f99ad39efd3b0e670a17a5452f654a0908f11ed5ee13"
+    },
+    {
+      "path": "docs/01_PRODUIT_ET_PERIMETRE.md",
+      "bytes": 4889,
+      "sha256": "0a3b327e2657b4c0627766b02ce0438b50e22fba15a397e22e3d6f24eb268777"
+    },
+    {
+      "path": "docs/02_ARCHITECTURE.md",
+      "bytes": 4206,
+      "sha256": "bae6a30dcab0f6a423f60f8a29e1548c8b20179a4adadbc9b7857a66b6a6bea8"
+    },
+    {
+      "path": "docs/03_LDRAW_ET_ETAPES.md",
+      "bytes": 4856,
+      "sha256": "fecff2887cc78cea907622052bef39318ee57581c49962f59b19c0070f01631a"
+    },
+    {
+      "path": "docs/04_UX_ET_PARCOURS.md",
+      "bytes": 5177,
+      "sha256": "537fccf512ee04e3cce19e98c9e1fbd4c917a2a17131919e2ddfcaeb938a8d04"
+    },
+    {
+      "path": "docs/05_PLAN_DE_REALISATION.md",
+      "bytes": 3086,
+      "sha256": "1555dc369c149dac47dca2ce8897fe8456aac1242e6d84a0a3507f622a520f87"
+    },
+    {
+      "path": "docs/06_TESTS_ET_ACCEPTATION.md",
+      "bytes": 3631,
+      "sha256": "31049d202048ecf515d02aebe1ece461d175c904a593f7aeeae26b347d1c73d2"
+    },
+    {
+      "path": "docs/07_DROITS_ET_SOURCES.md",
+      "bytes": 3133,
+      "sha256": "64241377984f54dc1016553a27bfeb729e02040120a1713abf36b1229320632c"
+    },
+    {
+      "path": "docs/08_SCHEMA_DONNEES.md",
+      "bytes": 3405,
+      "sha256": "f38907af7ddc5d7f225f71603d94212f2e6789b1f977a22a672b381176a53f1c"
+    },
+    {
+      "path": "docs/09_DECISIONS_ET_RISQUES.md",
+      "bytes": 2967,
+      "sha256": "eb0816e81272b8ca29d5502dff1cf35b0a6ec1764d73915926a4e1b239f6e68f"
+    },
+    {
+      "path": "fixtures/README.md",
+      "bytes": 948,
+      "sha256": "c769e35bf0168bae23cb94280816395c09397bad4877559cd8a136d2b805b77c"
+    },
+    {
+      "path": "fixtures/mini-4-pieces.mpd",
+      "bytes": 335,
+      "sha256": "fe918493599e477122f0af074ff7a8c55b56c424a066fc640b3aac881b680379"
+    },
+    {
+      "path": "fixtures/nested-submodel.mpd",
+      "bytes": 513,
+      "sha256": "c5923b57a5096dd4aebdd9937ff9d8c5fa70f635aa8f881fba3900a874233c96"
+    },
+    {
+      "path": "fixtures/no-steps.ldr",
+      "bytes": 199,
+      "sha256": "a685d8c4bb8a213a13cc2b3f91382a14a5ac9d3f621132d7a7823670c2465d2a"
+    }
+  ]
+}
