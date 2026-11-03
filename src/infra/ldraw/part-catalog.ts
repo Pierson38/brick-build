@@ -1,8 +1,21 @@
-import { Color, type Group, type Material, type Mesh, MeshBasicMaterial, type Object3D } from 'three';
+import { type BufferGeometry, Color, type Group, type Material, type Mesh, MeshBasicMaterial, type Object3D, Vector3 } from 'three';
 import { LDrawLoader } from 'three/examples/jsm/loaders/LDrawLoader.js';
 import { LDrawConditionalLineMaterial } from 'three/examples/jsm/materials/LDrawConditionalLineMaterial.js';
 import { trayKey } from '@/domain/build/engine';
+import { yQuarterTurnSymmetries } from '@/domain/ldraw/symmetry';
 import type { BrickOccurrence } from '@/domain/ldraw/types';
+
+export interface EmbeddedPart {
+  readonly name: string;
+  /** Section text, starting with its `0 FILE` line. */
+  readonly text: string;
+}
+
+/** Name under which LDrawLoader will look an embedded file up (it rewrites `s/` and `48/`). */
+function loaderName(name: string): string {
+  const n = name.trim().replace(/\\/g, '/');
+  return n.startsWith('s/') ? `parts/${n}` : n.startsWith('48/') ? `p/${n}` : n;
+}
 
 /**
  * Geometry for (part, colour) pairs, loaded with Three's LDrawLoader ONE PART AT A TIME.
@@ -28,11 +41,13 @@ export class PartCatalog {
   }
 
   /** Template group for one part in one colour. Never add it to a scene: clone it. */
-  template(partRef: string, colorCode: string): Promise<Group> {
+  template(partRef: string, colorCode: string, embedded: readonly EmbeddedPart[] = []): Promise<Group> {
     const key = trayKey(partRef.toLowerCase(), colorCode);
     let promise = this.templates.get(key);
     if (!promise) {
-      const text = `0 FILE __brick_lab_single.ldr\n1 ${colorCode} 0 0 0 1 0 0 0 1 0 0 0 1 ${partRef}\n`;
+      // Part definitions embedded in the MPD (unofficial parts) travel with the request.
+      const extra = embedded.map((p) => p.text.replace(/^0\s+FILE\s+.*$/m, `0 FILE ${loaderName(p.name)}`)).join('\n');
+      const text = `0 FILE __brick_lab_single.ldr\n1 ${colorCode} 0 0 0 1 0 0 0 1 0 0 0 1 ${partRef}\n${extra}\n`;
       promise = this.init().then(() => new Promise<Group>((resolve, reject) => this.loader.parse(text, resolve, reject)));
       this.templates.set(key, promise);
     }
@@ -55,9 +70,32 @@ export interface GeometryLoadResult {
   readonly missingParts: ReadonlySet<string>;
   readonly errors: readonly string[];
   readonly durationMs: number;
+  /** Y quarter-turn symmetries per part key, measured on the loaded geometry. */
+  readonly symmetries: ReadonlyMap<string, readonly number[]>;
 }
 
-export async function loadModelGeometry(catalog: PartCatalog, occurrences: readonly BrickOccurrence[]): Promise<GeometryLoadResult> {
+/** Vertices of a template in part-local LDraw coordinates (faces only, edges ignored). */
+export function templateVertices(template: Group): number[] {
+  template.updateMatrixWorld(true);
+  const out: number[] = [];
+  const v = new Vector3();
+  template.traverse((child) => {
+    const mesh = child as Mesh;
+    if (!mesh.isMesh) return;
+    const position = (mesh.geometry as BufferGeometry).getAttribute('position');
+    for (let i = 0; i < position.count; i++) {
+      v.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+      out.push(v.x, v.y, v.z);
+    }
+  });
+  return out;
+}
+
+export async function loadModelGeometry(
+  catalog: PartCatalog,
+  occurrences: readonly BrickOccurrence[],
+  embedded: readonly EmbeddedPart[] = [],
+): Promise<GeometryLoadResult> {
   const start = performance.now();
   await catalog.init();
   const pairs = new Map<string, BrickOccurrence>();
@@ -67,13 +105,18 @@ export async function loadModelGeometry(catalog: PartCatalog, occurrences: reado
   const errors: string[] = [];
   await Promise.all([...pairs.entries()].map(async ([key, o]) => {
     try {
-      templates.set(key, await catalog.template(o.partRef, o.colorCode));
+      templates.set(key, await catalog.template(o.partRef, o.colorCode, embedded));
     } catch (error) {
       missingParts.add(o.partKey);
       errors.push(`${o.partRef} (couleur ${o.colorCode}) : ${error instanceof Error ? error.message : String(error)}`);
     }
   }));
-  return { templates, missingParts, errors, durationMs: performance.now() - start };
+  const symmetries = new Map<string, readonly number[]>();
+  for (const [key, template] of templates) {
+    const partKey = key.slice(0, key.lastIndexOf('|'));
+    if (!symmetries.has(partKey)) symmetries.set(partKey, yQuarterTurnSymmetries(templateVertices(template)));
+  }
+  return { templates, missingParts, errors, durationMs: performance.now() - start, symmetries };
 }
 
 const ghostMaterial = new MeshBasicMaterial({ color: '#3b82f6', transparent: true, opacity: 0.28, depthWrite: false });

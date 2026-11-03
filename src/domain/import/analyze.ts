@@ -13,6 +13,8 @@ export interface ModelAnalysis {
   readonly diagnostics: readonly Diagnostic[];
   readonly uniqueParts: readonly string[];
   readonly colours: readonly string[];
+  /** Raw text (with its `0 FILE` line) of every part definition embedded in the MPD. */
+  readonly embeddedParts: readonly { readonly name: string; readonly text: string }[];
 }
 
 export function analyzeModel(
@@ -24,9 +26,14 @@ export function analyzeModel(
   const document = parseLDraw(text, fileName, limits);
   const model = expandModel(document, { limits, ...(options.rootName ? { rootName: options.rootName } : {}) });
   const plan = buildStepPlan(document, model);
+  const lines = text.split(/\r\n|\r|\n/);
+  const embeddedParts = document.sections
+    .filter((s) => s.isPartDefinition)
+    .map((s) => ({ name: s.name, text: lines.slice(s.firstLine - 1, s.lastLine).join('\n') }));
   return {
     document,
     model,
+    embeddedParts,
     plan,
     rootCandidates: rootCandidates(document),
     diagnostics: [...document.diagnostics, ...model.diagnostics],

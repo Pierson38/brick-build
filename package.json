@@ -15,7 +15,9 @@
     "test:e2e": "playwright test",
     "check:ldraw": "node scripts/check-ldraw-library.mjs",
     "recette": "npm run check:spec && npm run typecheck && npm test && npm run test:e2e",
-    "check:spec": "node scripts/check-spec-manifest.mjs"
+    "check:spec": "node scripts/check-spec-manifest.mjs",
+    "perf": "playwright test -c playwright.perf.config.ts",
+    "compat-report": "tsx scripts/compat-report.ts"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
@@ -32,6 +34,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.187.0",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.1.0"
   }

@@ -28,7 +28,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .home { padding: 48px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; max-width: 640px; }
 .home h1 { margin: 0; }
 .recent ul { padding-left: 18px; }
-.toast { position: absolute; left: 16px; bottom: 16px; max-width: 70%; padding: 8px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.toast { pointer-events: none; position: absolute; left: 16px; bottom: 16px; max-width: 70%; padding: 8px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .toast.ok { border-color: #86efac; color: var(--ok); }
 .toast.error { border-color: #fca5a5; color: var(--err); }
 .side { border-left: 1px solid var(--border); background: var(--panel); overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -45,7 +45,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .q-INVALID { background: #fee2e2; color: var(--err); }
 .reasons { padding-left: 18px; }
 .actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.tray { border-top: 1px solid var(--border); background: var(--panel); padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+/* fixed height: a resizing tray resized the canvas and desynchronised pointer picking (P5) */
+.tray { height: 140px; overflow-y: auto; border-top: 1px solid var(--border); background: var(--panel); padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
 .tray-items { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .tray-item.held { outline: 2px solid var(--accent); }
 .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }

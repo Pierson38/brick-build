@@ -4,8 +4,16 @@
     {
       "path": ".gitignore",
       "manifestSha256": "c0ffa7342a5978c60c81f8e0822d3cf4fd2583dd9bbbd55884378e438c6d2b27",
+      "currentSha256": "1a0925de5ab35bd59e62a2350f8d85ad1d4274d00b83d8b321ed9db4c93c4487",
       "reason": "Ajout de next-env.d.ts et *.tsbuildinfo (fichiers générés par Next.js/TypeScript). Aucune règle d'exclusion existante retirée.",
-      "introducedIn": "f78d6b8"
+      "introducedIn": "f78d6b8 (rebasé en 738db13 sur main)"
+    },
+    {
+      "path": "CLAUDE.md",
+      "manifestSha256": "e218ab57a655fde93b57f98b9264ed1298e464968f1d079836214441e161c0af",
+      "currentSha256": "c4be3ac7040cb6af8145db6628a3876b7609e804af1a287e87e86c93a78ad8a3",
+      "reason": "Règle « Journal docs/09 mis à jour » remplacée par docs/implementation/JOURNAL_DECISIONS.md, docs/09 restant la spec v1.0 figée (décision du propriétaire, 03/11/2026).",
+      "introducedIn": "lot P5"
     }
   ]
 }
