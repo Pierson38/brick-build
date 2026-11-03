@@ -57,7 +57,7 @@ export function expandModel(
       const steps = [...stepPath, ref.stepIndex];
       const sub = sections.get(ref.fileKey);
 
-      if (sub) {
+      if (sub && !sub.isPartDefinition) {
         reachable.add(sub.key);
         if (stack.includes(sub.key)) {
           diagnostics.push({ code: 'CYCLE', severity: 'error', section: section.name, line: ref.line, message: `Référence circulaire : ${[...stack, sub.key].join(' → ')}. Branche ignorée.` });
@@ -78,7 +78,8 @@ export function expandModel(
         continue;
       }
 
-      if (SUBMODEL_EXTENSIONS.test(ref.fileName)) {
+      if (sub) reachable.add(sub.key);
+      if (!sub && SUBMODEL_EXTENSIONS.test(ref.fileName)) {
         if (!reportedMissing.has(ref.fileKey)) {
           diagnostics.push({ code: 'MISSING_SUBMODEL', severity: 'error', section: section.name, line: ref.line, message: `Sous-modèle « ${ref.fileName} » absent du fichier : ses pièces sont ignorées.` });
           reportedMissing.add(ref.fileKey);
@@ -108,7 +109,7 @@ export function expandModel(
 
   visit(root, IDENTITY, MAIN_COLOUR, '', [], [], [root.key]);
 
-  const unreferenced = doc.sections.filter((s) => !reachable.has(s.key) && s.refs.length > 0);
+  const unreferenced = doc.sections.filter((s) => !reachable.has(s.key) && s.refs.length > 0 && !s.isPartDefinition);
   if (unreferenced.length > 0) {
     diagnostics.push({
       code: 'ALTERNATIVE_ROOT_CANDIDATE',
@@ -124,5 +125,5 @@ export function expandModel(
 
 /** Sections that could be chosen as main model (non-empty), in file order. */
 export function rootCandidates(doc: LDrawDocument): string[] {
-  return doc.sections.filter((s) => s.refs.length > 0).map((s) => s.name);
+  return doc.sections.filter((s) => s.refs.length > 0 && !s.isPartDefinition).map((s) => s.name);
 }

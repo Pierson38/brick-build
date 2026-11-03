@@ -68,6 +68,8 @@ export interface SectionReference {
 
 export interface SectionMeta {
   readonly title?: string;
+  /** Value of `0 !LDRAW_ORG` (e.g. `Model`, `Unofficial_Part`). */
+  readonly ldrawOrg?: string;
   readonly name?: string;
   readonly author?: string;
   readonly license?: string;
@@ -77,10 +79,19 @@ export interface LDrawSection {
   readonly name: string;
   readonly key: string;
   readonly firstLine: number;
+  /** Last line (1-based) belonging to the section. */
+  readonly lastLine: number;
   readonly refs: readonly SectionReference[];
   /** True when at least one `0 STEP` / `0 ROTSTEP` was seen in the section. */
   readonly hasStepMarkers: boolean;
   readonly meta: SectionMeta;
+  /** Number of geometry lines (types 2–5). */
+  readonly directGeometryLines: number;
+  /**
+   * True for a part definition embedded in an MPD (e.g. an unofficial part): it is a
+   * single brick, never expanded as a submodel.
+   */
+  readonly isPartDefinition: boolean;
 }
 
 export interface LDrawDocument {

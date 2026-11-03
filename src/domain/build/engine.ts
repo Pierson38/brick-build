@@ -1,4 +1,5 @@
-import { distance, rotationAngleDeg } from '../ldraw/matrix';
+import { distance, IDENTITY, multiply, rotationAngleDeg, rotationY, withTranslation } from '../ldraw/matrix';
+import { equivalentTargets } from '../ldraw/symmetry';
 import type { BrickOccurrence, Matrix4Tuple } from '../ldraw/types';
 import type { StepPlan } from './build-plan';
 
@@ -15,6 +16,13 @@ export interface SnapTolerances {
   readonly ambiguityLdu: number;
 }
 
+/**
+ * Grid used to move the held brick, in LDU. 5 LDU (a quarter stud): measured on 5 real
+ * OMR sets, targets lie at most 3.4 LDU from this grid, vs 6.8 LDU (often on a cell
+ * boundary) with a 10 LDU grid.
+ */
+export const MOVE_GRID_LDU = 5;
+
 export const DEFAULT_TOLERANCES: SnapTolerances = { maxDistanceLdu: 10, maxAngleDeg: 10, ambiguityLdu: 1 };
 
 export interface BuildSession {
@@ -26,6 +34,11 @@ export interface BuildSession {
 export interface BuildContext {
   readonly occurrences: readonly BrickOccurrence[];
   readonly plan: StepPlan;
+  /**
+   * Y quarter-turn symmetries per part key, measured on the real geometry
+   * (see ldraw/symmetry.ts). Missing entry = no symmetry assumed.
+   */
+  readonly symmetries?: ReadonlyMap<string, readonly number[]>;
 }
 
 export interface TrayItem {
@@ -114,8 +127,13 @@ export function tryPlace(
   const compatible = candidates(ctx, session).filter((o) => o.partKey === held.partKey && o.colorCode === held.colorCode);
   if (compatible.length === 0) return { ok: false, reason: 'NO_COMPATIBLE_TARGET' };
 
+  const symmetries = ctx.symmetries?.get(held.partKey) ?? [0];
   const scored = compatible
-    .map((o) => ({ o, d: distance(pose, o.targetMatrix), a: rotationAngleDeg(pose, o.targetMatrix) }))
+    .map((o) => ({
+      o,
+      d: distance(pose, o.targetMatrix),
+      a: Math.min(...equivalentTargets(o.targetMatrix, symmetries).map((t) => rotationAngleDeg(pose, t))),
+    }))
     .sort((x, y) => x.d - y.d);
   const valid = scored.filter((s) => s.d <= tolerances.maxDistanceLdu && s.a <= tolerances.maxAngleDeg);
   const best = valid[0];
@@ -129,6 +147,33 @@ export function tryPlace(
     return { ok: false, reason: 'AMBIGUOUS', candidates: [best.o.occurrenceId, ...rivals.map((r) => r.o.occurrenceId)] };
   }
   return { ok: true, occurrenceId: best.o.occurrenceId, session: { ...session, placed: [...session.placed, best.o.occurrenceId] } };
+}
+
+/**
+ * Distinct target orientations of a part+colour in the model, without translation.
+ * Two orientations are the same choice when they differ only by a world Y quarter turn
+ * (the R key) or by a symmetry of the part. The pointer pose is `rotationY(q) * choice`.
+ * Upright orientations come first.
+ */
+export function orientationChoices(ctx: BuildContext, partKey: string, colorCode: string): Matrix4Tuple[] {
+  const symmetries = ctx.symmetries?.get(partKey) ?? [0];
+  const choices: Matrix4Tuple[] = [];
+  const same = (a: Matrix4Tuple, b: Matrix4Tuple) =>
+    [0, 1, 2, 3].some((q) => equivalentTargets(multiply(rotationY(q), b), symmetries).some((t) => rotationAngleDeg(a, t) < 1));
+  for (const o of ctx.occurrences) {
+    if (o.partKey !== partKey || o.colorCode !== colorCode || !o.rigid) continue;
+    const r = withTranslation(o.targetMatrix, [0, 0, 0]);
+    if (!choices.some((c) => same(r, c))) choices.push(r);
+  }
+  const upright = choices.findIndex((c) => same(IDENTITY, c));
+  if (upright > 0) choices.unshift(...choices.splice(upright, 1));
+  if (upright < 0) choices.unshift(IDENTITY);
+  return choices;
+}
+
+/** Pose of the held brick: orientation choice, then `quarterTurns` × 90° around world Y, at `position`. */
+export function heldPose(orientation: Matrix4Tuple, quarterTurns: number, position: readonly [number, number, number]): Matrix4Tuple {
+  return withTranslation(multiply(rotationY(quarterTurns), orientation), position);
 }
 
 /** Accessibility / debug path: place one specific candidate at its exact target. */

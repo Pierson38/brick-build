@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, placeExact,
+  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, orientationChoices, placeExact,
   resetActiveStep, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
 } from '@/domain/build/engine';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
@@ -16,6 +16,18 @@ import { PdfPanel } from './pdf/PdfPanel';
 import { BuildCanvas, type HeldBrick } from './three/BuildCanvas';
 
 const MAX_MODEL_BYTES = 8 * 1024 * 1024;
+
+declare global {
+  interface Window {
+    __brickLabGame?: {
+      candidates: () => { id: string; partKey: string; colorCode: string; matrix: number[] }[];
+      held: () => (Omit<HeldBrick, 'orientation'> & { orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number; previewXZ: number[] | null }) | null;
+      layers: () => number[];
+      symmetries: (partKey: string) => number[];
+    };
+    __brickLabLastDrop?: { pose: number[]; layerY: number; ok: boolean };
+  }
+}
 
 interface LoadedModel {
   readonly fileName: string;
@@ -46,6 +58,7 @@ export default function BrickLabApp() {
   const [session, setSession] = useState<BuildSession | null>(null);
   const [held, setHeld] = useState<HeldBrick | null>(null);
   const [heldXZ, setHeldXZ] = useState<readonly [number, number] | null>(null);
+  const [orientationIdx, setOrientationIdx] = useState(0);
   const [message, setMessage] = useState<Message>(null);
   const [showTargets, setShowTargets] = useState(false);
   const [tab, setTab] = useState<'model' | 'pdf'>('model');
@@ -58,7 +71,9 @@ export default function BrickLabApp() {
   useEffect(() => setRecent(listRecentSessions()), [loaded]);
 
   const ctx: BuildContext | null = useMemo(
-    () => (loaded ? { occurrences: loaded.analysis.model.occurrences, plan: loaded.analysis.plan } : null),
+    () => (loaded
+      ? { occurrences: loaded.analysis.model.occurrences, plan: loaded.analysis.plan, ...(loaded.geometry ? { symmetries: loaded.geometry.symmetries } : {}) }
+      : null),
     [loaded],
   );
 
@@ -69,7 +84,7 @@ export default function BrickLabApp() {
     let geometry: GeometryLoadResult | null = null;
     if (!libraryProblem && analysis.model.occurrences.length > 0) {
       setBusy('Chargement des géométries LDraw locales…');
-      geometry = await loadModelGeometry(catalog, analysis.model.occurrences);
+      geometry = await loadModelGeometry(catalog, analysis.model.occurrences, analysis.embeddedParts);
       setColoursReady(true);
     }
     const quality = classifyImport(analysis, geometry ? geometry.missingParts : null);
@@ -121,8 +136,10 @@ export default function BrickLabApp() {
     if (!ctx || !session) return;
     const compatible = candidates(ctx, session).filter((o) => trayKey(o.partKey, o.colorCode) === item.key);
     const lowest = Math.max(...compatible.map((o) => Math.round(o.targetMatrix[13])));
-    setHeld({ partKey: item.partKey, colorCode: item.colorCode, quarterTurns: 0, layerY: Number.isFinite(lowest) ? lowest : layers[0] ?? 0 });
-    setMessage({ kind: 'info', text: 'Déplace la pièce et clique pour la poser. R : tourner · PageUp/PageDown : niveau · Échap : lâcher.' });
+    const orientation = orientationChoices(ctx, item.partKey, item.colorCode)[0]!;
+    setOrientationIdx(0);
+    setHeld({ partKey: item.partKey, colorCode: item.colorCode, quarterTurns: 0, layerY: Number.isFinite(lowest) ? lowest : layers[0] ?? 0, orientation });
+    setMessage({ kind: 'info', text: 'Déplace la pièce et clique pour la poser. R : tourner · O : orientation · PageUp/PageDown : niveau · Échap : lâcher.' });
   };
 
   const applyPlacement = (next: BuildSession, occurrenceId: string) => {
@@ -138,6 +155,7 @@ export default function BrickLabApp() {
   const drop = (pose: Matrix4Tuple) => {
     if (!ctx || !session || !held) return;
     const r = tryPlace(ctx, session, held, pose);
+    if (process.env.NODE_ENV !== 'production') window.__brickLabLastDrop = { pose: [...pose], layerY: held.layerY, ok: r.ok };
     if (r.ok) applyPlacement(r.session, r.occurrenceId);
     else setMessage({ kind: 'error', text: describeFailure(r) });
   };
@@ -152,6 +170,18 @@ export default function BrickLabApp() {
     if (r.ok) applyPlacement(r.session, r.occurrenceId);
   };
 
+  const heldOrientations = useMemo(
+    () => (held && ctx ? orientationChoices(ctx, held.partKey, held.colorCode) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ctx, held?.partKey, held?.colorCode],
+  );
+  const nextOrientation = useCallback(() => {
+    if (!held || heldOrientations.length === 0) return;
+    const next = (orientationIdx + 1) % heldOrientations.length;
+    setOrientationIdx(next);
+    setHeld({ ...held, orientation: heldOrientations[next]! });
+  }, [held, heldOrientations, orientationIdx]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
@@ -162,6 +192,7 @@ export default function BrickLabApp() {
       }
       if (!held) return;
       if (e.key === 'r' || e.key === 'R') setHeld({ ...held, quarterTurns: held.quarterTurns + (e.shiftKey ? 3 : 1) });
+      else if (e.key === 'o' || e.key === 'O') nextOrientation();
       else if (e.key === 'Escape') setHeld(null);
       else if (e.key === 'PageUp' || e.key === 'PageDown') {
         e.preventDefault();
@@ -172,7 +203,21 @@ export default function BrickLabApp() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [held, layers, session]);
+  }, [held, layers, session, nextOrientation]);
+
+  // Dev/test only: read-only view of the game state for the E2E "scripted player".
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    window.__brickLabGame = {
+      candidates: () => (ctx && session ? candidates(ctx, session).map((o) => ({ id: o.occurrenceId, partKey: o.partKey, colorCode: o.colorCode, matrix: [...o.targetMatrix] })) : []),
+      held: () => (held ? { ...held, orientation: [...held.orientation], orientationIndex: orientationIdx, orientationCount: heldOrientations.length, layerIndex: layers.indexOf(held.layerY), previewXZ: heldXZ ? [...heldXZ] : null } : null),
+      layers: () => [...layers],
+      symmetries: (partKey: string) => [...(ctx?.symmetries?.get(partKey) ?? [0])],
+    };
+    return () => {
+      delete window.__brickLabGame;
+    };
+  }, [ctx, session, held, heldXZ, orientationIdx, heldOrientations, layers]);
 
   const onPdfPage = useCallback((p: number) => setPdfPage(p), []);
 
@@ -301,7 +346,8 @@ export default function BrickLabApp() {
             <PartsTray items={tray(ctx, session)} heldKey={held ? trayKey(held.partKey, held.colorCode) : null} colourOf={(c) => catalog.colourHex(c)} onPick={pick} />
           )}
           <div className="tray-actions">
-            {held && <span className="small muted" data-testid="held-info">Niveau {layers.indexOf(held.layerY) + 1}/{layers.length} · rotation {((held.quarterTurns % 4) + 4) % 4 * 90}°</span>}
+            {held && <span className="small muted" data-testid="held-info">Niveau {layers.indexOf(held.layerY) + 1}/{layers.length} · rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}</span>}
+            {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}>Orientation suivante (O)</button>}
             <button type="button" onClick={() => setSession(undo(session))} disabled={session.placed.length === 0}>Annuler</button>
             {session.mode === 'guided' && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
             <label className="small"><input type="checkbox" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} /> Montrer les emplacements</label>

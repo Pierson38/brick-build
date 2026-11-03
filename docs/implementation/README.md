@@ -11,6 +11,7 @@ Le dépôt contient deux familles de documents :
 - [Journal des décisions d'implémentation](JOURNAL_DECISIONS.md) (prolonge `docs/09`)
 - [Écarts par rapport au manifeste de spécification](ECARTS_SPECIFICATION.md)
 - [Preuves du lot P0/P1](preuves/lot-p0-p1/)
+- [Validation P5 sur sets OMR réels](P5_VALIDATION_OMR.md)
 
 ## Démarrage développeur
 
@@ -27,3 +28,16 @@ Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm.
 5. Recette : `npm run recette` (typecheck + Vitest + Playwright).
 
 Note technique du spike et limites : [10_SPIKE_ET_LOT_P0_P1.md](10_SPIKE_ET_LOT_P0_P1.md).
+
+## Validation sur sets réels (P5)
+
+Les modèles OMR et les notices restent hors dépôt, dans `~/Documents/brick-lab-data/` (ou `$BRICK_LAB_DATA`) :
+`models/<set>/<set>.mpd`, `instructions/<set>/<set>_notice_<id>.pdf`. Sans eux, la spec `omr-validation` est ignorée (skip).
+
+```bash
+npm run compat-report -- ~/Documents/brick-lab-data/models/31040-1/31040-1.mpd
+npx playwright test tests/e2e/omr-validation.spec.ts   # GPU, joueur scripté pointeur/clavier
+npm run perf                                           # build de production, 3 passages, médiane
+```
+
+Ajouter une dépendance npm : `rm -rf node_modules package-lock.json && npm i`, puis vérifier que `node_modules/@rolldown/binding-*` existe (bug npm des dépendances optionnelles).

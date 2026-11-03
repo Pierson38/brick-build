@@ -38,4 +38,4 @@ Tu es Claude Code, agissant comme ingénieur logiciel senior responsable de la f
 - Scénario de recette décrit et réussi, avec sorties des tests.
 - Les écarts de compatibilité sont visibles dans l'UI et documentés.
 - Rien de signalé comme « fonctionnel » sans preuve d'exécution ou test.
-- Journal `docs/09_DECISIONS_ET_RISQUES.md` mis à jour si une hypothèse change.
+- Journal `docs/implementation/JOURNAL_DECISIONS.md` mis à jour si une hypothèse change (`docs/09_DECISIONS_ET_RISQUES.md` reste la spécification v1.0, figée et tracée par `DOSSIER_MANIFEST.json`).

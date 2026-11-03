@@ -4,8 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { DoubleSide, type Group, Matrix4, type Object3D, Vector3 } from 'three';
-import { trayKey } from '@/domain/build/engine';
-import { rotationY, withTranslation } from '@/domain/ldraw/matrix';
+import { heldPose as enginePose, MOVE_GRID_LDU, trayKey } from '@/domain/build/engine';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate } from '@/infra/ldraw/part-catalog';
 
@@ -14,6 +13,8 @@ export interface HeldBrick {
   readonly colorCode: string;
   readonly quarterTurns: number;
   readonly layerY: number;
+  /** Orientation chosen among the model's target orientations (see orientationChoices). */
+  readonly orientation: Matrix4Tuple;
 }
 
 interface Props {
@@ -28,11 +29,9 @@ interface Props {
   readonly recenterToken: number;
 }
 
-/** Grid used to move the held brick, in LDU (half a stud). */
-export const MOVE_GRID_LDU = 10;
 
 export function heldPose(held: HeldBrick, xz: readonly [number, number]): Matrix4Tuple {
-  return withTranslation(rotationY(held.quarterTurns), [xz[0], held.layerY, xz[1]]);
+  return enginePose(held.orientation, held.quarterTurns, [xz[0], held.layerY, xz[1]]);
 }
 
 export function BuildCanvas(props: Props) {
@@ -95,6 +94,9 @@ function snap(v: number): number {
 
 function DropPlane({ y, onMove, onDrop }: { y: number; onMove: (xz: readonly [number, number]) => void; onDrop: (xz: readonly [number, number]) => void }) {
   const ref = useRef<Object3D>(null);
+  // Last hovered cell, updated synchronously: the drop goes where the held brick is SHOWN.
+  // (A React state read here could be one render behind a fast move + click.)
+  const lastHover = useRef<readonly [number, number] | null>(null);
   const toLDraw = (e: ThreeEvent<PointerEvent | MouseEvent>): [number, number] => {
     const local = ref.current!.parent!.worldToLocal(e.point.clone());
     return [snap(local.x), snap(local.z)];
@@ -105,11 +107,14 @@ function DropPlane({ y, onMove, onDrop }: { y: number; onMove: (xz: readonly [nu
       name="drop-plane"
       position={[0, y, 0]}
       rotation={[-Math.PI / 2, 0, 0]}
-      onPointerMove={(e) => onMove(toLDraw(e))}
+      onPointerMove={(e) => {
+        lastHover.current = toLDraw(e);
+        onMove(lastHover.current);
+      }}
       onClick={(e) => {
         if (e.delta > 4) return; // orbit drag, not a drop
         e.stopPropagation();
-        onDrop(toLDraw(e));
+        onDrop(lastHover.current ?? toLDraw(e));
       }}
     >
       <planeGeometry args={[4000, 4000]} />
@@ -147,12 +152,19 @@ declare global {
       /** Screen position (client px) of an LDraw-space point. Dev/test only. */
       project: (ldraw: readonly [number, number, number]) => { x: number; y: number };
       sceneSummary: () => { solid: number; ghost: number; held: number; meshes: number };
+      /** True when the renderer size used for picking matches the canvas on screen. */
+      sizeInSync: () => boolean;
+      /** World-space data of the drop plane, for debugging. */
+      dropPlane: () => { ldrawY: number; count: number } | null;
     };
   }
 }
 
 function TestHooks() {
   const { camera, gl, scene } = useThree();
+  const size = useThree((s) => s.size);
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
     window.__brickLab = {
@@ -160,6 +172,17 @@ function TestHooks() {
         const v = new Vector3(x, y, z).applyMatrix4(new Matrix4().makeRotationX(Math.PI)).project(camera);
         const rect = gl.domElement.getBoundingClientRect();
         return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
+      },
+      sizeInSync: () => {
+        const rect = gl.domElement.getBoundingClientRect();
+        return Math.abs(rect.width - sizeRef.current.width) < 1 && Math.abs(rect.height - sizeRef.current.height) < 1;
+      },
+      dropPlane: () => {
+        const planes: Object3D[] = [];
+        scene.traverse((o) => { if (o.name === 'drop-plane') planes.push(o); });
+        if (planes.length === 0) return null;
+        const p = planes[0]!.getWorldPosition(new Vector3());
+        return { ldrawY: -p.y, count: planes.length };
       },
       sceneSummary: () => {
         const counts = { solid: 0, ghost: 0, held: 0, meshes: 0 };

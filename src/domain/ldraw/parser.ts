@@ -40,6 +40,8 @@ interface MutableSection {
   name: string;
   key: string;
   firstLine: number;
+  lastLine: number;
+  geometryLines: number;
   refs: SectionReference[];
   hasStepMarkers: boolean;
   meta: { -readonly [K in keyof SectionMeta]: SectionMeta[K] };
@@ -82,7 +84,7 @@ export function parseLDraw(text: string, fileName: string, limits: ParseLimits =
     }
     const key = referenceKey(name);
     const section: MutableSection = {
-      name, key, firstLine: line, refs: [], hasStepMarkers: false, meta: {},
+      name, key, firstLine: line, lastLine: line, geometryLines: 0, refs: [], hasStepMarkers: false, meta: {},
       currentStep: 0, currentStepHasRefs: false, directGeometryReported: false, ignored,
     };
     if (ignored) return section;
@@ -107,6 +109,8 @@ export function parseLDraw(text: string, fileName: string, limits: ParseLimits =
     const typeMatch = /^(\S+)\s*(.*)$/.exec(trimmed)!;
     const lineType = typeMatch[1]!;
     const rest = typeMatch[2]!;
+    const isBoundary = isMpd && lineType === '0' && /^(FILE|NOFILE|!DATA)(\s|$)/.test(rest);
+    if (current && !isBoundary) current.lastLine = lineNo;
 
     if (lineType === '0') {
       const meta = /^(\S+)\s*(.*)$/.exec(rest);
@@ -141,6 +145,7 @@ export function parseLDraw(text: string, fileName: string, limits: ParseLimits =
       if (command === 'Name:') current.meta.name ??= argument;
       else if (command === 'Author:') current.meta.author ??= argument;
       else if (command === '!LICENSE') current.meta.license ??= argument;
+      else if (command === '!LDRAW_ORG') current.meta.ldrawOrg ??= argument.split(/\s+/)[0];
       else if (current.meta.title === undefined && current.refs.length === 0 && !command.startsWith('!') && command !== 'BFC') {
         current.meta.title = rest.trim();
       }
@@ -165,6 +170,7 @@ export function parseLDraw(text: string, fileName: string, limits: ParseLimits =
       continue;
     }
     if (lineType === '2' || lineType === '3' || lineType === '4' || lineType === '5') {
+      current.geometryLines += 1;
       if (!current.directGeometryReported) {
         diagnostics.push({ code: 'DIRECT_GEOMETRY_IGNORED', severity: 'info', line: lineNo, section: current.name, message: 'Géométrie directe (lignes 2–5) dans le modèle : non manipulable, ignorée par le jeu.' });
         current.directGeometryReported = true;
@@ -175,9 +181,21 @@ export function parseLDraw(text: string, fileName: string, limits: ParseLimits =
   }
 
   const finalSections: LDrawSection[] = sections.map((s) => ({
-    name: s.name, key: s.key, firstLine: s.firstLine, refs: s.refs, hasStepMarkers: s.hasStepMarkers, meta: s.meta,
+    name: s.name, key: s.key, firstLine: s.firstLine, lastLine: s.lastLine, refs: s.refs, hasStepMarkers: s.hasStepMarkers, meta: s.meta,
+    directGeometryLines: s.geometryLines, isPartDefinition: isPartDefinition(s),
   }));
-  return { fileName, isMpd, sections: finalSections, diagnostics };
+  // Scaled/mirrored primitives are normal inside part definitions: only models are checked.
+  const partSections = new Set(finalSections.filter((s) => s.isPartDefinition).map((s) => s.name));
+  const kept = diagnostics.filter((d) => !(d.section && partSections.has(d.section) && /MATRIX|DIRECT_GEOMETRY/.test(d.code)));
+  return { fileName, isMpd, sections: finalSections, diagnostics: kept };
+}
+
+const PART_ORG_RE = /^(Unofficial_)?(Part|Subpart|Primitive|8_Primitive|48_Primitive|Shortcut)$/i;
+
+/** An embedded part: declared as such by `!LDRAW_ORG`, or an undeclared `.dat` section with its own geometry. */
+function isPartDefinition(s: MutableSection): boolean {
+  if (s.meta.ldrawOrg) return PART_ORG_RE.test(s.meta.ldrawOrg);
+  return s.geometryLines > 0 && /\.dat$/i.test(s.name);
 }
 
 function parseType1(rest: string, line: number, section: MutableSection, diagnostics: Diagnostic[]): SectionReference | null {
