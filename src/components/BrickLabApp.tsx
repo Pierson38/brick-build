@@ -6,9 +6,10 @@ import {
   resetActiveStep, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
 } from '@/domain/build/engine';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
+import { bottomExtent, resolveHover, type HoverHit, type HoverResolution, type Ray } from '@/domain/build/surface';
 import { analyzeModel, classifyImport, sha256Hex, type ModelAnalysis, type QualityReport } from '@/domain/import/analyze';
-import type { Matrix4Tuple } from '@/domain/ldraw/types';
-import { loadModelGeometry, PartCatalog, type GeometryLoadResult } from '@/infra/ldraw/part-catalog';
+import { inventoryCheck } from '@/domain/import/known-validations';
+import { loadModelGeometry, PartCatalog, templateVertices, type GeometryLoadResult } from '@/infra/ldraw/part-catalog';
 import { clearProgress, listRecentSessions, loadStoredProgress, saveProgress, type RecentSession } from '@/infra/persistence/local-progress';
 import { PartsTray } from './build/PartsTray';
 import { ModelSummary } from './import/ModelSummary';
@@ -21,7 +22,7 @@ declare global {
   interface Window {
     __brickLabGame?: {
       candidates: () => { id: string; partKey: string; colorCode: string; matrix: number[] }[];
-      held: () => (Omit<HeldBrick, 'orientation'> & { orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number; previewXZ: number[] | null }) | null;
+      held: () => (Omit<HeldBrick, 'orientation'> & { orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number; previewPose: number[] | null; previewLayerY: number | null; previewSource: string | null; targetId: string | null; bottom: number }) | null;
       layers: () => number[];
       symmetries: (partKey: string) => number[];
     };
@@ -57,7 +58,11 @@ export default function BrickLabApp() {
   const [busy, setBusy] = useState<string | null>(null);
   const [session, setSession] = useState<BuildSession | null>(null);
   const [held, setHeld] = useState<HeldBrick | null>(null);
-  const [heldXZ, setHeldXZ] = useState<readonly [number, number] | null>(null);
+  const [preview, setPreview] = useState<HoverResolution | null>(null);
+  // synchronous copies: a click right after a move must use the pose that is shown
+  const previewRef = useRef<HoverResolution | null>(null);
+  const lastHover = useRef<{ ray: Ray; hit: HoverHit | null } | null>(null);
+  const verticesCache = useRef(new Map<string, number[]>());
   const [orientationIdx, setOrientationIdx] = useState(0);
   const [message, setMessage] = useState<Message>(null);
   const [showTargets, setShowTargets] = useState(false);
@@ -138,8 +143,8 @@ export default function BrickLabApp() {
     const lowest = Math.max(...compatible.map((o) => Math.round(o.targetMatrix[13])));
     const orientation = orientationChoices(ctx, item.partKey, item.colorCode)[0]!;
     setOrientationIdx(0);
-    setHeld({ partKey: item.partKey, colorCode: item.colorCode, quarterTurns: 0, layerY: Number.isFinite(lowest) ? lowest : layers[0] ?? 0, orientation });
-    setMessage({ kind: 'info', text: 'Déplace la pièce et clique pour la poser. R : tourner · O : orientation · PageUp/PageDown : niveau · Échap : lâcher.' });
+    setHeld({ partKey: item.partKey, colorCode: item.colorCode, quarterTurns: 0, layerY: Number.isFinite(lowest) ? lowest : layers[0] ?? 0, orientation, layerMode: 'auto' });
+    setMessage({ kind: 'info', text: 'Survole le modèle : la pièce se pose sur la surface visée. Clic : poser · R : tourner · O : orientation · PageUp/PageDown : niveau manuel (A : auto) · Échap : lâcher.' });
   };
 
   const applyPlacement = (next: BuildSession, occurrenceId: string) => {
@@ -152,18 +157,54 @@ export default function BrickLabApp() {
     else setMessage({ kind: 'ok', text: `Pièce posée (${next.placed.length}/${ctx.occurrences.length}).` });
   };
 
-  const drop = (pose: Matrix4Tuple) => {
-    if (!ctx || !session || !held) return;
-    const r = tryPlace(ctx, session, held, pose);
-    if (process.env.NODE_ENV !== 'production') window.__brickLabLastDrop = { pose: [...pose], layerY: held.layerY, ok: r.ok };
-    if (r.ok) applyPlacement(r.session, r.occurrenceId);
-    else setMessage({ kind: 'error', text: describeFailure(r) });
+  const drop = () => {
+    const shown = previewRef.current;
+    if (!ctx || !session || !held || !shown) return;
+    const r = tryPlace(ctx, session, held, shown.pose);
+    if (process.env.NODE_ENV !== 'production') window.__brickLabLastDrop = { pose: [...shown.pose], layerY: shown.layerY, ok: r.ok };
+    if (r.ok) {
+      previewRef.current = null;
+      setPreview(null);
+      applyPlacement(r.session, r.occurrenceId);
+    } else setMessage({ kind: 'error', text: describeFailure(r) });
   };
+
+  // Height of the held brick under its current orientation, from its real geometry.
+  const heldBottom = useMemo(() => {
+    if (!held || !loaded?.geometry) return 0;
+    const template = loaded.geometry.templates.get(trayKey(held.partKey, held.colorCode));
+    if (!template) return 0;
+    let v = verticesCache.current.get(held.partKey);
+    if (!v) {
+      v = templateVertices(template);
+      verticesCache.current.set(held.partKey, v);
+    }
+    return bottomExtent(v, held.orientation);
+  }, [held, loaded]);
+
+  const updatePreview = useCallback((ray: Ray, hit: HoverHit | null) => {
+    lastHover.current = { ray, hit };
+    if (!ctx || !session || !held) return;
+    const r = resolveHover(ctx, session, held, ray, hit, heldBottom);
+    if (!r) return;
+    previewRef.current = r;
+    setPreview(r);
+  }, [ctx, session, held, heldBottom]);
+
+  // Rotation, orientation, layer or session changes: recompute the preview at the same pointer position.
+  useEffect(() => {
+    if (!held) {
+      previewRef.current = null;
+      setPreview(null);
+      return;
+    }
+    if (lastHover.current) updatePreview(lastHover.current.ray, lastHover.current.hit);
+  }, [held, session, updatePreview]);
 
   const assistPlace = () => {
     if (!ctx || !session || !held) return;
     const options = candidates(ctx, session).filter((o) => o.partKey === held.partKey && o.colorCode === held.colorCode);
-    const [x, z] = heldXZ ?? [0, 0];
+    const [x, z] = preview ? [preview.pose[12], preview.pose[14]] : [0, 0];
     const target = options.sort((a, b) => Math.hypot(a.targetMatrix[12] - x, a.targetMatrix[14] - z) - Math.hypot(b.targetMatrix[12] - x, b.targetMatrix[14] - z))[0];
     if (!target) return;
     const r = placeExact(ctx, session, target.occurrenceId);
@@ -194,11 +235,14 @@ export default function BrickLabApp() {
       if (e.key === 'r' || e.key === 'R') setHeld({ ...held, quarterTurns: held.quarterTurns + (e.shiftKey ? 3 : 1) });
       else if (e.key === 'o' || e.key === 'O') nextOrientation();
       else if (e.key === 'Escape') setHeld(null);
+      else if (e.key === 'a' || e.key === 'A') setHeld({ ...held, layerMode: 'auto' });
       else if (e.key === 'PageUp' || e.key === 'PageDown') {
+        // manual fallback: starts from the default layer (lowest one with an open compatible
+        // target), so it never costs more keys than the former keyboard-only scheme
         e.preventDefault();
         const i = layers.indexOf(held.layerY);
         const next = layers[Math.min(layers.length - 1, Math.max(0, i + (e.key === 'PageUp' ? 1 : -1)))];
-        if (next !== undefined) setHeld({ ...held, layerY: next });
+        if (next !== undefined) setHeld({ ...held, layerY: next, layerMode: 'manual' });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -210,14 +254,19 @@ export default function BrickLabApp() {
     if (process.env.NODE_ENV === 'production') return;
     window.__brickLabGame = {
       candidates: () => (ctx && session ? candidates(ctx, session).map((o) => ({ id: o.occurrenceId, partKey: o.partKey, colorCode: o.colorCode, matrix: [...o.targetMatrix] })) : []),
-      held: () => (held ? { ...held, orientation: [...held.orientation], orientationIndex: orientationIdx, orientationCount: heldOrientations.length, layerIndex: layers.indexOf(held.layerY), previewXZ: heldXZ ? [...heldXZ] : null } : null),
+      held: () => (held
+        ? {
+          ...held, orientation: [...held.orientation], orientationIndex: orientationIdx, orientationCount: heldOrientations.length, layerIndex: layers.indexOf(held.layerY),
+          previewPose: preview ? [...preview.previewPose] : null, previewLayerY: preview?.layerY ?? null, previewSource: preview?.source ?? null, targetId: preview?.targetId ?? null, bottom: heldBottom,
+        }
+        : null),
       layers: () => [...layers],
       symmetries: (partKey: string) => [...(ctx?.symmetries?.get(partKey) ?? [0])],
     };
     return () => {
       delete window.__brickLabGame;
     };
-  }, [ctx, session, held, heldXZ, orientationIdx, heldOrientations, layers]);
+  }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers]);
 
   const onPdfPage = useCallback((p: number) => setPdfPage(p), []);
 
@@ -270,8 +319,8 @@ export default function BrickLabApp() {
               solidIds={solidIds}
               ghostIds={ghostIds}
               held={held}
-              heldPosition={heldXZ}
-              onHeldMove={setHeldXZ}
+              previewPose={preview?.previewPose ?? null}
+              onHover={updatePreview}
               onDrop={drop}
               recenterToken={recenter}
             />
@@ -312,6 +361,7 @@ export default function BrickLabApp() {
                   quality={loaded.quality}
                   renderStatus={renderStatus}
                   missingParts={missing}
+                  inventory={inventoryCheck(loaded.hash)}
                   onChooseRoot={(name) => void importText(loaded.fileName, loaded.text, loaded.hash, name)}
                 />
                 {!session && playable && ctx && (
@@ -346,7 +396,13 @@ export default function BrickLabApp() {
             <PartsTray items={tray(ctx, session)} heldKey={held ? trayKey(held.partKey, held.colorCode) : null} colourOf={(c) => catalog.colourHex(c)} onPick={pick} />
           )}
           <div className="tray-actions">
-            {held && <span className="small muted" data-testid="held-info">Niveau {layers.indexOf(held.layerY) + 1}/{layers.length} · rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}</span>}
+            {held && (
+              <span className="small muted" data-testid="held-info">
+                {held.layerMode === 'auto' ? 'Niveau auto (surface)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
+                {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}
+                {preview?.targetId ? <strong className="ok" data-testid="target-found"> · emplacement trouvé, clic pour poser</strong> : null}
+              </span>
+            )}
             {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}>Orientation suivante (O)</button>}
             <button type="button" onClick={() => setSession(undo(session))} disabled={session.placed.length === 0}>Annuler</button>
             {session.mode === 'guided' && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}

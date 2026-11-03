@@ -3,10 +3,11 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { DoubleSide, type Group, Matrix4, type Object3D, Vector3 } from 'three';
-import { heldPose as enginePose, MOVE_GRID_LDU, trayKey } from '@/domain/build/engine';
+import { DoubleSide, type Group, Matrix4, type Object3D, Ray as ThreeRay, Vector3 } from 'three';
+import { trayKey } from '@/domain/build/engine';
+import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
-import { cloneTemplate } from '@/infra/ldraw/part-catalog';
+import { cloneTemplate, templateVertices } from '@/infra/ldraw/part-catalog';
 
 export interface HeldBrick {
   readonly partKey: string;
@@ -15,6 +16,8 @@ export interface HeldBrick {
   readonly layerY: number;
   /** Orientation chosen among the model's target orientations (see orientationChoices). */
   readonly orientation: Matrix4Tuple;
+  /** auto = height from the surface under the pointer; manual = PageUp/PageDown. */
+  readonly layerMode: LayerMode;
 }
 
 interface Props {
@@ -23,15 +26,23 @@ interface Props {
   readonly solidIds: ReadonlySet<string>;
   readonly ghostIds: ReadonlySet<string>;
   readonly held: HeldBrick | null;
-  readonly heldPosition: readonly [number, number] | null;
-  readonly onHeldMove: (xz: readonly [number, number]) => void;
-  readonly onDrop: (pose: Matrix4Tuple) => void;
+  /** Pose at which the held brick is shown (from the last hover). */
+  readonly previewPose: Matrix4Tuple | null;
+  readonly onHover: (ray: Ray, hit: HoverHit | null) => void;
+  /** Click without drag while holding a brick: drop it where it is shown. */
+  readonly onDrop: () => void;
   readonly recenterToken: number;
 }
 
 
-export function heldPose(held: HeldBrick, xz: readonly [number, number]): Matrix4Tuple {
-  return enginePose(held.orientation, held.quarterTurns, [xz[0], held.layerY, xz[1]]);
+type Variant = 'solid' | 'ghost' | 'held';
+
+/** Finds the occurrence root (PlacedBrick) an intersected mesh belongs to. */
+function brickOf(object: Object3D): { variant: Variant; occurrenceId: string } | null {
+  for (let o: Object3D | null = object; o; o = o.parent) {
+    if (o.userData.variant) return { variant: o.userData.variant as Variant, occurrenceId: o.userData.occurrenceId as string };
+  }
+  return null;
 }
 
 export function BuildCanvas(props: Props) {
@@ -53,21 +64,77 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, held, heldPosition, onHeldMove, onDrop }: Props) {
-  const groundY = useMemo(() => Math.max(0, ...occurrences.map((o) => o.targetMatrix[13])) + 24, [occurrences]);
+function Scene({ occurrences, templates, solidIds, ghostIds, held, previewPose, onHover, onDrop }: Props) {
+  const root = useRef<Group>(null);
+  // Ground = the lowest point of the finished model, from the real geometry of each part.
+  const groundY = useMemo(() => {
+    const vertices = new Map<string, number[]>();
+    let ground = 0;
+    for (const o of occurrences) {
+      const template = templates.get(trayKey(o.partKey, o.colorCode));
+      if (!template) continue;
+      if (!vertices.has(o.partKey)) vertices.set(o.partKey, templateVertices(template));
+      ground = Math.max(ground, o.targetMatrix[13] + bottomExtent(vertices.get(o.partKey)!, o.targetMatrix));
+    }
+    return ground;
+  }, [occurrences, templates]);
+  const byId = useMemo(() => new Map(occurrences.map((o) => [o.occurrenceId, o] as const)), [occurrences]);
+
+  const toHover = (e: ThreeEvent<PointerEvent | MouseEvent>): { ray: Ray; hit: HoverHit | null } => {
+    const inverse = new Matrix4().copy(root.current!.matrixWorld).invert();
+    const r = new ThreeRay().copy(e.ray).applyMatrix4(inverse);
+    let hit: HoverHit | null = null;
+    for (const i of e.intersections) {
+      const p = i.point.clone().applyMatrix4(inverse);
+      if (i.object.name === 'ground-plane') { hit = { kind: 'ground', x: p.x, y: p.y, z: p.z, distance: p.distanceTo(r.origin) }; break; }
+      const brick = brickOf(i.object);
+      if (!brick || brick.variant === 'held') continue;
+      if (brick.variant === 'ghost') {
+        const o = byId.get(brick.occurrenceId);
+        // only ghosts of the held part+colour attract the brick; others are transparent to the pointer
+        if (!held || !o || o.partKey !== held.partKey || o.colorCode !== held.colorCode) continue;
+        hit = { kind: 'ghost', x: p.x, y: p.y, z: p.z, occurrenceId: brick.occurrenceId };
+        break;
+      }
+      hit = { kind: 'solid', x: p.x, y: p.y, z: p.z, distance: p.distanceTo(r.origin) };
+      break;
+    }
+    return { ray: { origin: [r.origin.x, r.origin.y, r.origin.z], direction: [r.direction.x, r.direction.y, r.direction.z] }, hit };
+  };
+
   return (
     // LDraw is -Y up: flip the whole model once; every matrix below stays in LDraw coordinates.
-    <group rotation={[Math.PI, 0, 0]} name="ldraw-root">
+    <group
+      ref={root}
+      rotation={[Math.PI, 0, 0]}
+      name="ldraw-root"
+      onPointerMove={(e) => {
+        if (!held) return;
+        e.stopPropagation();
+        const { ray, hit } = toHover(e);
+        onHover(ray, hit);
+      }}
+      onClick={(e) => {
+        if (!held || e.delta > 4) return; // no brick held, or an orbit drag
+        e.stopPropagation();
+        onDrop();
+      }}
+    >
       {occurrences.map((o) => {
         const variant = solidIds.has(o.occurrenceId) ? 'solid' : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
         const template = templates.get(trayKey(o.partKey, o.colorCode));
         if (!variant || !template) return null;
         return <PlacedBrick key={`${o.occurrenceId}:${variant}`} template={template} matrix={o.targetMatrix} variant={variant} id={o.occurrenceId} />;
       })}
-      {held && heldPosition && templates.get(trayKey(held.partKey, held.colorCode)) && (
-        <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={heldPose(held, heldPosition)} variant="held" id="held" />
+      {held && previewPose && templates.get(trayKey(held.partKey, held.colorCode)) && (
+        <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={previewPose} variant="held" id="held" />
       )}
-      {held && <DropPlane y={held.layerY} onMove={onHeldMove} onDrop={(xz) => onDrop(heldPose(held, xz))} />}
+      {/* invisible ground: catches the pointer around the model (also used in manual layer mode) */}
+      <mesh name="ground-plane" position={[0, groundY, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[20000, 20000]} />
+        {/* double-sided: after the LDraw -Y flip the plane faces away from the camera */}
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
+      </mesh>
       <gridHelper args={[2000, 100, '#c3c9d4', '#dde2ea']} position={[0, groundY, 0]} />
     </group>
   );
@@ -86,42 +153,6 @@ function PlacedBrick({ template, matrix, variant, id }: { template: Group; matri
     object.matrixWorldNeedsUpdate = true;
   }, [object, matrix]);
   return <primitive object={object} />;
-}
-
-function snap(v: number): number {
-  return Math.round(v / MOVE_GRID_LDU) * MOVE_GRID_LDU;
-}
-
-function DropPlane({ y, onMove, onDrop }: { y: number; onMove: (xz: readonly [number, number]) => void; onDrop: (xz: readonly [number, number]) => void }) {
-  const ref = useRef<Object3D>(null);
-  // Last hovered cell, updated synchronously: the drop goes where the held brick is SHOWN.
-  // (A React state read here could be one render behind a fast move + click.)
-  const lastHover = useRef<readonly [number, number] | null>(null);
-  const toLDraw = (e: ThreeEvent<PointerEvent | MouseEvent>): [number, number] => {
-    const local = ref.current!.parent!.worldToLocal(e.point.clone());
-    return [snap(local.x), snap(local.z)];
-  };
-  return (
-    <mesh
-      ref={ref}
-      name="drop-plane"
-      position={[0, y, 0]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      onPointerMove={(e) => {
-        lastHover.current = toLDraw(e);
-        onMove(lastHover.current);
-      }}
-      onClick={(e) => {
-        if (e.delta > 4) return; // orbit drag, not a drop
-        e.stopPropagation();
-        onDrop(lastHover.current ?? toLDraw(e));
-      }}
-    >
-      <planeGeometry args={[4000, 4000]} />
-      {/* double-sided: after the LDraw -Y flip the plane faces away from the camera */}
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
-    </mesh>
-  );
 }
 
 function CameraRig({ center, radius, token }: { center: readonly [number, number, number]; radius: number; token: number }) {
@@ -154,8 +185,6 @@ declare global {
       sceneSummary: () => { solid: number; ghost: number; held: number; meshes: number };
       /** True when the renderer size used for picking matches the canvas on screen. */
       sizeInSync: () => boolean;
-      /** World-space data of the drop plane, for debugging. */
-      dropPlane: () => { ldrawY: number; count: number } | null;
     };
   }
 }
@@ -177,19 +206,12 @@ function TestHooks() {
         const rect = gl.domElement.getBoundingClientRect();
         return Math.abs(rect.width - sizeRef.current.width) < 1 && Math.abs(rect.height - sizeRef.current.height) < 1;
       },
-      dropPlane: () => {
-        const planes: Object3D[] = [];
-        scene.traverse((o) => { if (o.name === 'drop-plane') planes.push(o); });
-        if (planes.length === 0) return null;
-        const p = planes[0]!.getWorldPosition(new Vector3());
-        return { ldrawY: -p.y, count: planes.length };
-      },
       sceneSummary: () => {
         const counts = { solid: 0, ghost: 0, held: 0, meshes: 0 };
         scene.traverse((o) => {
           const variant = o.userData.variant as 'solid' | 'ghost' | 'held' | undefined;
           if (variant) counts[variant] += 1;
-          if ((o as { isMesh?: boolean }).isMesh && o.name !== 'drop-plane') counts.meshes += 1;
+          if ((o as { isMesh?: boolean }).isMesh && o.name !== 'ground-plane') counts.meshes += 1;
         });
         return counts;
       },

@@ -58,3 +58,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .pdf-scroll { overflow: auto; max-height: calc(100vh - 220px); border: 1px solid var(--border); background: #fafafa; }
 details li.error { color: var(--err); }
 details li.warning { color: #92400e; }
+.ok { color: var(--ok); }
+.inventory-COHERENT { color: var(--ok); }
+.inventory-INDETERMINATE, .inventory-INCOMPLETE { color: #92400e; background: #fef3c7; padding: 4px 8px; border-radius: 6px; }
+.inventory-NOT_VERIFIED { color: var(--muted); }
