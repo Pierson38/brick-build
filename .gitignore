@@ -13,3 +13,5 @@ local-ldraw-library/
 *.downloaded.ldr
 *.downloaded.pdf
 .DS_Store
+next-env.d.ts
+*.tsbuildinfo
