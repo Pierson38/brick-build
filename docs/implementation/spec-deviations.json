@@ -1,0 +1,11 @@
+{
+  "manifestVersion": "1.0",
+  "deviations": [
+    {
+      "path": ".gitignore",
+      "manifestSha256": "c0ffa7342a5978c60c81f8e0822d3cf4fd2583dd9bbbd55884378e438c6d2b27",
+      "reason": "Ajout de next-env.d.ts et *.tsbuildinfo (fichiers générés par Next.js/TypeScript). Aucune règle d'exclusion existante retirée.",
+      "introducedIn": "f78d6b8"
+    }
+  ]
+}
