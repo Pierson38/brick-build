@@ -120,14 +120,33 @@ export async function loadModelGeometry(
 }
 
 const ghostMaterial = new MeshBasicMaterial({ color: '#3b82f6', transparent: true, opacity: 0.28, depthWrite: false });
+const selectedMaterials = new WeakMap<Material, Material>();
+
+/** Same material with an amber glow: bricks of the step being edited or consulted. */
+function selectedMaterial(m: Material): Material {
+  let out = selectedMaterials.get(m);
+  if (!out) {
+    out = m.clone();
+    const lit = out as Material & { emissive?: Color; emissiveIntensity?: number };
+    if (lit.emissive) {
+      lit.emissive = new Color('#f59e0b');
+      lit.emissiveIntensity = 0.55;
+    }
+    selectedMaterials.set(m, out);
+  }
+  return out;
+}
+
+export type BrickVariant = 'solid' | 'ghost' | 'held' | 'selected';
 
 /** Clone sharing geometry; `ghost` swaps materials for a translucent silhouette without edges. */
-export function cloneTemplate(template: Group, variant: 'solid' | 'ghost' | 'held'): Object3D {
+export function cloneTemplate(template: Group, variant: BrickVariant): Object3D {
   const copy = template.clone(true);
   copy.traverse((child) => {
     if ((child as Mesh).isMesh) {
       const mesh = child as Mesh;
       if (variant === 'ghost') mesh.material = ghostMaterial;
+      if (variant === 'selected') mesh.material = Array.isArray(mesh.material) ? mesh.material.map(selectedMaterial) : selectedMaterial(mesh.material);
       // the held brick must not hide what is under the pointer; ghosts stay pickable (magnet)
       if (variant === 'held') mesh.raycast = () => {};
     } else if ('isLineSegments' in child && child.isLineSegments && variant === 'ghost') {

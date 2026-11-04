@@ -1,0 +1,16 @@
+0 FILE notice-sync-8.mpd
+0 Synthetic P6 fixture: 8 bricks, 2 LDraw steps, mapped to 4 booklet steps in the tests
+0 Name: notice-sync-8.mpd
+0 Author: Brick Lab Local - test original
+0 !LICENSE CC0-1.0
+1 4 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 1 80 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 14 0 0 -40 1 0 0 0 1 0 0 0 1 3001.dat
+1 14 80 0 -40 1 0 0 0 1 0 0 0 1 3001.dat
+0 STEP
+1 2 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 2 80 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 15 0 -24 -40 1 0 0 0 1 0 0 0 1 3001.dat
+1 0 80 -24 -40 1 0 0 0 1 0 0 0 1 3001.dat
+0 STEP
+0 NOFILE

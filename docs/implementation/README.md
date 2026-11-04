@@ -14,6 +14,9 @@ Le dépôt contient deux familles de documents :
 - [Validation P5 sur sets OMR réels](P5_VALIDATION_OMR.md)
 - [Inventaire 31009 contre notice officielle](P5_INVENTAIRE_31009.md)
 - [Recette humaine P5 (à faire par le propriétaire)](RECETTE_HUMAINE_P5.md)
+- [P6 — notice ↔ 3D synchronisée : architecture et risques](P6_ARCHITECTURE_NOTICE_SYNC.md)
+- [P6 — rapport, essai réel 31040, verdict](P6_RAPPORT.md)
+- [Recette humaine P6 (à faire par le propriétaire)](RECETTE_HUMAINE_P6.md)
 
 ## Démarrage développeur
 
@@ -44,3 +47,14 @@ npx tsx scripts/level-baseline.ts <model.mpd>          # appuis PageUp/PageDown 
 ```
 
 Ajouter une dépendance npm : `rm -rf node_modules package-lock.json && npm i`, puis vérifier que `node_modules/@rolldown/binding-*` existe (bug npm des dépendances optionnelles).
+
+## Notice synchronisée (P6)
+
+Les correspondances notice ↔ 3D sont saisies dans l'onglet **Correspondances**. Elles sont sauvegardées localement et exportables en `<modèle>.brick-mapping.json`. Le mapping réel de 31040 reste hors dépôt, dans `$BRICK_LAB_DATA/mappings/31040-1.brick-mapping.json`. Sans lui, la spec `instructions-sync-omr` est ignorée (skip).
+
+```bash
+npx vitest run tests/unit/mapping.test.ts
+npx playwright test tests/e2e/instructions-sync.spec.ts        # fixtures synthétiques
+npx playwright test tests/e2e/instructions-sync-omr.spec.ts    # essai réel 31040 (GPU)
+```
+
