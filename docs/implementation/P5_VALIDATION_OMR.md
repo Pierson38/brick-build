@@ -141,7 +141,7 @@ Leur appartenance au modèle principal d'un set 3-en-1 n'est pas prouvable hors 
 
 ### 8.3 Recette humaine
 
-Protocole : [`RECETTE_HUMAINE_P5.md`](RECETTE_HUMAINE_P5.md) (Chrome et Safari, set 31040, guidé puis libre avec la notice, hauteurs, R/O, annuler, rechargement, console). **Non réalisée à ce jour : condition ouverte.**
+Protocole : [`RECETTE_HUMAINE_P5.md`](RECETTE_HUMAINE_P5.md) (Chrome et Safari, set 31040, guidé puis libre avec la notice, hauteurs, R/O, annuler, rechargement, console). **Réalisée par le propriétaire le 04/11/2026 : OK** (grille détaillée non transmise, aucun KO signalé).
 
 ### 8.4 Problèmes résiduels
 
@@ -152,9 +152,11 @@ Protocole : [`RECETTE_HUMAINE_P5.md`](RECETTE_HUMAINE_P5.md) (Chrome et Safari, 
 - Inventaire 31009 indéterminé (voir 8.2).
 - Étapes LDraw ≠ notice (31040 : 11 contre 21), inchangé.
 
-### 8.5 Nouveau verdict
+### 8.5 Verdict final
 
-**GO sous conditions** : une seule condition reste ouverte.
+**GO** (04/11/2026). Les trois conditions sont levées :
 - ✅ Ergonomie des niveaux : corrigée et mesurée (1 194 → 0 ; 246 → 2), sans régression du moteur.
 - ✅ Inventaire de 31009 : écart localisé à la pièce près, verdict **indéterminé** documenté et **affiché** dans l'UI (traitement prévu quand l'écart n'est pas résoluble de façon fiable).
-- ⏳ **Recette humaine Chrome + Safari** : à faire par le propriétaire ; seule condition avant un GO sans réserve.
+- ✅ **Recette humaine Chrome + Safari** : réalisée par le propriétaire, OK.
+
+Le verdict d'inventaire de 31009 reste **indéterminé** : c'est une limite documentée et signalée dans l'UI, pas un défaut du moteur.

@@ -1,6 +1,10 @@
 # Recette humaine P5 — à faire par le propriétaire (Chrome et Safari, Mac)
 
-> Cette recette est **séparée des tests automatisés** : les tests Playwright pilotent la souris par script et ne remplacent pas un essai réel. **Cette condition reste NON validée tant que tu n'as pas fait l'essai et communiqué ton résultat.**
+> Cette recette est **séparée des tests automatisés** : les tests Playwright pilotent la souris par script et ne remplacent pas un essai réel.
+
+## Résultat (04/11/2026)
+
+**Recette réalisée par le propriétaire : OK.** Résultat communiqué : « je viens de tout faire, c'est good », c'est-à-dire le scénario complet ci-dessous dans Chrome et Safari, sur le serveur de production local (`npm run build && npm run start`, commit `8480fa2`). La grille détaillée n'a pas été transmise : aucun KO ni point pénible n'a été signalé.
 
 Durée estimée : 20–30 min par navigateur (40–60 min si tu construis 31040 en entier deux fois).
 
