@@ -3,7 +3,13 @@ import { equivalentTargets } from '../ldraw/symmetry';
 import type { BrickOccurrence, Matrix4Tuple } from '../ldraw/types';
 import type { StepPlan } from './build-plan';
 
-export type BuildMode = 'guided' | 'freeManual';
+/** `synced`: guided by the steps of the official booklet (validated mapping) instead of the LDraw steps. */
+export type BuildMode = 'guided' | 'freeManual' | 'synced';
+
+/** Modes whose candidates are limited to the active step. */
+export function isStepped(mode: BuildMode): boolean {
+  return mode !== 'freeManual';
+}
 
 /**
  * Initial tolerances, calibrated on the 2×4 brick fixtures: half a stud (10 LDU)
@@ -75,9 +81,12 @@ export function availableModes(plan: StepPlan): BuildMode[] {
   return plan.kind === 'NO_STEPS' ? ['freeManual'] : ['guided', 'freeManual'];
 }
 
-/** Index of the first step that still has unplaced bricks; -1 when complete or not guided. */
+/**
+ * Index of the first step that still has unplaced bricks; -1 when complete or in free mode.
+ * Always derived from the placed set, never stored: going back cannot desynchronise it.
+ */
 export function activeStepIndex(ctx: BuildContext, session: BuildSession): number {
-  if (session.mode !== 'guided') return -1;
+  if (!isStepped(session.mode)) return -1;
   const placed = new Set(session.placed);
   return ctx.plan.steps.findIndex((s) => s.occurrenceIds.some((id) => !placed.has(id)));
 }
@@ -89,7 +98,7 @@ export function isComplete(ctx: BuildContext, session: BuildSession): boolean {
 /** Occurrences the player may place right now. */
 export function candidates(ctx: BuildContext, session: BuildSession): BrickOccurrence[] {
   const placed = new Set(session.placed);
-  if (session.mode === 'guided') {
+  if (isStepped(session.mode)) {
     const step = ctx.plan.steps[activeStepIndex(ctx, session)];
     if (!step) return [];
     const ids = new Set(step.occurrenceIds);
@@ -185,6 +194,17 @@ export function placeExact(ctx: BuildContext, session: BuildSession, occurrenceI
 
 export function undo(session: BuildSession): BuildSession {
   return { ...session, placed: session.placed.slice(0, -1) };
+}
+
+/** Stepped modes: removes the bricks of step `stepIndex` and of every later step ("start again from here"). */
+export function rewindToStep(ctx: BuildContext, session: BuildSession, stepIndex: number): BuildSession {
+  const drop = new Set(ctx.plan.steps.slice(Math.max(0, stepIndex)).flatMap((s) => s.occurrenceIds));
+  return { ...session, placed: session.placed.filter((id) => !drop.has(id)) };
+}
+
+/** Changes the mode of a running build; placed bricks are kept, the active step is recomputed. */
+export function switchMode(session: BuildSession, mode: BuildMode): BuildSession {
+  return { ...session, mode };
 }
 
 /** Guided mode: removes the bricks already placed in the active step. */

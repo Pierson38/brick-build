@@ -2,18 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, orientationChoices, placeExact,
-  resetActiveStep, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
+  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, orientationChoices, placeExact,
+  resetActiveStep, rewindToStep, switchMode, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
 } from '@/domain/build/engine';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import { bottomExtent, resolveHover, type HoverHit, type HoverResolution, type Ray } from '@/domain/build/surface';
 import { analyzeModel, classifyImport, sha256Hex, type ModelAnalysis, type QualityReport } from '@/domain/import/analyze';
 import { inventoryCheck } from '@/domain/import/known-validations';
+import {
+  assignToStep, assignmentIndex, createMapping, mappingDigest, mappingToStepPlan, parseMappingText, stepLabel, touch, unassignFromStep,
+  validateMapping, type InstructionMapping, type MappingTarget,
+} from '@/domain/instructions/mapping';
 import { loadModelGeometry, PartCatalog, templateVertices, type GeometryLoadResult } from '@/infra/ldraw/part-catalog';
+import { clearMapping, downloadMapping, loadStoredMapping, saveMapping } from '@/infra/persistence/local-mapping';
 import { clearProgress, listRecentSessions, loadStoredProgress, saveProgress, type RecentSession } from '@/infra/persistence/local-progress';
 import { PartsTray } from './build/PartsTray';
 import { ModelSummary } from './import/ModelSummary';
+import { MappingEditor } from './mapping/MappingEditor';
 import { PdfPanel } from './pdf/PdfPanel';
+import { useNotice } from './pdf/useNotice';
+import { SyncStepBanner } from './sync/SyncStepBanner';
 import { BuildCanvas, type HeldBrick } from './three/BuildCanvas';
 
 const MAX_MODEL_BYTES = 8 * 1024 * 1024;
@@ -42,6 +50,8 @@ interface LoadedModel {
 
 type Message = { kind: 'ok' | 'error' | 'info'; text: string } | null;
 
+const MODE_LABEL: Record<BuildMode, string> = { guided: 'Guidé (étapes LDraw)', synced: 'Notice synchronisée', freeManual: 'Montage libre' };
+
 async function libraryStatus(): Promise<string | null> {
   try {
     const res = await fetch('/api/ldraw-status', { cache: 'no-store' });
@@ -66,8 +76,15 @@ export default function BrickLabApp() {
   const [orientationIdx, setOrientationIdx] = useState(0);
   const [message, setMessage] = useState<Message>(null);
   const [showTargets, setShowTargets] = useState(false);
-  const [tab, setTab] = useState<'model' | 'pdf'>('model');
-  const [pdfPage, setPdfPage] = useState<number | undefined>(undefined);
+  const [tab, setTab] = useState<'model' | 'pdf' | 'mapping'>('model');
+  const notice = useNotice();
+  const [mapping, setMapping] = useState<InstructionMapping | null>(null);
+  // previous mapping kept after an import or a reset, so that it can be restored
+  const [replacedMapping, setReplacedMapping] = useState<InstructionMapping | null>(null);
+  const [editStepId, setEditStepId] = useState<string | null>(null);
+  const [showLater, setShowLater] = useState(false);
+  // synchronised mode: index of a past step being consulted (null = the active step)
+  const [consultIdx, setConsultIdx] = useState<number | null>(null);
   const [recenter, setRecenter] = useState(0);
   const [recent, setRecent] = useState<RecentSession[]>([]);
   const [, setColoursReady] = useState(false);
@@ -75,11 +92,24 @@ export default function BrickLabApp() {
 
   useEffect(() => setRecent(listRecentSessions()), [loaded]);
 
+  const target: MappingTarget | null = useMemo(
+    () => (loaded ? { sha256: loaded.hash, fileName: loaded.fileName, rootName: loaded.analysis.model.rootName, occurrences: loaded.analysis.model.occurrences } : null),
+    [loaded],
+  );
+  const report = useMemo(() => (mapping && target ? validateMapping(mapping, target) : null), [mapping, target]);
+  // the synchronised mode exists only with a mapping that passes validation: no invented correspondence
+  const syncPlan = useMemo(() => (mapping && report?.ok ? mappingToStepPlan(mapping) : null), [mapping, report]);
+  const editing = tab === 'mapping' && mapping !== null && loaded !== null;
+
   const ctx: BuildContext | null = useMemo(
     () => (loaded
-      ? { occurrences: loaded.analysis.model.occurrences, plan: loaded.analysis.plan, ...(loaded.geometry ? { symmetries: loaded.geometry.symmetries } : {}) }
+      ? {
+        occurrences: loaded.analysis.model.occurrences,
+        plan: session?.mode === 'synced' && syncPlan ? syncPlan : loaded.analysis.plan,
+        ...(loaded.geometry ? { symmetries: loaded.geometry.symmetries } : {}),
+      }
       : null),
-    [loaded],
+    [loaded, session?.mode, syncPlan],
   );
 
   const importText = useCallback(async (fileName: string, text: string, hash: string, rootName?: string) => {
@@ -96,20 +126,41 @@ export default function BrickLabApp() {
     setLoaded({ fileName, text, hash, analysis, geometry, libraryProblem, quality });
     setHeld(null);
     setShowTargets(false);
+    setConsultIdx(null);
+    setReplacedMapping(null);
+    const storedMapping = loadStoredMapping(hash);
+    const restoredMapping = storedMapping?.ok ? storedMapping.mapping : null;
+    setMapping(restoredMapping);
+    setEditStepId(restoredMapping?.steps[0]?.id ?? null);
+    if (tab === 'mapping') setTab('model');
     const restored = restoreProgress(loadStoredProgress(hash), hash, analysis.model.occurrences);
     if (restored.ok && quality.quality !== 'INVALID') {
-      setSession(restored.session);
-      setShowTargets(restored.session.mode === 'guided');
+      const total = analysis.model.occurrences.length;
+      let next = restored.session;
+      let text = `Progression restaurée : ${next.placed.length}/${total} pièces posées.`;
+      if (next.mode === 'synced') {
+        const target = { sha256: hash, fileName, rootName: analysis.model.rootName, occurrences: analysis.model.occurrences };
+        if (!restoredMapping || !validateMapping(restoredMapping, target).ok) {
+          // never replay a synchronised build without a valid mapping: explicit fallback, bricks kept
+          next = switchMode(next, 'freeManual');
+          text = `${text} Partie en mode notice synchronisée, mais aucune correspondance valide pour ce fichier : reprise en montage libre. Réimporte ton fichier de correspondances pour revenir au mode synchronisé.`;
+        } else if (restored.mappingDigest && restored.mappingDigest !== mappingDigest(restoredMapping)) {
+          text = `${text} Les correspondances ont changé depuis la sauvegarde : l’étape en cours est recalculée à partir des pièces posées.`;
+        }
+      }
+      setSession(next);
+      setShowTargets(isStepped(next.mode));
       restoredPdfPage.current = restored.lastPdfPage;
-      setPdfPage(restored.lastPdfPage);
-      setMessage({ kind: 'info', text: `Progression restaurée : ${restored.session.placed.length}/${analysis.model.occurrences.length} pièces posées.` });
+      if (next.mode === 'synced') setTab('pdf');
+      setMessage({ kind: next.mode === restored.session.mode ? 'info' : 'error', text });
     } else {
       setSession(null);
       restoredPdfPage.current = undefined;
       setMessage(null);
     }
     setBusy(null);
-  }, [catalog]);
+    if (storedMapping && !storedMapping.ok) setMessage({ kind: 'error', text: `Correspondances enregistrées illisibles, ignorées : ${storedMapping.errors.join(' ')}` });
+  }, [catalog, tab]);
 
   const onModelFile = async (file: File) => {
     if (file.size > MAX_MODEL_BYTES) return setMessage({ kind: 'error', text: `Fichier trop volumineux (limite ${MAX_MODEL_BYTES / 1e6} Mo).` });
@@ -120,21 +171,45 @@ export default function BrickLabApp() {
   };
 
   // Persist after every change of the build or of the PDF page.
+  const pdfView = notice.view;
   useEffect(() => {
     if (!loaded || !session) return;
-    saveProgress(serializeProgress(loaded.hash, loaded.fileName, session, loaded.analysis.model.occurrences.length, pdfPage));
-  }, [loaded, session, pdfPage]);
+    const pdf = pdfView ? { page: pdfView.page, bookletSha256: pdfView.sha256 } : restoredPdfPage.current !== undefined ? { page: restoredPdfPage.current } : {};
+    saveProgress(serializeProgress(loaded.hash, loaded.fileName, session, loaded.analysis.model.occurrences.length, pdf, mapping && session.mode === 'synced' ? mappingDigest(mapping) : undefined));
+  }, [loaded, session, pdfView, mapping]);
+
+  const changeMapping = useCallback((next: InstructionMapping, note?: string) => {
+    const stamped = touch(next);
+    setMapping(stamped);
+    if (!saveMapping(stamped)) setMessage({ kind: 'error', text: 'Sauvegarde locale des correspondances impossible (stockage plein ou indisponible).' });
+    else if (note) setMessage({ kind: 'info', text: note });
+  }, []);
+
+  // A synchronised build whose mapping became invalid (edited, cleared, other import) goes back to
+  // free mode explicitly, bricks kept, instead of following steps that no longer exist.
+  useEffect(() => {
+    if (session?.mode !== 'synced' || syncPlan || editing) return;
+    setSession(switchMode(session, 'freeManual'));
+    setMessage({ kind: 'error', text: 'Correspondances absentes ou invalides : la partie continue en montage libre (pièces posées conservées).' });
+  }, [session, syncPlan, editing]);
 
   const layers = useMemo(() => {
     const ys = [...new Set(ctx?.occurrences.map((o) => Math.round(o.targetMatrix[13])) ?? [])];
     return ys.sort((a, b) => b - a); // LDraw -Y up: largest y is the lowest layer
   }, [ctx]);
 
-  const start = (mode: BuildMode) => {
-    setSession(createSession(mode));
-    setShowTargets(mode === 'guided');
+  const MODE_HINT: Record<BuildMode, string> = {
+    guided: 'Mode guidé : les emplacements de l’étape apparaissent en bleu.',
+    freeManual: 'Montage libre : suis ta notice et pose les pièces dans l’ordre de ton choix.',
+    synced: 'Notice synchronisée : la page de l’étape s’affiche, seules ses pièces sont proposées.',
+  };
+  const start = (mode: BuildMode, keepPieces = false) => {
+    setSession(keepPieces && session ? switchMode(session, mode) : createSession(mode));
+    setShowTargets(isStepped(mode));
     setHeld(null);
-    setMessage({ kind: 'info', text: mode === 'guided' ? 'Mode guidé : les emplacements de l’étape apparaissent en bleu.' : 'Montage libre : suis ta notice et pose les pièces dans l’ordre de ton choix.' });
+    setConsultIdx(null);
+    if (mode === 'synced') setTab('pdf');
+    setMessage({ kind: 'info', text: MODE_HINT[mode] });
   };
 
   const pick = (item: TrayItem) => {
@@ -148,13 +223,19 @@ export default function BrickLabApp() {
   };
 
   const applyPlacement = (next: BuildSession, occurrenceId: string) => {
-    if (!ctx) return;
+    if (!ctx || !session) return;
     setSession(next);
+    setConsultIdx(null);
     const placed = ctx.occurrences.find((o) => o.occurrenceId === occurrenceId)!;
     const stillAvailable = tray(ctx, next).some((t) => t.key === trayKey(placed.partKey, placed.colorCode));
     if (!stillAvailable) setHeld(null);
+    const before = activeStepIndex(ctx, session);
+    const after = activeStepIndex(ctx, next);
+    const upcoming = ctx.plan.steps[after]?.instruction;
     if (isComplete(ctx, next)) setMessage({ kind: 'ok', text: 'Bravo, modèle terminé !' });
-    else setMessage({ kind: 'ok', text: `Pièce posée (${next.placed.length}/${ctx.occurrences.length}).` });
+    else if (next.mode === 'synced' && after !== before && upcoming) {
+      setMessage({ kind: 'ok', text: `${ctx.plan.steps[before]?.instruction?.label ?? 'Étape'} terminée ! Suivante : ${upcoming.label}, p. ${upcoming.page}.` });
+    } else setMessage({ kind: 'ok', text: `Pièce posée (${next.placed.length}/${ctx.occurrences.length}).` });
   };
 
   const drop = () => {
@@ -268,27 +349,103 @@ export default function BrickLabApp() {
     };
   }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers]);
 
-  const onPdfPage = useCallback((p: number) => setPdfPage(p), []);
-
   const restart = () => {
     if (!loaded) return;
     clearProgress(loaded.hash);
     setSession(null);
     setHeld(null);
+    setConsultIdx(null);
     setMessage(null);
+  };
+
+  // ---- synchronised mode: step shown and its booklet page ----
+  const plan = ctx?.plan;
+  const activeIdx = ctx && session ? activeStepIndex(ctx, session) : -1;
+  const synced = session?.mode === 'synced' && syncPlan !== null && !editing;
+  const shownIdx = synced ? consultIdx ?? activeIdx : -1;
+  const shownStep = shownIdx >= 0 ? plan?.steps[shownIdx] : undefined;
+  const shownBooklet = shownStep?.instruction && mapping ? mapping.booklets.find((b) => b.id === shownStep.instruction!.bookletId) ?? null : null;
+  const openShas = notice.booklets.map((b) => b.sha256).join(',');
+  const showStepPage = useCallback(() => {
+    if (shownBooklet?.sha256 && shownStep?.instruction) notice.show(shownBooklet.sha256, shownStep.instruction.page);
+  }, [notice, shownBooklet, shownStep]);
+  // jump to the page when the step changes or when its booklet gets opened
+  useEffect(showStepPage, [shownStep?.id, shownBooklet?.sha256, openShas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- mapping editor ----
+  const editIdx = editing ? mapping.steps.findIndex((st) => st.id === editStepId) : -1;
+  const editStep = editIdx >= 0 ? mapping!.steps[editIdx] : undefined;
+  const editBookletSha = editStep ? mapping!.booklets.find((b) => b.id === editStep.bookletId)?.sha256 : undefined;
+  useEffect(() => {
+    if (editStep && editBookletSha) notice.show(editBookletSha, editStep.page);
+  }, [editStep?.id, editBookletSha, editStep?.page, openShas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openEditor = () => {
+    if (!target) return;
+    if (!mapping) {
+      const fresh = createMapping(target);
+      changeMapping(fresh);
+      setEditStepId(null);
+    }
+    setHeld(null);
+    setTab('mapping');
+  };
+
+  const pickInEditor = (occurrenceId: string, { alt }: { alt: boolean }) => {
+    if (!mapping || !editStep) return setMessage({ kind: 'info', text: 'Crée d’abord une étape de notice (+ Nouvelle étape).' });
+    const owners = assignmentIndex(mapping).get(occurrenceId) ?? [];
+    const o = ctx?.occurrences.find((x) => x.occurrenceId === occurrenceId);
+    const name = o ? `${o.partRef.replace(/\.dat$/i, '')} (couleur ${o.colorCode})` : occurrenceId;
+    if (owners.includes(editStep.id)) return changeMapping(unassignFromStep(mapping, editStep.id, [occurrenceId]), `${name} retirée de ${stepLabel(editStep)}.`);
+    if (owners.length > 0 && !alt) {
+      const other = mapping.steps.find((st) => st.id === owners[0]);
+      return setMessage({ kind: 'info', text: `${name} est déjà dans ${other ? `${stepLabel(other)} (p. ${other.page})` : 'une autre étape'} : ⌥-clic pour la déplacer ici.` });
+    }
+    changeMapping(assignToStep(mapping, editStep.id, [occurrenceId], { move: alt }).mapping, `${name} ${alt && owners.length ? 'déplacée dans' : 'ajoutée à'} ${stepLabel(editStep)}.`);
+  };
+
+  const importMappingFile = async (file: File) => {
+    if (!target) return;
+    const parsed = parseMappingText(await file.text());
+    if (!parsed.ok) return setMessage({ kind: 'error', text: `Import refusé : ${parsed.errors.join(' ')}` });
+    const check = validateMapping(parsed.mapping, target);
+    const mismatch = check.issues.find((i) => i.code === 'MODEL_MISMATCH');
+    if (mismatch) return setMessage({ kind: 'error', text: `Import refusé : ${mismatch.message}` });
+    if (mapping && mapping.steps.length > 0) setReplacedMapping(mapping);
+    changeMapping(parsed.mapping, `Correspondances importées : ${parsed.mapping.steps.length} étape(s), ${check.assigned}/${check.total} pièces affectées${check.ok ? ', valides.' : ' (brouillon, voir la validation).'}`);
+    setEditStepId(parsed.mapping.steps[0]?.id ?? null);
+  };
+
+  const clearAllMapping = () => {
+    if (!loaded || !target || !mapping) return;
+    setReplacedMapping(mapping);
+    clearMapping(loaded.hash);
+    changeMapping(createMapping(target), 'Correspondances effacées.');
+    setEditStepId(null);
   };
 
   const geometry = loaded?.geometry ?? null;
   const missing = geometry ? [...geometry.missingParts] : [];
   const playable = loaded && (loaded.quality.quality === 'GUIDED_PLAYABLE' || loaded.quality.quality === 'MANUAL_ONLY' || loaded.quality.quality === 'RENDERABLE');
   const placedSet = new Set(session?.placed ?? []);
-  const stepIdx = ctx && session ? activeStepIndex(ctx, session) : -1;
+  const stepIdx = activeIdx;
   const openCandidates = ctx && session ? candidates(ctx, session) : [];
-  const ghostIds = new Set(
+  let ghostIds = new Set(
     !session || !showTargets ? []
-      : openCandidates.filter((o) => session.mode === 'guided' || (held && o.partKey === held.partKey && o.colorCode === held.colorCode)).map((o) => o.occurrenceId),
+      : openCandidates.filter((o) => isStepped(session.mode) || (held && o.partKey === held.partKey && o.colorCode === held.colorCode)).map((o) => o.occurrenceId),
   );
-  const solidIds = session ? placedSet : new Set(ctx?.occurrences.map((o) => o.occurrenceId) ?? []);
+  let solidIds = session ? placedSet : new Set(ctx?.occurrences.map((o) => o.occurrenceId) ?? []);
+  let highlightIds: Set<string> = synced && consultIdx !== null && shownStep ? new Set(shownStep.occurrenceIds) : new Set();
+  if (editing && report) {
+    // editor preview: built up to the current step, its bricks highlighted, unassigned as ghosts
+    const before = mapping.steps.slice(0, Math.max(0, editIdx)).flatMap((st) => st.occurrenceIds);
+    const later = showLater ? mapping.steps.slice(editIdx + 1).flatMap((st) => st.occurrenceIds) : [];
+    solidIds = new Set(before);
+    highlightIds = new Set(editStep?.occurrenceIds ?? []);
+    ghostIds = new Set([...report.unassigned, ...later]);
+  }
+  const syncUnavailable = !loaded ? '' : !mapping || mapping.steps.length === 0 ? 'aucune correspondance notice ↔ 3D pour ce fichier.'
+    : report && !report.ok ? (report.issues.find((i) => i.severity === 'error')?.message ?? 'correspondances invalides.') : '';
   const renderStatus = !loaded ? ''
     : loaded.libraryProblem ? `Rendu indisponible : ${loaded.libraryProblem}`
       : geometry ? `Géométrie LDraw : ${geometry.templates.size} combinaison(s) pièce/couleur chargée(s), ${missing.length} référence(s) manquante(s), ${Math.round(geometry.durationMs)} ms.`
@@ -302,7 +459,10 @@ export default function BrickLabApp() {
         <span className="spacer" />
         {ctx && session && (
           <>
-            {session.mode === 'guided' && stepIdx >= 0 && <span data-testid="step-indicator">Étape {stepIdx + 1} / {ctx.plan.steps.length}</span>}
+            {isStepped(session.mode) && stepIdx >= 0 && <span data-testid="step-indicator">Étape {stepIdx + 1} / {ctx.plan.steps.length}</span>}
+            {session.mode === 'synced' && ctx.plan.steps[stepIdx]?.instruction && (
+              <span data-testid="notice-step">Notice : {ctx.plan.steps[stepIdx]!.instruction!.label}, p. {ctx.plan.steps[stepIdx]!.instruction!.page}</span>
+            )}
             {session.mode === 'freeManual' && <span>Montage libre</span>}
             <span data-testid="progress">{session.placed.length}/{ctx.occurrences.length} pièces posées</span>
             <span className="muted small">Sauvegardé localement</span>
@@ -310,7 +470,7 @@ export default function BrickLabApp() {
         )}
       </header>
 
-      <main className="workspace">
+      <main className={editing ? 'workspace editing' : 'workspace'}>
         <div className="viewport">
           {loaded && geometry && geometry.templates.size > 0 && ctx ? (
             <BuildCanvas
@@ -318,10 +478,12 @@ export default function BrickLabApp() {
               templates={geometry.templates}
               solidIds={solidIds}
               ghostIds={ghostIds}
-              held={held}
+              highlightIds={highlightIds}
+              held={editing ? null : held}
               previewPose={preview?.previewPose ?? null}
               onHover={updatePreview}
               onDrop={drop}
+              {...(editing ? { onPick: pickInEditor } : {})}
               recenterToken={recenter}
             />
           ) : (
@@ -351,6 +513,7 @@ export default function BrickLabApp() {
           <nav className="tabs" role="tablist">
             <button type="button" role="tab" aria-selected={tab === 'model'} onClick={() => setTab('model')}>Modèle</button>
             <button type="button" role="tab" aria-selected={tab === 'pdf'} onClick={() => setTab('pdf')}>Notice PDF</button>
+            {loaded && <button type="button" role="tab" aria-selected={tab === 'mapping'} onClick={openEditor}>Correspondances</button>}
           </nav>
           <div hidden={tab !== 'model'}>
             {loaded ? (
@@ -366,9 +529,18 @@ export default function BrickLabApp() {
                 />
                 {!session && playable && ctx && (
                   <div className="actions">
-                    {availableModes(ctx.plan).includes('guided') && <button type="button" className="button primary" onClick={() => start('guided')}>Commencer — mode guidé</button>}
+                    {syncPlan && <button type="button" className="button primary" onClick={() => start('synced')}>Commencer — notice synchronisée</button>}
+                    {availableModes(loaded.analysis.plan).includes('guided') && <button type="button" className={syncPlan ? 'button secondary' : 'button primary'} onClick={() => start('guided')}>Commencer — mode guidé</button>}
                     <button type="button" className="button secondary" onClick={() => start('freeManual')}>Montage libre (avec notice)</button>
-                    {ctx.plan.kind === 'NO_STEPS' && <p className="small muted">Étapes non disponibles dans ce fichier : aucune séquence n’est inventée.</p>}
+                    {loaded.analysis.plan.kind === 'NO_STEPS' && <p className="small muted">Étapes non disponibles dans ce fichier : aucune séquence n’est inventée.</p>}
+                  </div>
+                )}
+                {playable && (
+                  <div className="sync-status small" data-testid="sync-availability">
+                    {syncPlan
+                      ? <span className="ok">Notice synchronisée disponible : {syncPlan.steps.length} étape(s) de notice, correspondances validées.</span>
+                      : <span className="muted">Notice synchronisée indisponible : {syncUnavailable}</span>}
+                    {' '}<button type="button" className="small" onClick={openEditor}>{mapping && mapping.steps.length > 0 ? 'Modifier les correspondances' : 'Créer les correspondances'}</button>
                   </div>
                 )}
                 {!playable && loaded.quality.quality !== 'INVALID' && <p className="small muted">Visualisation seulement tant que des pièces manquent.</p>}
@@ -379,13 +551,63 @@ export default function BrickLabApp() {
               </>
             ) : <p className="muted small">Aucun modèle importé.</p>}
           </div>
-          <div hidden={tab !== 'pdf'}>
-            <PdfPanel initialPage={restoredPdfPage.current} onPageChange={onPdfPage} />
+          <div hidden={tab === 'model'}>
+            <PdfPanel
+              notice={notice}
+              initialPage={restoredPdfPage.current}
+              compact={editing}
+              fitWidth={synced || editing}
+              caption={synced ? 'page pilotée par l’étape de notice en cours.' : editing ? 'page de l’étape éditée.' : 'page PDF indépendante des étapes 3D.'}
+              banner={synced && plan ? (
+                <SyncStepBanner
+                  steps={plan.steps}
+                  activeIdx={activeIdx}
+                  shownIdx={shownIdx}
+                  placed={placedSet}
+                  booklet={shownBooklet}
+                  bookletOpen={Boolean(shownBooklet?.sha256 && notice.booklets.some((b) => b.sha256 === shownBooklet.sha256))}
+                  view={notice.view}
+                  onConsult={(i) => { setHeld(null); setConsultIdx(i); }}
+                  onRewind={(i) => {
+                    if (!ctx || !session) return;
+                    setSession(rewindToStep(ctx, session, i));
+                    setConsultIdx(null);
+                    setMessage({ kind: 'info', text: `Reprise depuis ${plan.steps[i]?.instruction?.label ?? 'cette étape'} : les pièces des étapes suivantes ont été retirées.` });
+                  }}
+                  onShowStepPage={showStepPage}
+                />
+              ) : null}
+            />
+            {editing && report && target && (
+              <MappingEditor
+                mapping={mapping}
+                report={report}
+                occurrences={loaded.analysis.model.occurrences}
+                ldrawPlan={loaded.analysis.plan}
+                notice={notice}
+                currentStepId={editStep?.id ?? null}
+                onSelectStep={setEditStepId}
+                onChange={changeMapping}
+                onExport={() => downloadMapping(mapping)}
+                onImportFile={(f) => void importMappingFile(f)}
+                onClear={clearAllMapping}
+                onClose={() => setTab(session?.mode === 'synced' ? 'pdf' : 'model')}
+                showLater={showLater}
+                onShowLater={setShowLater}
+                colourOf={(c) => catalog.colourHex(c)}
+              />
+            )}
+            {editing && replacedMapping && (
+              <p className="small">
+                Correspondances précédentes remplacées.{' '}
+                <button type="button" className="small" onClick={() => { changeMapping(replacedMapping, 'Correspondances précédentes restaurées.'); setEditStepId(replacedMapping.steps[0]?.id ?? null); setReplacedMapping(null); }}>Les restaurer</button>
+              </p>
+            )}
           </div>
         </aside>
       </main>
 
-      {ctx && session && (
+      {ctx && session && !editing && (
         <footer className="tray">
           {isComplete(ctx, session) ? (
             <div className="done">
@@ -404,8 +626,15 @@ export default function BrickLabApp() {
               </span>
             )}
             {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}>Orientation suivante (O)</button>}
-            <button type="button" onClick={() => setSession(undo(session))} disabled={session.placed.length === 0}>Annuler</button>
-            {session.mode === 'guided' && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
+            <button type="button" onClick={() => { setConsultIdx(null); setSession(undo(session)); }} disabled={session.placed.length === 0}>Annuler</button>
+            {isStepped(session.mode) && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
+            <label className="small">Mode{' '}
+              <select data-testid="mode-select" value={session.mode} onChange={(e) => start(e.target.value as BuildMode, true)}>
+                {(['synced', 'guided', 'freeManual'] as const)
+                  .filter((m) => m === session.mode || (m === 'synced' ? syncPlan !== null : m === 'guided' ? availableModes(loaded!.analysis.plan).includes('guided') : true))
+                  .map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
+              </select>
+            </label>
             <label className="small"><input type="checkbox" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} /> Montrer les emplacements</label>
             <button type="button" onClick={() => setRecenter((n) => n + 1)}>Centrer</button>
             <button type="button" onClick={assistPlace} disabled={!held} title="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-testid="assist-place">Poser à la position cible (aide)</button>

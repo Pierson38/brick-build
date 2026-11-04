@@ -62,3 +62,27 @@ details li.warning { color: #92400e; }
 .inventory-COHERENT { color: var(--ok); }
 .inventory-INDETERMINATE, .inventory-INCOMPLETE { color: #92400e; background: #fef3c7; padding: 4px 8px; border-radius: 6px; }
 .inventory-NOT_VERIFIED { color: var(--muted); }
+/* P6: booklet ↔ 3D mapping editor and synchronised mode */
+.workspace.editing { grid-template-columns: 1fr 520px; }
+.pdf-panel.compact .pdf-scroll { max-height: 38vh; }
+.mapping-editor { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.mapping-editor h4 { margin: 6px 0 2px; font-size: 14px; }
+.editor-head, .editor-nav, .editor-actions, .editor-fields, .sync-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.editor-nav select { flex: 1; min-width: 0; }
+.editor-step { display: flex; flex-direction: column; gap: 6px; background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.editor-fields input[type=number] { width: 64px; }
+.editor-fields input:not([type]) { min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.chips li { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 4px 2px 8px; background: #fff; }
+.chips button { padding: 1px 6px; border-radius: 999px; }
+.plain { list-style: none; padding-left: 0; margin: 4px 0; display: flex; flex-direction: column; gap: 4px; }
+.plain li.error { color: var(--err); }
+.plain li.warning { color: #92400e; }
+.plain li.info { color: var(--muted); }
+button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; }
+button.danger { border-color: #fca5a5; color: var(--err); }
+.warn { color: #92400e; background: #fef3c7; padding: 4px 8px; border-radius: 6px; margin: 4px 0; }
+.sync-banner { border: 1px solid #c7d6fe; background: #f0f4ff; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.sync-banner.consulting { border-color: #fcd34d; background: #fffbeb; }
+.sync-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.primary-text { color: var(--accent); }

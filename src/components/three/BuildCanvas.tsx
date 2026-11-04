@@ -7,7 +7,7 @@ import { DoubleSide, type Group, Matrix4, type Object3D, Ray as ThreeRay, Vector
 import { trayKey } from '@/domain/build/engine';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
-import { cloneTemplate, templateVertices } from '@/infra/ldraw/part-catalog';
+import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
 
 export interface HeldBrick {
   readonly partKey: string;
@@ -25,17 +25,21 @@ interface Props {
   readonly templates: ReadonlyMap<string, Group>;
   readonly solidIds: ReadonlySet<string>;
   readonly ghostIds: ReadonlySet<string>;
+  /** Shown solid with a highlight (step being edited or consulted); wins over solid and ghost. */
+  readonly highlightIds?: ReadonlySet<string>;
   readonly held: HeldBrick | null;
   /** Pose at which the held brick is shown (from the last hover). */
   readonly previewPose: Matrix4Tuple | null;
   readonly onHover: (ray: Ray, hit: HoverHit | null) => void;
   /** Click without drag while holding a brick: drop it where it is shown. */
   readonly onDrop: () => void;
+  /** Click without drag and without a held brick on a shown brick (mapping editor). */
+  readonly onPick?: (occurrenceId: string, modifiers: { readonly alt: boolean }) => void;
   readonly recenterToken: number;
 }
 
 
-type Variant = 'solid' | 'ghost' | 'held';
+type Variant = BrickVariant;
 
 /** Finds the occurrence root (PlacedBrick) an intersected mesh belongs to. */
 function brickOf(object: Object3D): { variant: Variant; occurrenceId: string } | null {
@@ -64,7 +68,7 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, held, previewPose, onHover, onDrop }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick }: Props) {
   const root = useRef<Group>(null);
   // Ground = the lowest point of the finished model, from the real geometry of each part.
   const groundY = useMemo(() => {
@@ -115,13 +119,20 @@ function Scene({ occurrences, templates, solidIds, ghostIds, held, previewPose, 
         onHover(ray, hit);
       }}
       onClick={(e) => {
-        if (!held || e.delta > 4) return; // no brick held, or an orbit drag
+        if (e.delta > 4) return; // an orbit drag
+        if (!held) {
+          const brick = onPick ? e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held') : null;
+          if (!brick) return;
+          e.stopPropagation();
+          onPick!(brick.occurrenceId, { alt: e.altKey });
+          return;
+        }
         e.stopPropagation();
         onDrop();
       }}
     >
       {occurrences.map((o) => {
-        const variant = solidIds.has(o.occurrenceId) ? 'solid' : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
+        const variant = highlightIds?.has(o.occurrenceId) ? 'selected' : solidIds.has(o.occurrenceId) ? 'solid' : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
         const template = templates.get(trayKey(o.partKey, o.colorCode));
         if (!variant || !template) return null;
         return <PlacedBrick key={`${o.occurrenceId}:${variant}`} template={template} matrix={o.targetMatrix} variant={variant} id={o.occurrenceId} />;
@@ -140,7 +151,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, held, previewPose, 
   );
 }
 
-function PlacedBrick({ template, matrix, variant, id }: { template: Group; matrix: Matrix4Tuple; variant: 'solid' | 'ghost' | 'held'; id: string }) {
+function PlacedBrick({ template, matrix, variant, id }: { template: Group; matrix: Matrix4Tuple; variant: Variant; id: string }) {
   const object = useMemo(() => {
     const o = cloneTemplate(template, variant);
     o.matrixAutoUpdate = false;
@@ -182,7 +193,7 @@ declare global {
     __brickLab?: {
       /** Screen position (client px) of an LDraw-space point. Dev/test only. */
       project: (ldraw: readonly [number, number, number]) => { x: number; y: number };
-      sceneSummary: () => { solid: number; ghost: number; held: number; meshes: number };
+      sceneSummary: () => { solid: number; ghost: number; held: number; selected: number; meshes: number };
       /** True when the renderer size used for picking matches the canvas on screen. */
       sizeInSync: () => boolean;
     };
@@ -207,9 +218,9 @@ function TestHooks() {
         return Math.abs(rect.width - sizeRef.current.width) < 1 && Math.abs(rect.height - sizeRef.current.height) < 1;
       },
       sceneSummary: () => {
-        const counts = { solid: 0, ghost: 0, held: 0, meshes: 0 };
+        const counts = { solid: 0, ghost: 0, held: 0, selected: 0, meshes: 0 };
         scene.traverse((o) => {
-          const variant = o.userData.variant as 'solid' | 'ghost' | 'held' | undefined;
+          const variant = o.userData.variant as Variant | undefined;
           if (variant) counts[variant] += 1;
           if ((o as { isMesh?: boolean }).isMesh && o.name !== 'ground-plane') counts.meshes += 1;
         });

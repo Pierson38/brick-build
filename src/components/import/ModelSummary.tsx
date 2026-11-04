@@ -11,7 +11,7 @@ const QUALITY_LABEL: Record<QualityReport['quality'], string> = {
   GUIDED_PLAYABLE: 'Jouable avec étapes 3D',
 };
 
-const PLAN_LABEL = { ROOT_STEPS: 'étapes du modèle principal', FLATTENED_STEPS: 'étapes aplaties des sous-modèles', NO_STEPS: 'aucune étape' } as const;
+const PLAN_LABEL = { ROOT_STEPS: 'étapes du modèle principal', FLATTENED_STEPS: 'étapes aplaties des sous-modèles', NO_STEPS: 'aucune étape', INSTRUCTION_STEPS: 'étapes de la notice' } as const;
 
 interface Props {
   readonly fileName: string;

@@ -1,7 +1,9 @@
+import type { InstructionRef } from '../instructions/mapping';
 import type { BrickOccurrence, ExpandedModel, LDrawDocument } from '../ldraw/types';
 
 export type StepProvenance = 'LDRAW_ROOT' | 'LDRAW_NESTED' | 'USER_EDITED' | 'NONE';
-export type StepPlanKind = 'ROOT_STEPS' | 'FLATTENED_STEPS' | 'NO_STEPS';
+/** INSTRUCTION_STEPS: steps of the official booklet, from a validated manual mapping (instructions/mapping.ts). */
+export type StepPlanKind = 'ROOT_STEPS' | 'FLATTENED_STEPS' | 'NO_STEPS' | 'INSTRUCTION_STEPS';
 
 export interface BuildStep {
   readonly id: string;
@@ -10,6 +12,8 @@ export interface BuildStep {
   readonly provenance: StepProvenance;
   /** Submodel instance whose step this is (null = root model). */
   readonly instanceId: string | null;
+  /** Booklet page and printed number, only for INSTRUCTION_STEPS. */
+  readonly instruction?: InstructionRef;
 }
 
 export interface StepPlan {
