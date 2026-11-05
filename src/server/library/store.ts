@@ -511,7 +511,7 @@ export class LibraryStore {
     const file = this.recordPath(buildId, kind);
     // keep the replaced version (an unreadable one is kept byte for byte); progress is saved at
     // every brick, so its history keeps at most one version per minute
-    const recent = kind === 'progress' && current !== 'unreadable' && current !== null && Date.now() - Date.parse(current.savedAtIso) < 60_000
+    const recent = kind === 'progress' && source === 'atelier' && current !== 'unreadable' && current !== null && Date.now() - Date.parse(current.savedAtIso) < 60_000
       && (await this.lastHistoryAge(buildId, kind)) < 60_000;
     if (current !== null && !recent) {
       const history = this.p('builds', buildId, 'history');
@@ -543,13 +543,14 @@ export class LibraryStore {
     return { index, build };
   }
 
-  async putProgress(buildId: string, progress: unknown, baseRevision: number | null): Promise<StoredRecord> {
+  /** `browser`: a save of this browser chosen explicitly by the user; the replaced one is always kept in history. */
+  async putProgress(buildId: string, progress: unknown, baseRevision: number | null, source: 'atelier' | 'browser' = 'atelier'): Promise<StoredRecord> {
     return this.exclusive(async () => {
       const { build } = await this.buildOf(buildId);
       const { analysis } = await this.analysis(build);
       const restored = restoreProgress(progress, build.modelFileId, analysis.model.occurrences);
       if (!restored.ok) throw new LibraryError('INVALID', `Progression refusée (${restored.reason}) : elle ne correspond pas à ce modèle.`);
-      return this.writeRecord(buildId, 'progress', JSON.stringify(progress), baseRevision, 'atelier');
+      return this.writeRecord(buildId, 'progress', JSON.stringify(progress), baseRevision, source);
     });
   }
 

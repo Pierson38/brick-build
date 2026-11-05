@@ -196,6 +196,27 @@ describe('library: booklets, mappings, alternative models', () => {
 });
 
 describe('library: progress', () => {
+  it('progress history: at most one atelier version per minute, but an explicit browser recovery always keeps the replaced one', async () => {
+    const { builds } = await addSync8Set();
+    const id = builds[0]!.id;
+    const m = sha(SYNC8);
+    const hist = async () => (await fs.readdir(path.join(dir, 'library', 'builds', id, 'history')).catch(() => [] as string[])).filter((n) => n.startsWith('progress-'));
+    const r1 = await store.putProgress(id, progressFor(m, ['notice-sync-8.mpd#0']), null);
+    const r2 = await store.putProgress(id, progressFor(m, ['notice-sync-8.mpd#0', 'notice-sync-8.mpd#1']), r1.revision);
+    const r3 = await store.putProgress(id, progressFor(m, ['notice-sync-8.mpd#0', 'notice-sync-8.mpd#1', 'notice-sync-8.mpd#2']), r2.revision);
+    expect(await hist()).toHaveLength(1); // r1 kept, r2 replaced within the minute (atelier autosave)
+    const older = progressFor(m, ['notice-sync-8.mpd#7'], 'freeManual');
+    await store.putProgress(id, older, r3.revision, 'browser');
+    const files = await hist();
+    expect(files).toHaveLength(2);
+    // the replaced library version (3 bricks) is in the history, byte for byte
+    const kept = JSON.parse(await fs.readFile(path.join(dir, 'library', 'builds', id, 'history', files.sort().at(-1)!), 'utf8')) as { payload: { placedOccurrenceIds: string[] } };
+    expect(kept.payload.placedOccurrenceIds).toHaveLength(3);
+    expect((await store.readRecord(id, 'progress'))!.payload).toEqual(older);
+    // a recovery based on a stale revision is refused, not merged
+    await expect(store.putProgress(id, older, r3.revision, 'browser')).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
   it('saves, resumes, refuses stale or foreign progress, and restarts only with confirmation', async () => {
     const { builds } = await addSync8Set();
     const id = builds[0]!.id;

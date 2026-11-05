@@ -183,3 +183,9 @@ label.block { display: block; padding: 2px 0; }
 @media (max-width: 1100px) { .build-panel { grid-template-columns: 1fr; } .preview3d { position: static; height: 320px; } }
 .build-info > label.button, .build-info > button, .candidate > button, .dialog > label.button, .add-build label.button { align-self: flex-start; }
 .setno { white-space: nowrap; }
+.diff { border-collapse: collapse; margin: 6px 0; }
+.diff th, .diff td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+.diff thead th { background: #f6f7f9; }
+.diff tr.differs td, .diff tr.differs th { background: #fffbeb; font-weight: 600; }
+.browser-save { border: 1px solid #fcd34d; background: #fffdf5; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.browser-save h3 { margin: 0 !important; }

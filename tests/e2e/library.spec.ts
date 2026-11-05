@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { analyzeModel } from '../../src/domain/import/analyze';
-import { addBooklet, addStep, assignToStep, createMapping, serializeMapping, type InstructionMapping } from '../../src/domain/instructions/mapping';
+import { serializeProgress } from '../../src/domain/build/progress';
+import { addBooklet, addStep, assignToStep, createMapping, mappingDigest, serializeMapping, type InstructionMapping } from '../../src/domain/instructions/mapping';
 import { E2E_DATA_DIR } from '../../playwright.config';
 import { makeTestPdf } from './make-test-pdf';
 
@@ -26,12 +27,15 @@ const POS: [number, number, number][] = [[0, 0, 0], [80, 0, 0], [0, 0, -40], [80
 const COLOUR = ['4', '1', '14', '14', '2', '2', '15', '0'];
 const W = { origin: 'http://127.0.0.1:3000', 'x-brick-lab': '1' };
 
-function mapping(modelSha = sha(SYNC8_BYTES)): InstructionMapping {
+const FOUR_STEPS = [[{ page: 2, printedStep: '1' }, [0, 1]], [{ page: 2, printedStep: '2' }, [2, 3]], [{ page: 3, printedStep: '3' }, [4, 5]], [{ page: 3, printedStep: '4' }, [6, 7]]] as const;
+const TWO_STEPS = [[{ page: 2, printedStep: '1' }, [0, 1, 2, 3]], [{ page: 3, printedStep: '2' }, [4, 5, 6, 7]]] as const;
+
+function mapping(modelSha = sha(SYNC8_BYTES), steps: typeof FOUR_STEPS | typeof TWO_STEPS = FOUR_STEPS): InstructionMapping {
   const a = analyzeModel(SYNC8_BYTES.toString('utf8'), 'notice-sync-8.mpd');
   let m = createMapping({ sha256: modelSha, fileName: 'notice-sync-8.mpd', rootName: a.model.rootName, occurrences: a.model.occurrences });
   m = addBooklet(m, { label: 'Livret 1', fileName: 'notice-test.pdf', sha256: sha(PDF), pageCount: 3 }).mapping;
   let last: string | null = null;
-  for (const [init, occ] of [[{ page: 2, printedStep: '1' }, [0, 1]], [{ page: 2, printedStep: '2' }, [2, 3]], [{ page: 3, printedStep: '3' }, [4, 5]], [{ page: 3, printedStep: '4' }, [6, 7]]] as const) {
+  for (const [init, occ] of steps) {
     const r = addStep(m, last, init);
     m = assignToStep(r.mapping, r.stepId, occ.map(id)).mapping;
     last = r.stepId;
@@ -151,22 +155,35 @@ test('synchronised build, back to the collection, browser closed, resumed with n
   await context.close();
 });
 
-test('two tabs on the same build: the stale one cannot overwrite', async ({ browser }) => {
+test('two tabs on the same build: a page change is reconciled, a game change in the stale tab is refused', async ({ browser }) => {
   const context = await browser.newContext();
   const a = await context.newPage();
   const b = await context.newPage();
   await a.goto('/');
   const href = await a.getByTestId('set-card-90001-1').getByTestId('card-build').getAttribute('href');
-  await a.goto(href!);
-  await b.goto(href!);
+  const buildId = href!.split('/').pop()!;
+  // the library holds an outdated PDF page (the step is on p. 3): both tabs re-save the page on load
+  const current = (await (await context.request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number; progress: Record<string, unknown> };
+  const put = await context.request.put(`/api/library/builds/${buildId}/progress`, { data: { baseRevision: current.revision, progress: { ...current.progress, lastPdfPage: 2 } }, headers: W });
+  expect(put.ok(), await put.text()).toBe(true);
+  await Promise.all([a.goto(href!), b.goto(href!)]);
   await expect(a.getByTestId('progress')).toHaveText('4/8 pièces posées', { timeout: 30_000 });
   await expect(b.getByTestId('progress')).toHaveText('4/8 pièces posées', { timeout: 30_000 });
+  await expect(a.getByTestId('pdf-page')).toHaveText('PDF p. 3 / 3');
+  await expect(b.getByTestId('pdf-page')).toHaveText('PDF p. 3 / 3');
+  await expect.poll(async () => ((await (await context.request.get(`/api/library/builds/${buildId}/progress`)).json()) as { progress: { lastPdfPage: number } }).progress.lastPdfPage).toBe(3);
+  await a.waitForTimeout(500);
+  // opening the same build twice is not a conflict
+  await expect(a.getByTestId('save-conflict')).toHaveCount(0);
+  await expect(b.getByTestId('save-conflict')).toHaveCount(0);
   await dropAt(a, 4);
-  await expect(a.getByTestId('save-state')).toHaveText('Enregistré dans la bibliothèque');
+  await expect(a.getByTestId('progress')).toHaveText('5/8 pièces posées');
+  await expect.poll(async () => (await library(context.request)).sets[0]!.builds[0]!.progress!.placed).toBe(5);
+  await expect(a.getByTestId('save-conflict')).toHaveCount(0);
+  // the other tab still shows 4 bricks: its own move is refused, nothing is overwritten
   await dropAt(b, 4);
   await expect(b.getByTestId('save-conflict')).toContainText('enregistrée entre-temps');
-  const lib = await library(context.request);
-  expect(lib.sets[0]!.builds[0]!.progress!.placed).toBe(5);
+  expect((await library(context.request)).sets[0]!.builds[0]!.progress!.placed).toBe(5);
   await context.close();
 });
 
@@ -305,4 +322,101 @@ test('requests from other origins or hosts are refused; paths cannot be chosen b
     return msg;
   });
   expect(result).toBe('blocked');
+});
+
+// ---- P5/P6 browser saves that DIFFER from the library's: never decided by date, never lost ----
+
+/** A copy of the fixture with its own fingerprint (same occurrence ids), as its own set. */
+async function variantSet(request: APIRequestContext, setNumber: string, tag: string) {
+  const bytes = Buffer.from(SYNC8_BYTES.toString('utf8').replace('0 Name: notice-sync-8.mpd', `0 Name: notice-sync-8.mpd\n0 // ${tag}`));
+  const modelSha = await upload(request, 'model', 'notice-sync-8.mpd', bytes);
+  const r = await request.post('/api/library/sets', { data: { setNumber, name: tag, builds: [{ label: 'Principal', modelFileId: modelSha }] }, headers: W });
+  expect(r.status(), await r.text()).toBe(201);
+  const created = (await r.json()) as { set: { id: string }; builds: { id: string }[] };
+  return { modelSha, setId: created.set.id, buildId: created.builds[0]!.id };
+}
+const progressOf = (modelSha: string, mode: 'guided' | 'freeManual' | 'synced', bricks: number[], at: Date, page?: number, digest?: string) =>
+  serializeProgress(modelSha, 'notice-sync-8.mpd', { mode, placed: bricks.map(id) }, 8, page ? { page } : {}, digest, at);
+async function putLibraryProgress(request: APIRequestContext, buildId: string, progress: unknown) {
+  const r = await request.put(`/api/library/builds/${buildId}/progress`, { data: { baseRevision: null, progress }, headers: W });
+  expect(r.ok(), await r.text()).toBe(true);
+}
+const historyOf = async (buildId: string) =>
+  Promise.all((await fs.readdir(path.join(E2E_DATA_DIR, 'library', 'builds', buildId, 'history')).catch(() => [] as string[])).sort().map(async (n) => ({
+    name: n, record: JSON.parse(await fs.readFile(path.join(E2E_DATA_DIR, 'library', 'builds', buildId, 'history', n), 'utf8')) as { payload: { placedOccurrenceIds?: string[]; steps?: unknown[] } },
+  })));
+
+test('an OLDER browser save that differs is offered; keeping the library keeps it; it is recovered later from the set page; nothing is lost', async ({ page, request }) => {
+  const { modelSha, setId, buildId } = await variantSet(request, '90020-1', 'ancienne partie');
+  // the library has the newer, larger build (like the 12/65 of the trial), the browser an older P6 save
+  await putLibraryProgress(request, buildId, progressOf(modelSha, 'guided', [0, 1, 2, 3, 4, 5], new Date()));
+  const old = progressOf(modelSha, 'freeManual', [0, 7], new Date('2026-11-01T10:00:00Z'), 2);
+  await page.goto('/');
+  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [`brick-lab:progress:${modelSha}`, JSON.stringify(old)] as const);
+  await expect(page.getByTestId('legacy-saves')).toContainText('comparer et récupérer dans le détail de 90020-1');
+
+  await page.goto(`/atelier/${buildId}`);
+  const choice = page.getByTestId('progress-choice');
+  await expect(choice).toBeVisible({ timeout: 30_000 });
+  await expect(choice.getByTestId('diff-Pièces posées')).toContainText('6/82/8');
+  await expect(choice.getByTestId('diff-Pièces posées')).toHaveClass('differs');
+  await expect(choice.getByTestId('diff-Mode')).toHaveClass('differs');
+  await expect(choice.getByTestId('diff-Page de la notice')).toHaveClass('differs');
+  await expect(choice).toContainText('5 pièce(s) posée(s) seulement ici');
+  await expect(choice).toContainText('Enregistrée en dernier : la bibliothèque');
+  await page.screenshot({ path: 'test-results/proof-p7-choice.png' });
+  await choice.getByTestId('choice-library').click();
+  await expect(page.getByTestId('progress')).toHaveText('6/8 pièces posées', { timeout: 30_000 });
+  await expect(page.getByTestId('atelier-notes')).toContainText('Celle de ce navigateur est conservée');
+  // not asked again for the same browser save, but still announced
+  await page.reload();
+  await expect(page.getByTestId('progress')).toHaveText('6/8 pièces posées', { timeout: 30_000 });
+  await expect(page.getByTestId('progress-choice')).toHaveCount(0);
+  await expect(page.getByTestId('atelier-notes')).toContainText('Une autre sauvegarde existe dans ce navigateur (2/8 pièces)');
+
+  // explicit recovery from the set page, although it is older
+  await page.goto(`/sets/${setId}`);
+  const panel = page.getByTestId('browser-save');
+  await expect(panel).toContainText('2/8');
+  await panel.getByTestId('browser-save-take').click();
+  await panel.getByTestId('browser-save-confirm').click();
+  await expect(page.getByTestId('detail-message')).toContainText('Sauvegarde de ce navigateur reprise (2/8 pièces)');
+  await expect(page.getByTestId('detail-progress')).toHaveText('2/8 pièces posées');
+  await expect(page.getByTestId('browser-save')).toHaveCount(0);
+  // the replaced library version (6 bricks) is in the history; the browser save is untouched
+  expect((await historyOf(buildId)).some((h) => h.name.startsWith('progress-') && h.record.payload.placedOccurrenceIds?.length === 6)).toBe(true);
+  expect(await page.evaluate((k) => localStorage.getItem(k), `brick-lab:progress:${modelSha}`)).toBe(JSON.stringify(old));
+  // identical saves now: no question, the recovered mode and bricks are restored
+  await page.goto(`/atelier/${buildId}`);
+  await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées', { timeout: 30_000 });
+  await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+  await expect(page.getByTestId('progress-choice')).toHaveCount(0);
+});
+
+test('a browser save played with another mapping: the difference is shown, its mapping can be taken with it, the library one is kept in history', async ({ page, request }) => {
+  const { modelSha, buildId } = await variantSet(request, '90021-1', 'autre mapping');
+  const libMapping = mapping(modelSha, FOUR_STEPS);
+  const navMapping = mapping(modelSha, TWO_STEPS);
+  const r = await request.put(`/api/library/builds/${buildId}/mapping`, { data: { baseRevision: null, text: serializeMapping(libMapping), source: 'import' }, headers: W });
+  expect(r.ok(), await r.text()).toBe(true);
+  await putLibraryProgress(request, buildId, progressOf(modelSha, 'synced', [0], new Date(), 2, mappingDigest(libMapping)));
+  const nav = progressOf(modelSha, 'synced', [0, 1, 2], new Date('2026-11-02T10:00:00Z'), 2, mappingDigest(navMapping));
+  await page.goto('/');
+  await page.evaluate(([kp, vp, km, vm]) => { localStorage.setItem(kp, vp); localStorage.setItem(km, vm); },
+    [`brick-lab:progress:${modelSha}`, JSON.stringify(nav), `brick-lab:mapping:${modelSha}`, serializeMapping(navMapping)] as const);
+  await page.goto(`/atelier/${buildId}`);
+  const choice = page.getByTestId('progress-choice');
+  await expect(choice).toBeVisible({ timeout: 30_000 });
+  await expect(choice.getByTestId('diff-Correspondances jouées')).toHaveClass('differs');
+  await expect(choice.getByTestId('diff-Mode')).not.toHaveClass('differs');
+  await expect(choice.getByTestId('choice-with-mapping')).toBeChecked();
+  await choice.getByTestId('choice-browser').click();
+  await expect(page.getByTestId('progress')).toHaveText('3/8 pièces posées', { timeout: 30_000 });
+  await expect(page.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 1, p. 2');
+  const stored = (await (await request.get(`/api/library/builds/${buildId}/mapping`)).json()) as { mapping: { steps: unknown[] } };
+  expect(stored.mapping.steps).toHaveLength(2);
+  const history = await historyOf(buildId);
+  expect(history.some((h) => h.name.startsWith('mapping-') && h.record.payload.steps?.length === 4)).toBe(true);
+  expect(history.some((h) => h.name.startsWith('progress-') && h.record.payload.placedOccurrenceIds?.length === 1)).toBe(true);
 });

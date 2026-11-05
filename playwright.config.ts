@@ -18,7 +18,8 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } }],
   webServer: {
-    command: 'npm run dev',
+    // fresh Turbopack dev cache: a stale .next/dev made the page reload in a loop (HMR hash mismatch)
+    command: 'rm -rf .next/dev && npm run dev',
     env: { BRICK_LAB_DATA_DIR: E2E_DATA_DIR },
     url: 'http://127.0.0.1:3000/api/ldraw-status',
     reuseExistingServer: true,
