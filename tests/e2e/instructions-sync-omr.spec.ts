@@ -42,7 +42,7 @@ async function openBooklet(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/atelier');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 });

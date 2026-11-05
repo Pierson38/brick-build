@@ -17,6 +17,9 @@ Le dépôt contient deux familles de documents :
 - [P6 — notice ↔ 3D synchronisée : architecture et risques](P6_ARCHITECTURE_NOTICE_SYNC.md)
 - [P6 — rapport, essai réel 31040, verdict](P6_RAPPORT.md)
 - [Recette humaine P6 (à faire par le propriétaire)](RECETTE_HUMAINE_P6.md)
+- [P7 — bibliothèque personnelle : architecture, sécurité, sauvegarde et restauration](P7_ARCHITECTURE_BIBLIOTHEQUE.md)
+- [P7 — rapport, recette réelle 31040/31009, limites, verdict](P7_RAPPORT.md)
+- [Recette humaine P7 (à faire par le propriétaire)](RECETTE_HUMAINE_P7.md)
 
 ## Démarrage développeur
 
@@ -29,7 +32,7 @@ Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm.
    Licence : CC BY 4.0, voir `CAreadme.txt` dans la bibliothèque. Ne jamais la commiter.
 2. `npm ci` puis `npx playwright install chromium`.
 3. `npm run check:ldraw` vérifie la bibliothèque.
-4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée).
+4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée). La page d'accueil est « Ma collection » ; l'atelier P5/P6 sans collection est sur `/atelier`.
 5. Recette : `npm run recette` (typecheck + Vitest + Playwright).
 
 Note technique du spike et limites : [10_SPIKE_ET_LOT_P0_P1.md](10_SPIKE_ET_LOT_P0_P1.md).
@@ -58,3 +61,16 @@ npx playwright test tests/e2e/instructions-sync.spec.ts        # fixtures synth�
 npx playwright test tests/e2e/instructions-sync-omr.spec.ts    # essai réel 31040 (GPU)
 ```
 
+
+## Bibliothèque personnelle (P7)
+
+Données dans `~/Documents/brick-lab-data/library/` (ou `$BRICK_LAB_DATA_DIR/library/`). Sauvegarde et restauration : [P7_ARCHITECTURE_BIBLIOTHEQUE.md § 7](P7_ARCHITECTURE_BIBLIOTHEQUE.md#7-démarrage-sauvegarde-restauration).
+
+```bash
+npx vitest run tests/unit/library-store.test.ts tests/unit/library-api.test.ts
+npx playwright test tests/e2e/library.spec.ts          # fixtures originales, dossier temporaire
+npx playwright test tests/e2e/library-webkit.spec.ts   # Chromium ↔ WebKit (npx playwright install webkit)
+npx playwright test tests/e2e/library-omr.spec.ts      # essai réel 31040/31009 (ignoré sans les fichiers)
+```
+
+Les suites E2E démarrent leur serveur sur un dossier temporaire et refusent un serveur déjà lancé sur un autre dossier : arrêter `npm run dev`/`npm run start` avant `npm run recette`.

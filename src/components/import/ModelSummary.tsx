@@ -20,7 +20,8 @@ interface Props {
   readonly renderStatus: string;
   readonly missingParts: readonly string[];
   readonly inventory: InventoryCheck;
-  readonly onChooseRoot: (name: string) => void;
+  /** Absent for a library build: its main model is part of its identity. */
+  readonly onChooseRoot?: (name: string) => void;
 }
 
 export function ModelSummary({ fileName, analysis, quality, renderStatus, missingParts, inventory, onChooseRoot }: Props) {
@@ -41,7 +42,8 @@ export function ModelSummary({ fileName, analysis, quality, renderStatus, missin
         {meta?.author && (<><dt>Auteur</dt><dd>{meta.author}</dd></>)}
         {meta?.license && (<><dt>Licence</dt><dd>{meta.license}</dd></>)}
       </dl>
-      {analysis.rootCandidates.length > 1 && (
+      {analysis.rootCandidates.length > 1 && !onChooseRoot && <p className="small muted">Modèle principal : {model.rootName}</p>}
+      {analysis.rootCandidates.length > 1 && onChooseRoot && (
         <label className="small">
           Modèle principal :{' '}
           <select value={model.rootName} onChange={(e) => onChooseRoot(e.target.value)}>

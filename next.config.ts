@@ -6,6 +6,19 @@ const nextConfig: NextConfig = {
   // do not write AGENTS.md into the repository on `next dev`
   agentRules: false,
   devIndicators: false,
+  // local app: no framing by other pages, no MIME sniffing, no referrer sent anywhere.
+  // Production only: with `next dev` (16.4.5) a headers() rule made the page reload in a loop.
+  async headers() {
+    if (process.env.NODE_ENV !== 'production') return [];
+    return [{
+      source: '/:path*',
+      headers: [
+        { key: 'X-Frame-Options', value: 'DENY' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'no-referrer' },
+      ],
+    }];
+  },
 };
 
 export default nextConfig;
