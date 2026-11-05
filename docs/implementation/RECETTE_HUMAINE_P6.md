@@ -1,6 +1,6 @@
 # Recette humaine P6 — à faire par le propriétaire (Chrome et Safari, Mac)
 
-> Les tests Playwright pilotent la souris par script ; ils ne remplacent pas un essai réel. **Cette recette n'a pas encore été faite.**
+> Les tests Playwright pilotent la souris par script ; ils ne remplacent pas un essai réel.
 
 Durée estimée : 30–40 min par navigateur.
 
@@ -54,6 +54,12 @@ Ouvrir http://127.0.0.1:3000. Avant chaque navigateur, partir d'un stockage vide
 | 3.10 | Finir le modèle | « Bravo, modèle terminé ! » | |
 | 3.11 | Ressenti : la notice et la 3D se suivent-elles agréablement ? Points pénibles ? | Remarques libres | |
 
-## 4. Résultat
+## 4. Résultat (05/11/2026)
 
-À remplir : navigateur, date, commit, OK/KO, remarques.
+**Recette réalisée par le propriétaire : OK.** Elle a porté sur le serveur de production local, commit `4ebe7ce`.
+
+- Résultat communiqué : « C'est tout bon ».
+- Mapping 31040 : « Yes, all 24 » entrées contrôlées contre la notice, sans correction.
+- Non transmis : grille détaillée et navigateurs testés. Aucun KO ni point pénible signalé.
+
+Détails et mapping vérifié : [P6_RAPPORT.md § 7](P6_RAPPORT.md#7-recette-humaine-et-vérification-du-mapping-05112026).
