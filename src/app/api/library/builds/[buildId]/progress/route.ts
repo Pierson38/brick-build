@@ -27,7 +27,7 @@ export async function PUT(request: Request, { params }: Ctx) {
     const body = await readJsonBody(request, 1024 * 1024);
     const base = body.baseRevision === null ? null : revisionOf(body.baseRevision);
     if (base === null && body.baseRevision !== null) throw new LibraryError('INVALID', 'Révision de base manquante.');
-    const rec = await store().putProgress((await params).buildId, body.progress, base);
+    const rec = await store().putProgress((await params).buildId, body.progress, base, body.source === 'browser' ? 'browser' : 'atelier');
     return json({ revision: rec.revision, savedAtIso: rec.savedAtIso });
   } catch (e) {
     return failure(e);

@@ -65,8 +65,8 @@ export const libraryApi = {
   removeBuild: (id: string, baseRevision: number) => call<{ trashedTo: string }>(`/api/library/builds/${encodeURIComponent(id)}`, jsonInit('DELETE', { baseRevision, confirm: true })),
 
   progress: (id: string) => call<{ revision: number | null; progress: unknown; savedAtIso?: string }>(`/api/library/builds/${encodeURIComponent(id)}/progress`),
-  putProgress: (id: string, baseRevision: number | null, progress: unknown, keepalive = false) =>
-    call<{ revision: number }>(`/api/library/builds/${encodeURIComponent(id)}/progress`, { ...jsonInit('PUT', { baseRevision, progress }), keepalive }),
+  putProgress: (id: string, baseRevision: number | null, progress: unknown, keepalive = false, source: 'atelier' | 'browser' = 'atelier') =>
+    call<{ revision: number }>(`/api/library/builds/${encodeURIComponent(id)}/progress`, { ...jsonInit('PUT', { baseRevision, progress, source }), keepalive }),
   clearProgress: (id: string, baseRevision: number) => call<unknown>(`/api/library/builds/${encodeURIComponent(id)}/progress`, jsonInit('DELETE', { baseRevision, confirm: true })),
   mapping: (id: string) => call<{ revision: number | null; mapping: unknown }>(`/api/library/builds/${encodeURIComponent(id)}/mapping`),
   putMapping: (id: string, baseRevision: number | null, text: string, source: 'editor' | 'import' | 'clear' | 'browser') =>

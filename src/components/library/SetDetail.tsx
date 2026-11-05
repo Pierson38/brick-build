@@ -10,6 +10,7 @@ import type { BuildView, FileView, LibraryView, SetView } from '@/domain/library
 import { libraryApi } from '@/infra/library/api';
 import { downloadMapping } from '@/infra/persistence/local-mapping';
 import { actionLabel, FILE_STATE_LABEL, formatBytes, formatDate, MODE_SHORT, ProgressBar, StatusBadge } from './labels';
+import { BrowserSavePanel } from './BrowserSave';
 import { ModelPreview, useLibraryModel } from './ModelPreview';
 
 type Notify = (kind: 'ok' | 'error', text: string) => void;
@@ -159,6 +160,10 @@ function BuildPanel({ set, build, revision, refresh, notify }: { set: SetView; b
           <span className="small" data-testid="detail-progress">{build.progress?.placed ?? 0}/{build.snapshot.occurrenceCount} pièces posées</span>
           {build.progress && <span className="small muted">· {MODE_SHORT[build.progress.mode]} · {formatDate(build.progress.updatedAtIso)}</span>}
         </div>
+        {model && (
+          <BrowserSavePanel buildId={build.id} modelSha={build.model.sha256} rootName={build.rootName} fileName={build.model.originalName}
+            occurrences={model.analysis.model.occurrences} libraryRevision={build.progress?.revision ?? null} onDone={() => void refresh()} notify={notify} />
+        )}
         <div className="card-actions">
           {build.modes.length > 0
             ? <button type="button" className="button primary" onClick={() => router.push(`/atelier/${build.id}`)} data-testid="detail-build">{actionLabel(build)}</button>

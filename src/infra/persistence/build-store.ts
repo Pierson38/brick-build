@@ -49,8 +49,8 @@ export interface LibraryStoreInit {
 
 /**
  * Library-backed store. Saves are sent one at a time, the latest state wins, and each carries the
- * revision it replaces: if another tab or browser saved in between, the server refuses (409) and
- * the atelier says so instead of overwriting.
+ * revision it replaces: if another tab or browser changed the game in between, the server refuses
+ * (409) and the atelier says so instead of overwriting; a change of PDF page only is reconciled.
  */
 export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
   let progressRev = init.progress.revision;
@@ -68,6 +68,13 @@ export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
     return JSON.stringify(rest);
   };
   let saved = signature(init.progress.payload);
+  // the game itself (mode, placed bricks, mapping played): what must never be overwritten silently
+  let base: unknown = init.progress.payload;
+  const game = (p: unknown) => {
+    if (p === null || typeof p !== 'object') return 'null';
+    const r = p as Partial<LocalBuildProgress>;
+    return JSON.stringify([r.buildMode, [...(r.placedOccurrenceIds ?? [])].sort(), r.mappingDigest ?? null]);
+  };
   const listeners = new Set<(s: SaveState) => void>();
   const emit = (s: SaveState) => listeners.forEach((l) => l(s));
   const fail = (e: unknown): SaveState => (e instanceof ApiError && e.code === 'CONFLICT'
@@ -83,12 +90,27 @@ export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
     try {
       progressRev = (await libraryApi.putProgress(init.buildId, progressRev, next)).revision;
       saved = signature(next);
+      base = next;
       emit({ kind: pending ? 'saving' : 'saved' });
     } catch (e) {
       const s = fail(e);
-      if (s.kind === 'conflict') stopped = s;
-      else pending ??= next; // retried with the next change or the next flush
-      emit(s);
+      if (s.kind === 'conflict') {
+        // Saved elsewhere in between. If only the view changed there (PDF page or booklet, e.g. two
+        // tabs opened together), the game is the same: take that revision and save again. If the
+        // game changed (bricks, mode, mapping), stop: nothing is overwritten.
+        const current = await libraryApi.progress(init.buildId).catch(() => null);
+        if (current && current.revision !== null && game(current.progress) === game(base)) {
+          progressRev = current.revision;
+          base = current.progress;
+          pending ??= next;
+        } else {
+          stopped = s;
+          emit(s);
+        }
+      } else {
+        pending ??= next; // retried with the next change or the next flush
+        emit(s);
+      }
     } finally {
       inFlight = false;
       if (pending && !stopped) void pump();
@@ -112,6 +134,7 @@ export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
         await libraryApi.clearProgress(init.buildId, progressRev);
         progressRev = null;
         saved = 'null';
+        base = null;
         pending = null;
         return true;
       } catch (e) {
@@ -152,6 +175,7 @@ export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
       void libraryApi.putProgress(init.buildId, progressRev, next, true).then((r) => {
         progressRev = r.revision;
         saved = signature(next);
+        base = next;
       }, () => undefined);
       pending = null;
     },

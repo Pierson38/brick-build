@@ -134,6 +134,12 @@ export default function CollectionView() {
 
   const builds = view?.sets.flatMap((s) => s.builds) ?? [];
   const legacyMatched = legacy.filter((l) => builds.some((b) => b.model.sha256 === l.hash && !b.progress));
+  // a build that already has library progress: the browser save may differ (compared in the set page)
+  const legacyToCompare = legacy.flatMap((l) => {
+    const b = builds.find((x) => x.model.sha256 === l.hash && x.progress && x.progress.updatedAtIso !== l.updatedAtIso);
+    const set = b && view?.sets.find((s) => s.id === b.setId);
+    return b && set ? [{ l, set }] : [];
+  });
   const legacyOrphans = legacy.filter((l) => !builds.some((b) => b.model.sha256 === l.hash));
 
   return (
@@ -166,12 +172,15 @@ export default function CollectionView() {
         <section className="grid" aria-label="Sets">
           {sets.map((s) => <SetCard key={s.id} set={s} version={version} />)}
         </section>
-        {(legacyMatched.length > 0 || legacyOrphans.length > 0) && (
+        {(legacyMatched.length > 0 || legacyOrphans.length > 0 || legacyToCompare.length > 0) && (
           <section className="legacy small" data-testid="legacy-saves">
             <h3>Parties enregistrées dans ce navigateur (versions précédentes)</h3>
             <p className="muted">Elles ne sont ni modifiées ni effacées.</p>
             <ul>
               {legacyMatched.map((l) => <li key={l.hash}>{l.displayName} — {l.placed}/{l.total} pièces : reprise automatiquement à l’ouverture du set correspondant.</li>)}
+              {legacyToCompare.map(({ l, set }) => (
+                <li key={`cmp-${l.hash}`}>{l.displayName} — {l.placed}/{l.total} pièces : la bibliothèque a sa propre progression ; <Link href={`/sets/${set.id}`}>comparer et récupérer dans le détail de {set.setNumber}</Link>.</li>
+              ))}
               {legacyOrphans.map((l) => <li key={l.hash}>{l.displayName} — {l.placed}/{l.total} pièces : ajoute ce modèle à ta collection pour la reprendre ici.</li>)}
             </ul>
           </section>

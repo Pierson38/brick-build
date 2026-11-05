@@ -71,11 +71,11 @@ brick-lab-data/
 | Taille | modèle 8 Mo, PDF 300 Mo, mapping 1 Mo, miniature 2 Mo, corps JSON 2 Mo ; import en flux, refus dès le dépassement | unitaires |
 | Type | extension + contenu (`%PDF-`, texte LDraw sans octet nul et avec au moins une pièce, mapping valide, PNG) | unitaires |
 | Corruption à l'écriture | fichier temporaire + `fsync` + `rename` + `fsync` du dossier ; copie de chaque version de l'index | unitaire « interrupted write » |
-| Écrasement silencieux | révision optimiste : une écriture fondée sur une révision périmée est **refusée** (409), jamais fusionnée ; versions remplacées gardées dans `history/` ; blobs créés par `link` (jamais d'écrasement) | unitaires, E2E « two tabs » |
+| Écrasement silencieux | révision optimiste : une écriture fondée sur une révision périmée est **refusée** (409), jamais fusionnée (exception documentée : si seule la page ou le livret affiché a changé ailleurs, la partie étant identique, l'atelier réenregistre sur la nouvelle révision) ; versions remplacées gardées dans `history/` ; blobs créés par `link` (jamais d'écrasement) | unitaires, E2E « two tabs » |
 | Suppression | « Retirer » demande une confirmation, déplace dans `trash/` ; « Abandonner » (bibliothèque) demande une confirmation et garde la progression dans `history/` | unitaires, E2E |
 | Fichiers tiers | jamais modifiés ni déplacés (mtime vérifié en test) | unitaire « discovery » |
 
-En-têtes ajoutés à toutes les réponses du serveur de production (pas en `next dev`, où cette règle provoquait une boucle de rechargement) : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+En-têtes ajoutés à toutes les réponses du serveur de production : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
 
 ## 6. Performances (mesurées)
 
@@ -112,4 +112,9 @@ cp backups/<la plus récente>.json library.json
 
 **Fichier externe déplacé ou modifié** : le détail du set le signale (« introuvable », « modifié (empreinte) ») ; « Réparer » accepte le fichier d'origine (même SHA-256) et en garde une copie dans `library/blobs/`.
 
-**Sauvegardes du navigateur (P5/P6)** : jamais effacées. À l'ouverture d'une construction dont le modèle a la même empreinte, la progression (et le mapping) du navigateur sont repris dans la bibliothèque si elle n'en a pas ; si les deux diffèrent et que le navigateur est plus récent, l'application demande laquelle reprendre.
+**Sauvegardes du navigateur (P5/P6)** : jamais effacées ni modifiées. À l'ouverture d'une construction dont le modèle a la même empreinte :
+- la bibliothèque n'a pas de progression → celle du navigateur est reprise (rien à écraser) ;
+- les deux sont **identiques** (mode, pièces posées, page, livret, empreinte des correspondances) → rien n'est demandé ;
+- elles **diffèrent** → un écran compare ces cinq points côte à côte (la date n'est qu'indicative) et demande laquelle reprendre, **même si celle du navigateur est plus ancienne**. « Reprendre la bibliothèque » est mémorisé pour cette sauvegarde précise du navigateur (elle reste annoncée) ; « Reprendre ce navigateur » remplace la progression de la bibliothèque, dont la version précédente est **toujours** copiée dans `builds/<id>/history/` ; si les correspondances diffèrent, une case (visible, cochée quand la partie a été jouée avec elles) reprend aussi celles du navigateur, l'ancienne version allant dans l'historique ;
+- à tout moment, le **détail du set** propose « Reprendre la sauvegarde de ce navigateur » (avec confirmation) tant qu'elle diffère de la bibliothèque ;
+- une écriture fondée sur une révision périmée de la bibliothèque est refusée (pas d'écrasement d'une partie jouée entre-temps dans un autre navigateur).

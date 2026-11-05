@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   agentRules: false,
   devIndicators: false,
   // local app: no framing by other pages, no MIME sniffing, no referrer sent anywhere.
-  // Production only: with `next dev` (16.4.5) a headers() rule made the page reload in a loop.
+  // Production only (`next start`): not needed for the dev server used by the E2E suites.
   async headers() {
     if (process.env.NODE_ENV !== 'production') return [];
     return [{

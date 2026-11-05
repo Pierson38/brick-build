@@ -13,7 +13,7 @@ npm run build
 npm run start
 ```
 
-Ouvrir http://127.0.0.1:3000 dans **Chrome**. La collection utilise `~/Documents/brick-lab-data/library/` (créé par P7). Pendant le développement, Claude y a déjà ajouté 31040 « Desert Racers » et 31009 « Small Cottage » et posé 12 pièces de 31040 ; tu peux repartir de zéro en arrêtant le serveur et en renommant `library/` en `library.essai-claude/`.
+Ouvrir http://127.0.0.1:3000 dans **Chrome**. La collection utilise `~/Documents/brick-lab-data/library/` (créé par P7). Pendant le développement, Claude y a ajouté 31040 « Desert Racers » et 31009 « Small Cottage » et posé 12 pièces de 31040. **Ne fais pas les étapes 1.2–1.3 si les deux sets sont déjà là** ; passe directement au § 2. Une copie de sécurité du dossier `library/` a été faite avant ta recette (voir le rapport, § 7) ; Claude n'a rien renommé ni supprimé.
 
 ## 1. Collection
 
@@ -55,12 +55,18 @@ Ouvrir http://127.0.0.1:3000 dans **Chrome**. La collection utilise `~/Documents
 | 4.5 | « Ajouter un set » avec un autre MPD de `models/` (ex. 31028) et un fichier de correspondances de 31040 | Correspondances refusées (« concerne un autre modèle ») | |
 | 4.6 | Retirer ce set de test (confirmer) | Il disparaît ; il est dans `library/trash/` | |
 
-## 5. Sauvegardes P5/P6 du navigateur
+## 5. Sauvegardes P5/P6 du navigateur (ta partie P6 de Chrome)
+
+La bibliothèque contient déjà 12/65 pièces de 31040 (essais de Claude). Ta partie P6 est dans le `localStorage` de Chrome.
 
 | # | Action | Attendu | OK/KO |
 |---|---|---|---|
-| 5.1 | Si Chrome contient encore la partie 31040 de la recette P6 (localStorage) | La collection la signale ; à l'ouverture de 31040 sans progression en bibliothèque, elle est reprise (bandeau bleu) ; sinon, si elle est plus récente, l'application demande laquelle reprendre | |
-| 5.2 | Ouvrir « Atelier sans collection » | Atelier P5/P6 inchangé (import manuel, sessions récentes) | |
+| 5.1 | Chrome → « Ma collection » | Encadré « Parties enregistrées dans ce navigateur » : ta partie 31040, avec un lien « comparer et récupérer dans le détail de 31040-1 » (si elle diffère de la bibliothèque) | |
+| 5.2 | « Reprendre » 31040 | Écran « Deux sauvegardes différentes » : tableau Bibliothèque / Ce navigateur (pièces posées, mode, page, livret, correspondances), lignes différentes surlignées, **même si ta partie est plus ancienne** | |
+| 5.3 | « Reprendre ce navigateur » | Ta partie P6 est restaurée (pièces, mode, page) ; bandeau « version précédente gardée dans l'historique » | |
+| 5.4 | (variante) « Reprendre la bibliothèque », puis Détail de 31040 → « Reprendre la sauvegarde de ce navigateur » → Confirmer | Même résultat, à tout moment | |
+| 5.5 | Vérifier dans le Finder `~/Documents/brick-lab-data/library/builds/<id>/history/` | La version 12/65 y est (fichier `progress-…json`) | |
+| 5.6 | Ouvrir « Atelier sans collection » | Atelier P5/P6 inchangé (import manuel, sessions récentes) | |
 
 ## 6. Ressenti
 

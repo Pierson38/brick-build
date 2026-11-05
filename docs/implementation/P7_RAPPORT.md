@@ -55,17 +55,17 @@ Nouveaux :
 
 Les 6 specs existantes ne changent que d'URL (`/` → `/atelier`).
 
-## 4. Sortie de la recette (05/11/2026, `npm run recette`, sortie 0)
+## 4. Sortie de la recette (05/11/2026, après revue, `npm run recette`, sortie 0)
 
 ```
 check:spec   15 OK, 2 DÉCLARÉ (écarts P5 inchangés), 0 écart nouveau
 typecheck    tsc --noEmit : 0 erreur
-vitest       Test Files 7 passed (7) — Tests 119 passed (119)   [84 P0–P6 + 35 P7]
-playwright   41 passed (12.2m), 0 ignoré
+vitest       Test Files 8 passed (8) — Tests 131 passed (131)   [84 P0–P6 + 47 P7]
+playwright   43 passed (15.7m), 0 ignoré
   brick-lab.spec.ts               6/6   (P0–P4, fixtures)
   instructions-sync.spec.ts       4/4   (P6, fixtures)
   library-webkit.spec.ts          1/1   (P7, Chromium ↔ WebKit)
-  library.spec.ts                 9/9   (P7, fixtures originales)
+  library.spec.ts                11/11  (P7, fixtures originales)
   surface-placement.spec.ts       6/6   (P5, fixtures)
   instructions-sync-omr.spec.ts   2/2   (P6, 31040 réel)
   library-omr.spec.ts             3/3   (P7, 31040 + 31009 réels)
@@ -73,13 +73,14 @@ playwright   41 passed (12.2m), 0 ignoré
 npm run build   OK (production, 0 avertissement)
 ```
 
-Une exécution précédente avait échoué (11 tests en début de série) : boucle de rechargement en `next dev` causée par la règle `headers()` ajoutée dans `next.config.ts` ; cause reproduite (≈ 1 500 navigations en 45 s), corrigée (en-têtes en production seulement), recette repassée en entier. Non exécuté : `npm run perf` (P7 ne modifie ni le rendu ni le moteur).
+Non exécuté : `npm run perf` (P7 ne modifie ni le rendu ni le moteur).
 
 ## 5. Limites connues
 
 - **Safari réel non testé par Claude** : WebKit de Playwright (moteur de Safari) est testé ; l'application Safari reste à la recette humaine (§ 3 du protocole).
 - **Un seul serveur à la fois** sur un même dossier : les écritures sont sérialisées dans le processus ; deux serveurs simultanés (dev + production) sur le même dossier ne sont pas protégés par un verrou de fichier (les révisions limitent le risque, sans l'exclure).
-- **Sauvegardes du navigateur** : reprises par empreinte du modèle, à l'ouverture de la construction et dans le navigateur qui les contient (Chrome et Safari ont chacun les leurs). Celles de la recette P6 dans ton Chrome n'ont pas pu être vérifiées par Claude.
+- **Sauvegardes du navigateur** : lues dans le navigateur qui les contient (Chrome et Safari ont chacun les leurs), par empreinte du modèle. Celle de ta recette P6 dans Chrome n'a pas pu être vérifiée par Claude.
+- **Position dans la notice** : en cas d'enregistrements concurrents qui ne diffèrent que par la page ou le livret affiché, le dernier l'emporte (la partie elle-même n'est jamais écrasée).
 - **Vérification rapide** dans la collection (existence + taille ; le modèle est toujours haché) : une notice modifiée sans changement de taille n'apparaît qu'au détail du set ou à l'ouverture (hachage complet).
 - **Fichiers « laissés en place »** : les déplacer ou les renommer casse la référence (signalé, réparable en choisissant le fichier d'origine, qui est alors copié dans `library/blobs/`).
 - **Fichiers orphelins** : un fichier importé puis abandonné (dialogue annulé, construction retirée) reste dans `library/blobs/` ; pas de nettoyage automatique.
@@ -99,3 +100,23 @@ Conditions :
 2. Vérifier la reprise de ta partie P6 restée dans le `localStorage` de ton Chrome (non accessible à Claude).
 
 La fusion reste soumise à ton accord explicite.
+
+## 7. Correctifs après la revue du propriétaire (05/11/2026)
+
+**Demande.** Le choix entre une sauvegarde P5/P6 du navigateur et celle de la bibliothèque ne doit pas dépendre de la date : l'ancienne partie P6 doit rester récupérable même si elle est plus ancienne que les 12/65 pièces des essais ; comparer mode, pièces posées, page, correspondances ; aucun écrasement silencieux.
+
+**Livré.**
+- `src/domain/library/save-compare.ts` : comparaison des différences pertinentes (mode, pièces posées — avec le détail de celles propres à chaque version —, page, livret affiché, empreinte des correspondances jouées) ; la date n'est qu'indicative.
+- À l'ouverture : dès que les deux versions diffèrent, un écran les compare côte à côte et demande laquelle reprendre, **quelle que soit la date**. Les correspondances du navigateur peuvent être reprises avec la partie (case visible). Une sauvegarde de la bibliothèque devenue incompatible n'est jamais remplacée sans question.
+- « Reprendre la bibliothèque » est mémorisé pour cette sauvegarde précise du navigateur (plus de question, mais un rappel) ; elle reste récupérable à tout moment depuis le **détail du set** (« Reprendre la sauvegarde de ce navigateur », avec confirmation). La collection signale ces sauvegardes avec un lien vers le détail.
+- Toute reprise explicite copie la version remplacée de la bibliothèque dans `history/` (y compris dans la minute, contrairement aux enregistrements automatiques) ; une reprise fondée sur une révision périmée est refusée. Le `localStorage` n'est jamais modifié.
+
+**Tests ajoutés.** Unitaires `save-compare.test.ts` (11 : identique malgré dates et ordre, navigateur plus ancien proposé, plus récent proposé, chaque différence seule, toutes ensemble, bibliothèque absente / incompatible, sauvegarde d'un autre modèle ignorée, mémorisation par sauvegarde précise) ; `library-store` « explicit browser recovery always keeps the replaced one » ; E2E « an OLDER browser save… » (garder la bibliothèque, puis récupérer depuis le détail, historique et `localStorage` vérifiés) et « … another mapping » (correspondances reprises, ancienne version dans l'historique).
+
+**Trouvé en relançant la recette.**
+1. *Boucle de rechargement en `next dev`* (11 puis 12 échecs en début de série) : la première explication (règle `headers()`) était **fausse**. Cause mesurée : le cache Turbopack `.next/dev` du worktree (HMR « hash mismatch » à chaque connexion ; 733 / 640 navigations en 20 s avec ce cache, 2 sur 5 essais sans). Le serveur E2E démarre maintenant avec un cache neuf. Le serveur de production n'est pas concerné.
+2. *Deux onglets ouverts ensemble* : chacun réenregistrait la page au chargement, et le second était bloqué sans changement de partie. Sur un conflit, si seule la page ou le livret affiché a changé, l'enregistrement est refait ; sinon, refus et « Recharger ». Test rendu déterministe.
+
+**Données réelles.** Rien n'a été renommé, supprimé ni réinitialisé dans `~/Documents/brick-lab-data/library/`. Sauvegarde de sécurité avant la recette humaine : `~/Documents/brick-lab-data/backups-p7/library-2026-11-05T19-05-04-avant-recette-humaine.tar.gz` (archive vérifiée par extraction séparée et comparaison des SHA-256 listés dans `library-2026-11-05T19-05-04.sha256`). Pour revenir à cet état : arrêter le serveur, mettre de côté le dossier `library/` actuel (ne pas le supprimer), puis `tar -xzf <archive> -C ~/Documents/brick-lab-data`.
+
+**Verdict.** Inchangé : **GO sous conditions** (recette humaine dans Chrome et Safari, dont la reprise de ta partie P6). Pas de fusion sans ton GO explicite.

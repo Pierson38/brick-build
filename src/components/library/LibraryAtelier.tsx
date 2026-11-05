@@ -2,21 +2,19 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { restoreProgress, type LocalBuildProgress } from '@/domain/build/progress';
 import { analyzeModel, sha256Hex } from '@/domain/import/analyze';
-import { mappingDigest, parseMapping, serializeMapping, validateMapping } from '@/domain/instructions/mapping';
+import { parseMapping, serializeMapping } from '@/domain/instructions/mapping';
+import { decideOnOpen, saveSignature, summarise, type OpenDecision } from '@/domain/library/save-compare';
 import type { BuildView, LibrarySet } from '@/domain/library/types';
 import { libraryApi } from '@/infra/library/api';
 import { libraryBuildStore, type BuildStore } from '@/infra/persistence/build-store';
-import { loadStoredMapping } from '@/infra/persistence/local-mapping';
-import { loadStoredProgress } from '@/infra/persistence/local-progress';
 import BrickLabApp, { type BrickLabAppProps } from '../BrickLabApp';
+import { keptSignatureOf, mappingsDiffer, readBrowserMapping, readBrowserSave, recoverBrowserSave, rememberKept, SaveDiffView } from './BrowserSave';
 import { formatDate } from './labels';
 
 type Ready = { store: BuildStore; initial: NonNullable<BrickLabAppProps['initial']>; notes: string[] };
-type Choice = { server: LocalBuildProgress; browser: LocalBuildProgress; resolve: (useBrowser: boolean) => void };
-
-const summary = (p: LocalBuildProgress) => `${p.placedOccurrenceIds.length}/${p.totalOccurrences} pièces, ${formatDate(p.updatedAtIso)}`;
+type Answer = { useBrowser: boolean; withMapping: boolean };
+type Choice = { decision: Extract<OpenDecision, { kind: 'ask' | 'ask-invalid' }>; total: number; mappingDiffers: boolean; resolve: (a: Answer) => void };
 
 /**
  * Opens a library build in the existing atelier: every file is re-hashed, the model and booklets
@@ -51,37 +49,45 @@ export default function LibraryAtelier({ buildId }: { buildId: string }) {
 
       setStep('Lecture de la progression…');
       let [progress, mapping] = await Promise.all([libraryApi.progress(buildId), libraryApi.mapping(buildId)]);
-      // P5/P6 saves of this browser (localStorage, by model fingerprint): taken over, never deleted
-      const local = loadStoredProgress(build.model.sha256) as LocalBuildProgress | null;
-      const localOk = local !== null && restoreProgress(local, build.model.sha256, analysis.model.occurrences).ok;
-      if (localOk && progress.progress === null) {
-        const r = await libraryApi.putProgress(buildId, null, local);
-        progress = { revision: r.revision, progress: local };
-        notes.push(`Partie enregistrée dans ce navigateur reprise dans la bibliothèque (${summary(local)}). Elle reste aussi dans le navigateur.`);
-      } else if (localOk && progress.progress !== null) {
-        const server = progress.progress as LocalBuildProgress;
-        const differs = JSON.stringify([server.buildMode, server.placedOccurrenceIds]) !== JSON.stringify([local.buildMode, local.placedOccurrenceIds]);
-        if (differs && local.updatedAtIso > server.updatedAtIso) {
-          const useBrowser = await new Promise<boolean>((resolve) => setChoice({ server, browser: local, resolve }));
-          setChoice(null);
-          if (useBrowser) {
-            const r = await libraryApi.putProgress(buildId, progress.revision, local);
-            progress = { revision: r.revision, progress: local };
-            notes.push('Sauvegarde du navigateur reprise ; la version précédente de la bibliothèque est gardée dans son historique.');
-          }
-        }
-      }
+      // P5/P6 saves of this browser (localStorage, by model fingerprint): never deleted, never
+      // overwritten, and never chosen on dates alone: any relevant difference is shown to the user
       const target = { sha256: build.model.sha256, fileName: build.model.originalName, rootName: build.rootName, occurrences: analysis.model.occurrences };
-      const localMapping = loadStoredMapping(build.model.sha256);
-      if (localMapping?.ok && !validateMapping(localMapping.mapping, target).issues.some((i) => i.code === 'MODEL_MISMATCH')) {
-        const server = mapping.mapping ? parseMapping(mapping.mapping) : null;
-        if (!server) {
-          const r = await libraryApi.putMapping(buildId, null, serializeMapping(localMapping.mapping), 'browser');
-          mapping = { revision: r.revision, mapping: JSON.parse(serializeMapping(localMapping.mapping)) as unknown };
-          notes.push(`Correspondances de ce navigateur reprises dans la bibliothèque (${localMapping.mapping.steps.length} étape(s)).`);
-        } else if (server.ok && mappingDigest(server.mapping) !== mappingDigest(localMapping.mapping)) {
-          notes.push('Ce navigateur contient une autre version des correspondances pour ce modèle : celle de la bibliothèque est utilisée (l’autre reste dans le navigateur, exportable depuis l’atelier sans collection).');
+      const local = readBrowserSave(build.model.sha256, analysis.model.occurrences);
+      const localMapping = readBrowserMapping(target);
+      const parsedLibMapping = mapping.mapping ? parseMapping(mapping.mapping) : null;
+      const libMapping = parsedLibMapping?.ok ? parsedLibMapping.mapping : null;
+      const libSave = progress.progress === null ? 'absent' as const : summarise(progress.progress, build.model.sha256, analysis.model.occurrences) ?? 'invalid' as const;
+      const decision = decideOnOpen(libSave, local?.summary ?? null, keptSignatureOf(buildId));
+      const total = analysis.model.occurrences.length;
+      const take = async (withMapping: boolean) => {
+        const r = await recoverBrowserSave(buildId, progress.revision, local!.raw, withMapping && localMapping ? { revision: mapping.revision, value: localMapping } : undefined);
+        progress = { revision: r.progressRevision, progress: local!.raw };
+        if (r.mappingRevision !== null) mapping = { revision: r.mappingRevision, mapping: JSON.parse(serializeMapping(localMapping!)) as unknown };
+      };
+      if (decision.kind === 'migrate') {
+        await take(false);
+        notes.push(`Partie enregistrée dans ce navigateur reprise dans la bibliothèque (${local!.summary.placed.length}/${total} pièces, ${formatDate(local!.summary.updatedAtIso)}). Elle reste aussi dans le navigateur.`);
+      } else if (decision.kind === 'ask' || decision.kind === 'ask-invalid') {
+        const answer = await new Promise<Answer>((resolve) => setChoice({ decision, total, mappingDiffers: mappingsDiffer(libMapping, localMapping), resolve }));
+        setChoice(null);
+        if (answer.useBrowser) {
+          await take(answer.withMapping);
+          notes.push(`Sauvegarde de ce navigateur reprise (${local!.summary.placed.length}/${total} pièces)${answer.withMapping ? ', avec ses correspondances' : ''}. La version précédente de la bibliothèque est gardée dans son historique.`);
+        } else {
+          rememberKept(buildId, saveSignature(local!.summary));
+          notes.push('Sauvegarde de la bibliothèque reprise. Celle de ce navigateur est conservée et reste récupérable depuis le détail du set.');
         }
+      } else if (decision.kind === 'kept') {
+        notes.push(`Une autre sauvegarde existe dans ce navigateur (${decision.diff.browser.placed.length}/${total} pièces) : récupérable depuis le détail du set.`);
+      }
+      // the mapping alone: taken over when the library has none (nothing to overwrite), otherwise reported
+      const current = mapping.mapping ? parseMapping(mapping.mapping) : null;
+      if (localMapping && mapping.mapping === null) {
+        const r = await libraryApi.putMapping(buildId, null, serializeMapping(localMapping), 'browser');
+        mapping = { revision: r.revision, mapping: JSON.parse(serializeMapping(localMapping)) as unknown };
+        notes.push(`Correspondances de ce navigateur reprises dans la bibliothèque (${localMapping.steps.length} étape(s)).`);
+      } else if (mappingsDiffer(current?.ok ? current.mapping : null, localMapping)) {
+        notes.push('Ce navigateur contient une autre version des correspondances pour ce modèle : celle de la bibliothèque est utilisée (l’autre reste dans le navigateur, récupérable depuis le détail du set).');
       }
 
       const booklets: { file: File; sha256: string }[] = [];
@@ -125,15 +131,7 @@ export default function LibraryAtelier({ buildId }: { buildId: string }) {
               {meta && <Link className="button primary" href={`/sets/${meta.set.id}`}>Réparer depuis le détail du set</Link>}
             </div>
           ) : choice ? (
-            <div className="repair" data-testid="progress-choice">
-              <h2>Deux sauvegardes différentes</h2>
-              <p>La bibliothèque contient {summary(choice.server)} ; ce navigateur contient une partie plus récente : {summary(choice.browser)}.</p>
-              <div className="card-actions">
-                <button type="button" className="button primary" onClick={() => choice.resolve(false)}>Reprendre la bibliothèque</button>
-                <button type="button" className="button secondary" onClick={() => choice.resolve(true)}>Reprendre ce navigateur</button>
-              </div>
-              <p className="small muted">L’autre version n’est pas effacée.</p>
-            </div>
+            <ChoiceScreen choice={choice} />
           ) : <p className="muted">{step}</p>}
         </main>
       </div>
@@ -151,5 +149,32 @@ export default function LibraryAtelier({ buildId }: { buildId: string }) {
         </div>
       ) : null}
     />
+  );
+}
+
+function ChoiceScreen({ choice }: { choice: Choice }) {
+  const { decision, total, mappingDiffers, resolve } = choice;
+  // the mapping the browser save was played with goes with it by default; always visible and optional
+  const [withMapping, setWithMapping] = useState(mappingDiffers && decision.kind === 'ask' && decision.diff.keys.includes('mapping'));
+  return (
+    <div className="repair" data-testid="progress-choice">
+      <h2>Deux sauvegardes différentes pour cette construction</h2>
+      {decision.kind === 'ask' ? (
+        <>
+          <p>Choisis celle à reprendre. L’autre n’est ni effacée ni écrasée : la bibliothèque garde sa version précédente dans son historique, et ce navigateur garde la sienne.</p>
+          <SaveDiffView diff={decision.diff} total={total} />
+          {decision.diff.newer !== 'same' && <p className="small muted">Enregistrée en dernier : {decision.diff.newer === 'library' ? 'la bibliothèque' : 'ce navigateur'} (indication seulement).</p>}
+        </>
+      ) : (
+        <p>La sauvegarde de la bibliothèque ne correspond plus à ce modèle (elle est conservée telle quelle). Ce navigateur contient une partie valide : {decision.browser.placed.length}/{total} pièces, {formatDate(decision.browser.updatedAtIso)}.</p>
+      )}
+      {mappingDiffers && (
+        <label className="small"><input type="checkbox" checked={withMapping} onChange={(e) => setWithMapping(e.target.checked)} data-testid="choice-with-mapping" /> Reprendre aussi les correspondances de ce navigateur (celles de la bibliothèque iront dans son historique)</label>
+      )}
+      <div className="card-actions">
+        <button type="button" className="button primary" onClick={() => resolve({ useBrowser: false, withMapping: false })} data-testid="choice-library">Reprendre la bibliothèque</button>
+        <button type="button" className="button secondary" onClick={() => resolve({ useBrowser: true, withMapping })} data-testid="choice-browser">Reprendre ce navigateur</button>
+      </div>
+    </div>
   );
 }
