@@ -69,24 +69,26 @@ Le joueur scripté de P5 a été **déplacé sans modification** dans `tests/e2e
 ## 4. Limites
 
 - **Saisie manuelle uniquement** : aucune reconnaissance de la notice. Pour 31040, 24 entrées et 65 pièces ; pour 31009, il faudrait environ 80 entrées et 270 pièces (non fait dans ce lot).
-- **Mapping 31040 non vérifié par un humain** : saisi par Claude, 4 points incertains (§ 2). Provenance `manual` sur les 24 entrées.
+- **Mapping 31040** : saisi par Claude, puis contrôlé par le propriétaire contre la notice (§ 7). Les 24 entrées sont `verified` sur sa confirmation ; les 4 points incertains sont conservés tels quels, sans correction. Les notes « à confirmer » des étapes 9, 16 et 19 restent dans le fichier.
 - **Empreinte stricte** : une autre édition ou langue de la même notice (autre SHA-256) est refusée, même si ses pages sont identiques. Il faut relier à nouveau le livret dans l'éditeur, ce qui remet en cause la vérification.
 - **Aucune vérification physique de l'ordre** (pièce posée avant son support) : la pose « en l'air » de P5 le permet.
 - **Étapes vides** (assemblage d'un encadré, retournement) : signalées puis sautées en jeu ; leur page n'est pas montrée séparément.
 - **Encadrés** : construits en place, à la position finale, et non à part comme sur la notice.
 - **Raccourci « +1 »** : il prend la première pièce libre dans l'ordre du fichier, pas forcément celle de la page. Le clic 3D est la méthode exacte.
-- **Recette humaine P6 non faite** : protocole dans [RECETTE_HUMAINE_P6.md](RECETTE_HUMAINE_P6.md).
+- **Recette humaine P6** : OK (§ 7), mais grille détaillée et navigateurs testés non transmis.
 - **31009 non essayé** en mode synchronisé (le schéma multi-livret est testé sur fixtures et en unitaire).
 
 ## 5. Verdict
 
-**GO sous conditions.**
+**GO** (05/11/2026, après recette humaine ; verdict initial du 04/11 : GO sous conditions).
 
 Démontré : le schéma de correspondance garantit « chaque occurrence exactement une fois ». L'éditeur permet une saisie réelle, et le mode synchronisé fait construire 31040 de bout en bout au rythme de sa notice officielle, page par page, sans pièce hors étape, avec reprise après rechargement. Aucune régression P5 (§ 6). Rien n'est inventé sans mapping valide.
 
-Conditions avant un GO sans réserve :
-1. **Recette humaine P6** (Chrome et Safari) selon `RECETTE_HUMAINE_P6.md`, y compris le ressenti « notice ↔ 3D ».
-2. **Vérification du mapping 31040** par le propriétaire contre la notice (cocher « Vérifiée » sur les 24 entrées, trancher les 4 points incertains).
+Conditions posées le 04/11, levées le 05/11 (§ 7) :
+1. ✅ **Recette humaine P6** selon `RECETTE_HUMAINE_P6.md` : OK.
+2. ✅ **Vérification du mapping 31040** par le propriétaire contre la notice : 24/24 entrées confirmées, sans correction.
+
+La fusion reste soumise au GO explicite du propriétaire.
 
 Hors conditions, à décider : saisie de 31009 (coût de saisie, R9) ; aide à la création des étapes depuis la couche texte du PDF (numéros d'étape), jamais d'affectation automatique des pièces.
 
@@ -106,3 +108,18 @@ npm run build   OK (production)
 ```
 
 Non exécuté dans ce lot : `npm run perf` (P6 ne touche ni au rendu ni au chargement ; seul un matériau surligné est ajouté, et uniquement dans l'éditeur et la consultation).
+
+## 7. Recette humaine et vérification du mapping (05/11/2026)
+
+**Conditions.** Serveur de production local (`npm run build && npm run start`, `127.0.0.1:3000`), code de la PR #3 au commit `4ebe7ce`. Fichiers locaux : MPD `2036218e4555…`, notice `38e9cd4e32da…`, mapping préparé (24 entrées, 0 `verified`). Aide fournie : fiche locale `brick-lab-data/proofs/p6/verification-31040/index.html`, générée hors dépôt. Pour chaque entrée, elle donne la page, le numéro, l'encadré et le multiplicateur, les pièces (référence, désignation LDraw, couleur, nombre, position) et la 3D avant/après sous deux angles. Les 4 incertitudes y sont signalées.
+
+**Résultat communiqué par le propriétaire :**
+- recette (protocole `RECETTE_HUMAINE_P6.md`) : « C'est tout bon ». Aucun KO ni point pénible signalé ; la grille détaillée et la liste des navigateurs n'ont pas été transmises (le protocole prévoit Chrome puis Safari) ;
+- vérification du mapping : « Yes, all 24 » (les 24 entrées contrôlées contre la notice).
+
+**Mapping vérifié.**
+- **Fichier exporté depuis l'application** (5 nov., 16:25). Validation : 65/65, 0 doublon, empreinte PDF reconnue. Affectations et ordre **identiques** au mapping préparé (même `mappingDigest`) : aucune correction. 1 entrée sur 24 cochée « Vérifiée » dans l'interface.
+- **Marquage des 23 autres entrées** : passées en `verified` **sur la confirmation explicite du propriétaire** (« Yes, all 24 »), par script, sans aucun autre changement. Résultat : 24/24 `verified`, validation sans remarque, empreinte des affectations inchangée.
+- **Rangement, hors dépôt** : `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json` (SHA-256 `7639e54c1370…`). La version préparée par Claude est conservée dans `31040-1.prepared-by-claude.brick-mapping.json`.
+- **Points incertains** (étapes 4, 9, 16, 19) : validés tels que saisis. Aucune modification de code ni de spécification pendant la recette.
+
