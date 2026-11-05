@@ -28,7 +28,7 @@ async function dropAt(page: Page, ldraw: [number, number, number]) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/atelier');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 });

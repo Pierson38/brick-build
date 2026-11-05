@@ -28,7 +28,7 @@ const keys: string[] = [];
 test.beforeEach(async ({ page }) => {
   keys.length = 0;
   page.on('console', () => {});
-  await page.goto('/');
+  await page.goto('/atelier');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.exposeFunction('__recordKey', (k: string) => keys.push(k));

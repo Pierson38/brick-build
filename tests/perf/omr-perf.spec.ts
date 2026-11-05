@@ -39,7 +39,7 @@ test('performance on real OMR models (production build)', async ({ page, browser
       const p = await context.newPage();
       let ldrawRequests = 0, notFound = 0;
       p.on('response', (r) => { if (r.url().includes('/api/ldraw/')) { ldrawRequests++; if (r.status() === 404) notFound++; } });
-      await p.goto('/');
+      await p.goto('/atelier');
       const t0 = Date.now();
       await p.locator('input[type=file][accept=".ldr,.mpd"]').first().setInputFiles(file);
       await expect(p.getByTestId('render-status')).toContainText('Géométrie LDraw', { timeout: 120_000 });

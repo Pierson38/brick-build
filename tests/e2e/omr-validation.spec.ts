@@ -35,7 +35,7 @@ function saveProof(name: string, data: unknown) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/atelier');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 });

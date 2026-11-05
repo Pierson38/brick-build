@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, orientationChoices, placeExact,
   resetActiveStep, rewindToStep, switchMode, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
@@ -14,8 +14,9 @@ import {
   validateMapping, type InstructionMapping, type MappingTarget,
 } from '@/domain/instructions/mapping';
 import { loadModelGeometry, PartCatalog, templateVertices, type GeometryLoadResult } from '@/infra/ldraw/part-catalog';
-import { clearMapping, downloadMapping, loadStoredMapping, saveMapping } from '@/infra/persistence/local-mapping';
-import { clearProgress, listRecentSessions, loadStoredProgress, saveProgress, type RecentSession } from '@/infra/persistence/local-progress';
+import { browserStore, type BuildStore, type SaveState } from '@/infra/persistence/build-store';
+import { downloadMapping } from '@/infra/persistence/local-mapping';
+import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
 import { PartsTray } from './build/PartsTray';
 import { ModelSummary } from './import/ModelSummary';
 import { MappingEditor } from './mapping/MappingEditor';
@@ -62,8 +63,27 @@ async function libraryStatus(): Promise<string | null> {
   }
 }
 
-export default function BrickLabApp() {
+export interface BrickLabAppProps {
+  /** Where progress and mapping are kept (P5/P6: this browser; P7: the local library). */
+  readonly store?: BuildStore;
+  /** Library build: model and booklets loaded at start, from verified bytes; no other model can be imported. */
+  readonly initial?: {
+    readonly fileName: string;
+    readonly text: string;
+    readonly sha256: string;
+    readonly rootName: string;
+    readonly booklets: readonly { readonly file: File; readonly sha256: string }[];
+  };
+  readonly nav?: ReactNode;
+  /** Shown under the top bar (library notes). */
+  readonly banner?: ReactNode;
+}
+
+const SAVE_LABEL = { idle: 'Enregistré dans la bibliothèque', saving: 'Enregistrement…', saved: 'Enregistré dans la bibliothèque' } as const;
+
+export default function BrickLabApp({ store = browserStore, initial, nav, banner }: BrickLabAppProps = {}) {
   const catalog = useMemo(() => new PartCatalog(), []);
+  const library = store.kind === 'library';
   const [loaded, setLoaded] = useState<LoadedModel | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [session, setSession] = useState<BuildSession | null>(null);
@@ -89,8 +109,21 @@ export default function BrickLabApp() {
   const [recent, setRecent] = useState<RecentSession[]>([]);
   const [, setColoursReady] = useState(false);
   const restoredPdfPage = useRef<number | undefined>(undefined);
+  const restoredBooklet = useRef<string | undefined>(undefined);
+  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  const [confirmRestart, setConfirmRestart] = useState(false);
 
-  useEffect(() => setRecent(listRecentSessions()), [loaded]);
+  useEffect(() => setRecent(library ? [] : listRecentSessions()), [loaded, library]);
+  useEffect(() => store.onSaveState(setSaveState), [store]);
+  // leaving the atelier (link, tab closed): send the last change now
+  useEffect(() => {
+    const flush = () => store.flush();
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [store]);
 
   const target: MappingTarget | null = useMemo(
     () => (loaded ? { sha256: loaded.hash, fileName: loaded.fileName, rootName: loaded.analysis.model.rootName, occurrences: loaded.analysis.model.occurrences } : null),
@@ -128,12 +161,12 @@ export default function BrickLabApp() {
     setShowTargets(false);
     setConsultIdx(null);
     setReplacedMapping(null);
-    const storedMapping = loadStoredMapping(hash);
+    const storedMapping = await store.loadMapping(hash);
     const restoredMapping = storedMapping?.ok ? storedMapping.mapping : null;
     setMapping(restoredMapping);
     setEditStepId(restoredMapping?.steps[0]?.id ?? null);
     if (tab === 'mapping') setTab('model');
-    const restored = restoreProgress(loadStoredProgress(hash), hash, analysis.model.occurrences);
+    const restored = restoreProgress(await store.loadProgress(hash), hash, analysis.model.occurrences);
     if (restored.ok && quality.quality !== 'INVALID') {
       const total = analysis.model.occurrences.length;
       let next = restored.session;
@@ -151,16 +184,33 @@ export default function BrickLabApp() {
       setSession(next);
       setShowTargets(isStepped(next.mode));
       restoredPdfPage.current = restored.lastPdfPage;
+      restoredBooklet.current = restored.lastBookletSha256;
       if (next.mode === 'synced') setTab('pdf');
       setMessage({ kind: next.mode === restored.session.mode ? 'info' : 'error', text });
     } else {
       setSession(null);
       restoredPdfPage.current = undefined;
+      restoredBooklet.current = undefined;
       setMessage(null);
     }
     setBusy(null);
     if (storedMapping && !storedMapping.ok) setMessage({ kind: 'error', text: `Correspondances enregistrées illisibles, ignorées : ${storedMapping.errors.join(' ')}` });
-  }, [catalog, tab]);
+  }, [catalog, tab, store]);
+
+  // Library build: open the model and its booklets without asking for them. The booklet shown
+  // last is opened last, at its saved page; in synchronised mode the step then turns the page.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!initial || started.current) return;
+    started.current = true;
+    void (async () => {
+      await importText(initial.fileName, initial.text, initial.sha256, initial.rootName);
+      const preferred = initial.booklets.find((b) => b.sha256 === restoredBooklet.current) ?? initial.booklets[0];
+      for (const b of [...initial.booklets.filter((x) => x !== preferred), ...(preferred ? [preferred] : [])]) {
+        await notice.open(b.file, b === preferred ? restoredPdfPage.current : undefined);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onModelFile = async (file: File) => {
     if (file.size > MAX_MODEL_BYTES) return setMessage({ kind: 'error', text: `Fichier trop volumineux (limite ${MAX_MODEL_BYTES / 1e6} Mo).` });
@@ -174,16 +224,20 @@ export default function BrickLabApp() {
   const pdfView = notice.view;
   useEffect(() => {
     if (!loaded || !session) return;
-    const pdf = pdfView ? { page: pdfView.page, bookletSha256: pdfView.sha256 } : restoredPdfPage.current !== undefined ? { page: restoredPdfPage.current } : {};
-    saveProgress(serializeProgress(loaded.hash, loaded.fileName, session, loaded.analysis.model.occurrences.length, pdf, mapping && session.mode === 'synced' ? mappingDigest(mapping) : undefined));
-  }, [loaded, session, pdfView, mapping]);
+    // until the booklet is open again, keep the saved position (page AND booklet) as it was
+    const pdf = pdfView ? { page: pdfView.page, bookletSha256: pdfView.sha256 }
+      : restoredPdfPage.current !== undefined ? { page: restoredPdfPage.current, ...(restoredBooklet.current ? { bookletSha256: restoredBooklet.current } : {}) } : {};
+    store.saveProgress(serializeProgress(loaded.hash, loaded.fileName, session, loaded.analysis.model.occurrences.length, pdf, mapping && session.mode === 'synced' ? mappingDigest(mapping) : undefined));
+  }, [loaded, session, pdfView, mapping, store]);
 
   const changeMapping = useCallback((next: InstructionMapping, note?: string) => {
     const stamped = touch(next);
     setMapping(stamped);
-    if (!saveMapping(stamped)) setMessage({ kind: 'error', text: 'Sauvegarde locale des correspondances impossible (stockage plein ou indisponible).' });
-    else if (note) setMessage({ kind: 'info', text: note });
-  }, []);
+    if (note) setMessage({ kind: 'info', text: note });
+    void store.saveMapping(stamped).then((ok) => {
+      if (!ok) setMessage({ kind: 'error', text: library ? 'Correspondances non enregistrées dans la bibliothèque (voir l’état en haut).' : 'Sauvegarde locale des correspondances impossible (stockage plein ou indisponible).' });
+    });
+  }, [store, library]);
 
   // A synchronised build whose mapping became invalid (edited, cleared, other import) goes back to
   // free mode explicitly, bricks kept, instead of following steps that no longer exist.
@@ -349,9 +403,12 @@ export default function BrickLabApp() {
     };
   }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers]);
 
-  const restart = () => {
+  const restart = async () => {
     if (!loaded) return;
-    clearProgress(loaded.hash);
+    // library: an explicit confirmation, and the progress goes to the build's history
+    if (library && !confirmRestart) return setConfirmRestart(true);
+    setConfirmRestart(false);
+    if (!(await store.clearProgress(loaded.hash))) return;
     setSession(null);
     setHeld(null);
     setConsultIdx(null);
@@ -419,7 +476,7 @@ export default function BrickLabApp() {
   const clearAllMapping = () => {
     if (!loaded || !target || !mapping) return;
     setReplacedMapping(mapping);
-    clearMapping(loaded.hash);
+    store.clearMapping(loaded.hash);
     changeMapping(createMapping(target), 'Correspondances effacées.');
     setEditStepId(null);
   };
@@ -453,9 +510,11 @@ export default function BrickLabApp() {
 
   return (
     <div className="app">
+      <div className="app-head">
       <header className="topbar">
-        <strong>Brick Lab Local</strong>
-        {loaded && <span className="muted">{loaded.fileName}</span>}
+        {nav}
+        {!nav && <strong>Brick Lab Local</strong>}
+        {loaded && !initial && <span className="muted">{loaded.fileName}</span>}
         <span className="spacer" />
         {ctx && session && (
           <>
@@ -465,10 +524,21 @@ export default function BrickLabApp() {
             )}
             {session.mode === 'freeManual' && <span>Montage libre</span>}
             <span data-testid="progress">{session.placed.length}/{ctx.occurrences.length} pièces posées</span>
-            <span className="muted small">Sauvegardé localement</span>
+            {library
+              ? <span className={`small save-${saveState.kind}`} data-testid="save-state" role={saveState.kind === 'error' || saveState.kind === 'conflict' ? 'alert' : undefined}>
+                {saveState.kind === 'error' || saveState.kind === 'conflict' ? `Non enregistré : ${saveState.message}` : SAVE_LABEL[saveState.kind]}
+              </span>
+              : <span className="muted small">Sauvegardé localement</span>}
           </>
         )}
       </header>
+      {banner}
+      {saveState.kind === 'conflict' && (
+        <div className="banner error" role="alert" data-testid="save-conflict">
+          {saveState.message} <button type="button" onClick={() => window.location.reload()}>Recharger</button>
+        </div>
+      )}
+      </div>
 
       <main className={editing ? 'workspace editing' : 'workspace'}>
         <div className="viewport">
@@ -486,6 +556,12 @@ export default function BrickLabApp() {
               {...(editing ? { onPick: pickInEditor } : {})}
               recenterToken={recenter}
             />
+          ) : initial ? (
+            // library build: no manual import here, only what is being loaded (or why it cannot render)
+            <div className="home" data-testid="library-loading">
+              <p className="muted">{busy ?? (loaded ? '' : 'Chargement du modèle…')}</p>
+              {loaded && !geometry && <p className="error">{renderStatus}</p>}
+            </div>
           ) : (
             <div className="home">
               <h1>Brick Lab Local</h1>
@@ -525,7 +601,7 @@ export default function BrickLabApp() {
                   renderStatus={renderStatus}
                   missingParts={missing}
                   inventory={inventoryCheck(loaded.hash)}
-                  onChooseRoot={(name) => void importText(loaded.fileName, loaded.text, loaded.hash, name)}
+                  {...(initial ? {} : { onChooseRoot: (name: string) => void importText(loaded.fileName, loaded.text, loaded.hash, name) })}
                 />
                 {!session && playable && ctx && (
                   <div className="actions">
@@ -544,10 +620,12 @@ export default function BrickLabApp() {
                   </div>
                 )}
                 {!playable && loaded.quality.quality !== 'INVALID' && <p className="small muted">Visualisation seulement tant que des pièces manquent.</p>}
-                <label className="button secondary small">
-                  Importer un autre modèle
-                  <input type="file" accept=".ldr,.mpd" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
-                </label>
+                {!initial && (
+                  <label className="button secondary small">
+                    Importer un autre modèle
+                    <input type="file" accept=".ldr,.mpd" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
+                  </label>
+                )}
               </>
             ) : <p className="muted small">Aucun modèle importé.</p>}
           </div>
@@ -612,7 +690,7 @@ export default function BrickLabApp() {
           {isComplete(ctx, session) ? (
             <div className="done">
               <strong>Modèle terminé : {ctx.occurrences.length}/{ctx.occurrences.length} pièces.</strong>
-              <button type="button" className="button primary" onClick={restart}>Recommencer</button>
+              <button type="button" className="button primary" onClick={() => void restart()}>{confirmRestart ? 'Confirmer : recommencer' : 'Recommencer'}</button>
             </div>
           ) : (
             <PartsTray items={tray(ctx, session)} heldKey={held ? trayKey(held.partKey, held.colorCode) : null} colourOf={(c) => catalog.colourHex(c)} onPick={pick} />
@@ -638,7 +716,13 @@ export default function BrickLabApp() {
             <label className="small"><input type="checkbox" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} /> Montrer les emplacements</label>
             <button type="button" onClick={() => setRecenter((n) => n + 1)}>Centrer</button>
             <button type="button" onClick={assistPlace} disabled={!held} title="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-testid="assist-place">Poser à la position cible (aide)</button>
-            <button type="button" onClick={restart}>Abandonner</button>
+            {confirmRestart ? (
+              <span className="confirm small" data-testid="confirm-restart">
+                La progression ({session.placed.length}/{ctx.occurrences.length}) sera retirée de cette partie (copie gardée dans l’historique de la bibliothèque).
+                {' '}<button type="button" className="danger" onClick={() => void restart()}>Confirmer l’abandon</button>
+                {' '}<button type="button" onClick={() => setConfirmRestart(false)}>Annuler</button>
+              </span>
+            ) : <button type="button" onClick={() => void restart()}>Abandonner</button>}
           </div>
         </footer>
       )}
