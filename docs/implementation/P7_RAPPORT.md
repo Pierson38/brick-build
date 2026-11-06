@@ -120,3 +120,18 @@ La fusion reste soumise à ton accord explicite.
 **Données réelles.** Rien n'a été renommé, supprimé ni réinitialisé dans `~/Documents/brick-lab-data/library/`. Sauvegarde de sécurité avant la recette humaine : `~/Documents/brick-lab-data/backups-p7/library-2026-11-05T19-05-04-avant-recette-humaine.tar.gz` (archive vérifiée par extraction séparée et comparaison des SHA-256 listés dans `library-2026-11-05T19-05-04.sha256`). Pour revenir à cet état : arrêter le serveur, mettre de côté le dossier `library/` actuel (ne pas le supprimer), puis `tar -xzf <archive> -C ~/Documents/brick-lab-data`.
 
 **Verdict.** Inchangé : **GO sous conditions** (recette humaine dans Chrome et Safari, dont la reprise de ta partie P6). Pas de fusion sans ton GO explicite.
+
+## 8. Recette humaine du propriétaire et verdict final (06/11/2026)
+
+Résultats communiqués par le propriétaire, qui a mené la recette lui-même sur le serveur de production et son dossier de données réel ([RECETTE_HUMAINE_P7.md](RECETTE_HUMAINE_P7.md)) :
+
+| Point vérifié | Résultat |
+|---|---|
+| Récupération de sa sauvegarde P6 (`localStorage` de Chrome) | OK |
+| Collection et reprise dans Chrome | OK |
+| Même collection et reprise dans Safari | OK |
+| Gestion des conflits entre navigateurs | OK |
+
+Aucune autre mesure n'a été relevée pendant cette recette ; la version de Safari n'a pas été communiquée.
+
+**Verdict : GO.** Les deux conditions du § 6 sont levées. Le propriétaire a donné son GO explicite pour fusionner la PR #4 (par rebase).

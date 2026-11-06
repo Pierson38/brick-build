@@ -75,3 +75,5 @@ Interface agréable sur MacBook ? Points pénibles ? Lenteurs ?
 ## Résultat
 
 À compléter par le propriétaire : date, navigateurs (version de Safari), OK/KO, remarques.
+
+**06/11/2026, Chrome et Safari** (résultats communiqués par le propriétaire ; version de Safari non communiquée) : récupération de la sauvegarde P6 OK ; collection et reprise dans Chrome OK ; même collection et reprise dans Safari OK ; gestion des conflits entre navigateurs OK. Détail : [P7_RAPPORT.md](P7_RAPPORT.md) § 8.
