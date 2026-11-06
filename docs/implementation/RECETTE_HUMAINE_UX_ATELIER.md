@@ -9,7 +9,7 @@ Durée estimée : 30 min (Chrome 20, Safari 10). Rapport : [UX_ATELIER_RAPPORT.m
 | Contrôle | Résultat |
 |---|---|
 | Serveur précédent | Aucun serveur sur 3000 / 3100 / 3200 / 3300, aucun processus `next` |
-| Tête de la PR #6 | voir § 6 (tête vérifiée identique en local, sur `origin` et dans la PR avant le lancement) |
+| Tête de la PR #6 | `a645b9d` (§ 6), identique en local, sur `origin` et dans la PR avant le lancement |
 | Données avant recette | 61 fichiers de `library/`, `models/`, `instructions/`, `mappings/` **identiques** à l'inventaire de clôture P8 (19:19) |
 | Sauvegarde vérifiée | `backups-p8/library-2026-11-06T20-47-30-avant-recette-ux.tar.gz` (`library` + `mappings`, 23,3 Mo, SHA-256 `6fdff829…5ab4f4`) ; extraite à part et comparée : 39/39 fichiers identiques, aucun en plus ni en moins. Manifeste : `backups-p8/donnees-2026-11-06T20-47-30.sha256` |
 | Serveur de recette | production (`npm run build` puis `npm run start`), worktree UX, http://127.0.0.1:3000 |
@@ -80,20 +80,26 @@ Fermer l'atelier, revenir à « Ma collection », puis rouvrir chaque set :
 3. 31009 : montage libre, pièces que tu as laissées.
 4. Dis-moi ce que tu as laissé posé : je comparerai alors les fichiers avec le manifeste de 20:47 et te dirai exactement ce qui a changé (attendu : seulement les progressions et les pages que tu as touchées).
 
-## 5. Résultats (à remplir par le propriétaire)
+## 5. Résultats (déclarés par le propriétaire, 06/11/2026)
 
-| Point | Chrome | Safari | Remarques (capture, taille de fenêtre) |
-|---|---|---|---|
-| 1. Panneaux 31040 (largeur mémorisée, pose) | | | |
-| 2. Notice Largeur / zoom | | | |
-| 3. Miniatures 31009 (forme, couleur, quantité, rapidité) | | — | |
-| 4. 31039 : miniatures utilisables ? | | — | |
-| 5. Fluidité 3D après redimensionnement | | | |
-| 6. Safari (ensemble) | — | | |
-| 7. Progressions et notices intactes | | | |
+Recette réalisée par le propriétaire dans Chrome et Safari, sur le serveur de production préparé ci-dessus (tête `a645b9d`). Résultats tels que communiqués, par thème (pas de détail par navigateur ni de mesure chiffrée fournis) :
+
+| Point du parcours | Résultat déclaré |
+|---|---|
+| 1. Redimensionnement des panneaux | **OK** |
+| 2. Notice PDF (largeur automatique, zoom manuel) | **OK** |
+| 3. Miniatures 31009 | **OK** |
+| 4. Montage libre 31039 — miniatures | **OK** |
+| 5. Placement et fluidité 3D | **OK** |
+| 6. Chrome et Safari | **OK** |
+| 7. Sauvegardes et progressions | **OK** |
+
+**Constat sur les données après la recette** (comparaison avec le manifeste de 20:47, sans autre interprétation) : un seul fichier nouveau, `library/builds/b-mw5ag1wk-43084e0c/thumbnail-81b99485f4adb7c5.png` (aperçu de la construction 31039, écrit à son ouverture dans l'atelier) ; tous les autres fichiers identiques. Index révision 3 ; 31040 synchronisé 25/65, page 6, révision 37 ; 31039 libre 0/609, page 4, révision 4 ; 31009 sans progression. Aucune pose n'a donc été enregistrée dans la bibliothèque pendant la recette (les essais de pose ont pu être faits puis annulés hors bibliothèque, ou dans l'atelier autonome) : le point 7 est corroboré (rien de perdu ni modifié), la pose au point 5 repose sur la déclaration du propriétaire et sur les tests automatisés (§ 3–5 du rapport).
+
+**Limitation signalée pendant la recette, hors périmètre du lot** : en montage libre, une pièce ne peut être posée qu'à une position du modèle LDraw. Comportement du moteur antérieur à ce lot, documenté dans [LIMITATION_MONTAGE_LIBRE.md](LIMITATION_MONTAGE_LIBRE.md) ; non bloquant pour les corrections UX.
 
 En cas de souci : je peux restaurer la sauvegarde de 20:47 sur ta demande (serveur arrêté). Pour retrouver les largeurs d'origine : double-clic sur le séparateur.
 
 ## 6. Tête testée
 
-Branche `fix/atelier-resizable-panels-part-previews` ; la tête exacte servie par le serveur est indiquée dans la description de la PR #6 et dans le rapport de fin de préparation.
+Branche `fix/atelier-resizable-panels-part-previews`, tête `a645b9d2a9e544b7d1e15f3d0d46e46bbee9a0e3` (code identique à `9e9c769`, validé par la suite complète ; seul ce document diffère). Serveur `npm run build && npm run start`, http://127.0.0.1:3000, à l'écoute sur 127.0.0.1 uniquement.

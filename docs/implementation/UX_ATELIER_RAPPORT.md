@@ -85,8 +85,8 @@ Non exécuté : `npm run perf` (mesures du lot faites par `atelier-ux-omr.spec.t
 
 ## 7. Verdict
 
-**GO sous condition : recette humaine** ([RECETTE_HUMAINE_UX_ATELIER.md](RECETTE_HUMAINE_UX_ATELIER.md)), en particulier dans l'application **Safari** et sur l'écran du MacBook.
+**Recette humaine terminée par le propriétaire le 06/11/2026 (Chrome et Safari) : les sept points sont déclarés OK** — détail et constat sur les données dans [RECETTE_HUMAINE_UX_ATELIER.md](RECETTE_HUMAINE_UX_ATELIER.md) § 5. **GO explicite de fusion de la PR #6 donné par le propriétaire.**
 
-Démontré : la notice peut être élargie ou réduite à la souris, au trackpad ou au clavier, la largeur est mémorisée, la page reste entière sans défilement horizontal dans les trois modes et l'éditeur ; les placements restent exacts après redimensionnement ; chaque pièce est montrée par sa forme et sa couleur réelles (même géométrie que la vue 3D), avec sa quantité, sans ralentir la construction (60 i/s pendant le rendu des 92 miniatures de 31009). Aucune modification des règles de placement, du parseur, des correspondances, des progressions, du catalogue ni des imports ; aucune donnée personnelle modifiée.
+Démontré : la notice peut être élargie ou réduite à la souris, au trackpad ou au clavier, la largeur est mémorisée, la page reste entière sans défilement horizontal dans les trois modes et l'éditeur ; les placements restent exacts après redimensionnement ; chaque pièce est montrée par sa forme et sa couleur réelles (même géométrie que la vue 3D), avec sa quantité, sans ralentir la construction (60 i/s pendant le rendu des 92 miniatures de 31009). Aucune modification des règles de placement, du parseur, des correspondances, des progressions, du catalogue ni des imports ; aucune donnée personnelle modifiée (après la recette, seul un aperçu de construction 31039 a été ajouté).
 
-La fusion reste soumise à ton GO explicite.
+Hors périmètre, signalé pendant la recette : le montage libre impose encore les positions du modèle LDraw — limitation antérieure du moteur, non bloquante, documentée dans [LIMITATION_MONTAGE_LIBRE.md](LIMITATION_MONTAGE_LIBRE.md) et traitée dans un lot dédié.

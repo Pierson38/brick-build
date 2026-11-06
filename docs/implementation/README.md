@@ -24,7 +24,8 @@ Le dépôt contient deux familles de documents :
 - [P8 — rapport, recette réelle, limites, verdict](P8_RAPPORT.md)
 - [Recette humaine P8 (à faire par le propriétaire)](RECETTE_HUMAINE_P8.md)
 - [Atelier — panneaux redimensionnables, notice ajustée, miniatures des pièces : rapport](UX_ATELIER_RAPPORT.md)
-- [Recette humaine du lot UX atelier (à faire par le propriétaire)](RECETTE_HUMAINE_UX_ATELIER.md)
+- [Recette humaine du lot UX atelier (faite par le propriétaire, 06/11/2026)](RECETTE_HUMAINE_UX_ATELIER.md)
+- [Limitation connue : le montage libre n'est libre que dans l'ordre](LIMITATION_MONTAGE_LIBRE.md)
 
 ## Démarrage développeur
 
