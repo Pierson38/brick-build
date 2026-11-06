@@ -141,8 +141,23 @@ La fusion reste soumise à ton GO final après la recette humaine.
 
 **État de la branche** : `feat/p8-simplified-import`, aucune modification fonctionnelle depuis la validation finale (§ 5) ; les commits suivants ne touchent que la documentation. Base `origin/main` = `a4d2eeb`, fusion sans conflit signalée par GitHub.
 
-**Verdict de fusion : PRÊT TECHNIQUEMENT, FUSION NON RECOMMANDÉE EN L'ÉTAT.**
+**Verdict de fusion (avant la recette de clôture) : prêt techniquement, fusion non recommandée en l'état** — les points 4 à 8 et Safari n'avaient pas de trace.
 
 - Acquis : validation automatique complète (222 unitaires, 47 E2E sans test ignoré, build), recette réelle isolée de Claude (31045, reprise après redémarrage), recette humaine en production pour la recherche, le téléchargement OMR, l'import de la notice et l'ajout.
-- Manque, faute de trace : ta confirmation des points 4 à 8 et de Safari (voir le tableau de la recette humaine). En particulier, la **reprise après redémarrage** et l'**import hors ligne** n'ont pas été exercés sur ta collection.
-- Pour fusionner : soit tu confirmes les points que tu as observés et tu passes ceux qui manquent (≈ 15 min : § 4.4–4.5, § 5, § 6), soit tu décides explicitement de fusionner sans eux. Dans les deux cas, la fusion attend ton GO.
+
+## 10. Recette humaine de clôture et verdict final (06/11/2026)
+
+Résultats **déclarés par le propriétaire** à l'issue de sa recette humaine ([RECETTE_HUMAINE_P8.md](RECETTE_HUMAINE_P8.md), parcours de clôture) ; aucune mesure n'a été relevée par Claude pendant cette recette :
+
+| Contrôle | Résultat (propriétaire) | Traces dans les données |
+|---|---|---|
+| C6 — notice LEGO `6127618.pdf` du 31039 | OK | non traçable |
+| C5 — compatibilité (montage libre, sans étapes) | OK | non traçable |
+| C1 — progression et reprise après redémarrage | OK | **absentes** : 31039 0/609, dernier enregistrement 19:09, aucun redémarrage du serveur |
+| C2 — doublons | OK | **absentes** : rien en préparation |
+| C3 — Safari | OK | non traçable |
+| C4 — import hors ligne | OK | **absentes** : rien en préparation |
+
+L'écart C1/C2/C4 a été présenté avant la fusion ; **le propriétaire a décidé de fusionner malgré lui**. Données réelles intactes au moment de la décision (index révision 3, 31040 25/65, fichiers des sets identiques à l'inventaire de 19:19 ; sauvegardes `backups-p8/` conservées).
+
+**Verdict final : GO** (décision du propriétaire, 06/11/2026). Fusion de la PR #5 par rebase, sans force push, branche et worktree conservés.
