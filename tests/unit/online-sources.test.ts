@@ -1,4 +1,5 @@
 import type { LookupAddress } from 'node:dns';
+import { validateHeaderName, validateHeaderValue } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseSetNumber, type SetNumber } from '@/domain/library/set-number';
 import { allowedUrl, checkedLookup, isPublicAddress, NetError, safeGet, type Transport } from '@/server/net/safe-fetch';
@@ -64,6 +65,16 @@ describe('safe outgoing requests', () => {
     expect((await safeGet('https://library.ldraw.org/a', POLICY, t)).body.toString()).toBe('ok');
     await expect(safeGet('https://library.ldraw.org/c', POLICY, t)).rejects.toMatchObject({ code: 'REDIRECT' });
     await expect(safeGet('https://library.ldraw.org/d', POLICY, t)).rejects.toMatchObject({ code: 'REDIRECT' });
+  });
+
+  it('sends only headers that Node accepts (ASCII), whatever the source', async () => {
+    process.env.REBRICKABLE_API_KEY = 'abcdef0123456789abcdef0123456789';
+    resetRebrickableForTests();
+    const seen: { url: string; headers: Record<string, string> }[] = [];
+    await onlineLookup(sn('90010'), fake({}, seen));
+    delete process.env.REBRICKABLE_API_KEY;
+    expect(seen.length).toBe(2);
+    for (const { headers } of seen) for (const [k, v] of Object.entries(headers)) expect(() => { validateHeaderName(k); validateHeaderValue(k, v); }).not.toThrow();
   });
 
   it('bounds size (declared or streamed), time, and reports HTTP and network errors', async () => {

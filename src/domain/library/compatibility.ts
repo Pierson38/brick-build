@@ -70,7 +70,9 @@ export function compatibility(sel: BuildSelection): CompatibilitySheet {
 
   if (root.missingParts.checked && root.missingParts.refs.length > 0) {
     lines.push({ level: 'warn', text: `Modèle incomplet à l’écran : ${root.missingParts.refs.length} référence(s) de pièce absente(s) de ta bibliothèque LDraw (${root.missingParts.occurrences} pièce(s)) : ${root.missingParts.refs.slice(0, 5).join(', ')}${root.missingParts.refs.length > 5 ? '…' : ''}.` });
-  } else if (!root.missingParts.checked) {
+  } else if (root.missingParts.checked) {
+    lines.push({ level: 'ok', text: `Pièces vérifiées : les ${root.uniqueParts} référence(s) du modèle sont dans ta bibliothèque LDraw locale (contrôle du premier niveau de fichiers).` });
+  } else {
     lines.push({ level: 'warn', text: 'Pièces non vérifiées : bibliothèque LDraw locale non configurée (LDRAW_LIBRARY_DIR).' });
   }
   if (root.errors > 0) lines.push({ level: 'warn', text: `${root.errors} erreur(s) de lecture : certaines lignes ou branches du fichier sont ignorées.` });

@@ -107,7 +107,8 @@ export function allowedUrl(raw: string | URL, policy: Pick<FetchPolicy, 'hosts'>
   return url;
 }
 
-const UA = 'BrickBuild-local/0.8 (application personnelle ; une requête par clic de l’utilisateur)';
+/** ASCII only: Node refuses any other character in a header (found by the real P8 trial). */
+export const USER_AGENT = 'BrickBuild-local/0.8 (personal app; one request per user click)';
 
 /** GET on an allowed host; refuses everything outside the policy. */
 export async function safeGet(raw: string, policy: FetchPolicy, transport: Transport = defaultTransport()): Promise<FetchResult> {
@@ -118,7 +119,7 @@ export async function safeGet(raw: string, policy: FetchPolicy, transport: Trans
     for (let hop = 0; ; hop++) {
       let res: Awaited<ReturnType<Transport>>;
       try {
-        res = await transport(url, { 'user-agent': UA, accept: '*/*', ...policy.headers }, controller.signal);
+        res = await transport(url, { 'user-agent': USER_AGENT, accept: '*/*', ...policy.headers }, controller.signal);
       } catch (e) {
         if (e instanceof NetError) throw e;
         if (controller.signal.aborted) throw new NetError('TIMEOUT', `Délai dépassé (${Math.round(policy.timeoutMs / 1000)} s).`);

@@ -72,6 +72,7 @@ describe('compatibility sheet (P8)', () => {
     expect(text(root({ missingParts: { checked: true, refs: ['9999.dat'], occurrences: 2 } }))).toContain('warn:Modèle incomplet à l’écran : 1 référence(s)');
     expect(text(root({ missingParts: { checked: false, refs: [], occurrences: 0 } }))).toContain('Pièces non vérifiées');
     expect(text(root())).toContain('Inventaire indéterminé');
+    expect(text(root())).toContain('ok:Pièces vérifiées : les 1 référence(s) du modèle sont dans ta bibliothèque LDraw locale');
     expect(text(root({ inventory: { verdict: 'COHERENT', message: 'Inventaire officiel vérifié : 65 pièces.' } }))).toContain('ok:Inventaire officiel vérifié');
   });
 });
