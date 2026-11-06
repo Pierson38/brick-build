@@ -66,8 +66,10 @@ test('a piece goes where it is pointed; a placed piece is taken again to move, t
   await expect(page.getByTestId('tray-3001.dat-4')).toHaveCount(0); // its only red brick is used
   await page.keyboard.press('Escape');
 
-  // take it again, Escape: it stays where it was
+  // select it (click), take it (M), Escape: it stays where it was
   await clickAt(page, [140, 0, 60]);
+  await expect(page.getByTestId('selection-info')).toHaveText('1 pièce(s) sélectionnée(s)');
+  await page.keyboard.press('m');
   await expect(page.getByTestId('held-info')).toContainText('Pièce reprise');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('message')).toHaveText('Pièce laissée où elle était.');
@@ -75,6 +77,7 @@ test('a piece goes where it is pointed; a placed piece is taken again to move, t
 
   // take it, turn it a quarter, put it elsewhere
   await clickAt(page, [140, 0, 60]);
+  await page.getByTestId('move-selection').click();
   await page.keyboard.press('r');
   await clickAt(page, [-100, 24, 40]);
   await expect(page.getByTestId('message')).toHaveText('Pièce déplacée librement.');
@@ -91,6 +94,7 @@ test('a piece goes where it is pointed; a placed piece is taken again to move, t
 
   // take it and put it back into the stock; ⌘Z brings it back
   await clickAt(page, [140, 0, 60]);
+  await page.keyboard.press('m');
   await page.keyboard.press('Delete');
   await expect(page.getByTestId('message')).toHaveText('Pièce remise dans le stock.');
   await expect(page.getByTestId('progress')).toHaveText('0/4 pièces posées');
@@ -189,7 +193,7 @@ const libraryProgress = async (request: APIRequestContext, buildId: string) =>
   ((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number; progress: { schemaVersion: number; placedOccurrenceIds: string[]; freePieces?: { id: string; pose: number[] }[] } }).progress;
 
 test('library: free poses saved and restored after a reload; the collection does not call a used-up stock finished', async ({ page, request }) => {
-  const { setId, buildId } = await miniSet(request, `90110-${Date.now().toString(36)}`, 'libre');
+  const { setId, buildId } = await miniSet(request, `90110-${Date.now().toString(36)}`, `libre ${Date.now()}`);
   await page.goto(`/atelier/${buildId}`);
   await waitAtelier(page);
   await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
@@ -226,7 +230,7 @@ test('library: free poses saved and restored after a reload; the collection does
 });
 
 test('library: an older free build (identifiers only) is restored on its historical positions; a piece moved from there becomes free', async ({ page, request }) => {
-  const { modelSha, buildId } = await miniSet(request, `90111-${Date.now().toString(36)}`, 'ancienne');
+  const { modelSha, buildId } = await miniSet(request, `90111-${Date.now().toString(36)}`, `ancienne ${Date.now()}`);
   const old = { schemaVersion: 2, modelContentHash: modelSha, displayName: 'mini-4-pieces.mpd', buildMode: 'freeManual', placedOccurrenceIds: ['mini-4-pieces.mpd#0', 'mini-4-pieces.mpd#3'], totalOccurrences: 4, updatedAtIso: '2026-11-01T10:00:00.000Z' };
   const put = await request.put(`/api/library/builds/${buildId}/progress`, { data: { baseRevision: null, progress: old }, headers: W });
   expect(put.ok(), await put.text()).toBe(true);
@@ -240,6 +244,7 @@ test('library: an older free build (identifiers only) is restored on its histori
 
   // the yellow brick (on its historical spot, 80,-24,0) is taken and put on the ground elsewhere
   await clickAt(page, [80, -24, 0]);
+  await page.keyboard.press('m');
   await expect(page.getByTestId('held-info')).toContainText('Pièce reprise');
   await clickAt(page, [-120, 24, -40]);
   await expect(page.getByTestId('progress')).toHaveText('2/4 pièces posées');
@@ -261,10 +266,11 @@ test('WebKit (Safari engine): free placement, take again, move, remove', async (
     await clickAt(page, [160, 24, -40]);
     await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
     await clickAt(page, [160, 0, -40]);
+    await page.getByTestId('move-selection').click();
     await expect(page.getByTestId('held-info')).toContainText('Pièce reprise');
     await clickAt(page, [-80, 24, 60]);
     expect((await freePieces(page)).map(position)).toEqual([[-80, 0, 60]]);
-    await clickAt(page, [-80, 0, 60]);
+    await page.getByTestId('move-selection').click(); // the moved piece stays selected
     await page.getByTestId('remove-piece').click();
     await expect(page.getByTestId('progress')).toHaveText('0/4 pièces posées');
   } finally {

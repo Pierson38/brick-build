@@ -28,7 +28,9 @@ Le dépôt contient deux familles de documents :
 - [Limitation connue : le montage libre n'est libre que dans l'ordre](LIMITATION_MONTAGE_LIBRE.md)
 - [Véritable montage libre : architecture (cible du modèle ≠ pose du joueur)](MONTAGE_LIBRE_ARCHITECTURE.md)
 - [Véritable montage libre : rapport, tests, mesures, verdict](MONTAGE_LIBRE_RAPPORT.md)
-- [Recette humaine du véritable montage libre (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
+- [Recette humaine du véritable montage libre (faite : NO-GO, deux limitations)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
+- [Corrections : hauteur libre et groupes (cause, tests, compatibilité)](MONTAGE_LIBRE_CORRECTIONS.md)
+- [Recette humaine ciblée des corrections (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md)
 
 ## Démarrage développeur
 

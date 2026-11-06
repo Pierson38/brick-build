@@ -99,9 +99,11 @@ test('identical bricks: each pointed spot gets its own brick, an occupied spot i
 });
 
 test('manual layers remain as a fallback; A returns to surface mode', async ({ page }) => {
+  // guided mode since the free height control (06/11/2026): in free mode PageUp/PageDown move the
+  // piece freely (free-building.spec); the model levels remain the guided fallback, unchanged
   await importModel(page, 'mini-4-pieces.mpd');
-  await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
-  await page.getByTestId('tray-3001.dat-2').click();
+  await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+  await page.getByTestId('tray-3001.dat-4').click();
   await point(page, [80, 24, 0]);
   await page.keyboard.press('PageDown');
   await expect(page.getByTestId('held-info')).toContainText('Niveau manuel 1/2');

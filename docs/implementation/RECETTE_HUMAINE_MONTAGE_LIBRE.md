@@ -74,3 +74,12 @@ Avec 609 pièces, la fin de stock n'est pas pratique à atteindre à la main ; e
 | 7. Fluidité, trackpad | | | |
 
 Dis-moi ce que tu laisses posé : je comparerai tes données avec l'inventaire d'avant la recette et te dirai exactement ce qui a changé.
+
+## 10. Résultat de la recette du propriétaire (06/11/2026)
+
+**NO-GO** pour fusionner la PR #7 en l'état, deux limitations signalées (deux captures annoncées, non reçues par Claude) :
+
+1. Impossible de descendre suffisamment une longue pièce grise pour l'ajuster au-dessus d'un assemblage orange et vert (pièce 30157 de la construction 31039).
+2. Impossible de déplacer plusieurs briques ensemble.
+
+Données après cette recette (comparées à l'inventaire de 22:08) : seule la construction 31039 a changé — 12 pièces posées librement (format v3, révision 25), versions remplacées gardées dans son historique ; 31040 (25/65) et 31009 inchangés. Corrections et recette ciblée : [MONTAGE_LIBRE_CORRECTIONS.md](MONTAGE_LIBRE_CORRECTIONS.md), [RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md).

@@ -6,11 +6,12 @@ import {
   resetActiveStep, rewindToStep, switchMode, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
 } from '@/domain/build/engine';
 import {
-  freePiecesOf, isStockExhausted, matchToModel, movePiece, occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece,
-  resolveFreeHover, stockLeft, toStepped, usedCount, atModelCount, type FreeResult, type PieceRef,
+  FINE_HEIGHT_STEP_LDU, HEIGHT_STEP_LDU, freePiecesOf, groupPoses, isStockExhausted, liftedY, makeGroup, matchToModel, movePiece, moveGroup,
+  occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece, removePieces, resolveFreeHover, sameRef, stockLeft, toStepped, usedCount, atModelCount,
+  type FreeResult, type PieceRef,
 } from '@/domain/build/free';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
-import { withTranslation } from '@/domain/ldraw/matrix';
+import { IDENTITY, withTranslation } from '@/domain/ldraw/matrix';
 import { bottomExtent, resolveHover, type HoverHit, type HoverResolution, type Ray } from '@/domain/build/surface';
 import { analyzeModel, classifyImport, sha256Hex, type ModelAnalysis, type QualityReport } from '@/domain/import/analyze';
 import { inventoryCheck } from '@/domain/import/known-validations';
@@ -42,6 +43,8 @@ declare global {
       atModel: () => number;
       /** Ground level of the model (LDraw y): where the free pieces stand. */
       ground: () => number;
+      /** Free mode: the selected pieces. */
+      selection: () => PieceRef[];
       held: () => (Omit<HeldBrick, 'orientation'> & { orientation: number[]; orientationIndex: number; orientationCount: number; layerIndex: number; previewPose: number[] | null; previewLayerY: number | null; previewSource: string | null; targetId: string | null; bottom: number }) | null;
       layers: () => number[];
       symmetries: (partKey: string) => number[];
@@ -143,6 +146,12 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   const [snap, setSnap] = useState({ grid: true, magnet: true });
   // free → guided / synchronised with pieces off the model: waits for an explicit choice
   const [pendingSwitch, setPendingSwitch] = useState<{ mode: Exclude<BuildMode, 'freeManual'>; recognised: number; unmatched: number } | null>(null);
+  // free mode: placed pieces selected (click, Shift+click) to be moved or removed together
+  const [selection, setSelection] = useState<PieceRef[]>([]);
+  // free mode: manual height step (a plate, or 1 LDU)
+  const [heightStep, setHeightStep] = useState<number>(HEIGHT_STEP_LDU);
+  // horizontal position kept after a height change, until the pointer moves again
+  const liftXZ = useRef<[number, number] | null>(null);
 
   useEffect(() => setRecent(library ? [] : listRecentSessions()), [loaded, library]);
   useEffect(() => store.onSaveState(setSaveState), [store]);
@@ -212,6 +221,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setReplacedMapping(null);
     setFreeHistory([]);
     setPendingSwitch(null);
+    setSelection([]);
     const storedMapping = await store.loadMapping(hash);
     const restoredMapping = storedMapping?.ok ? storedMapping.mapping : null;
     setMapping(restoredMapping);
@@ -324,6 +334,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setSession(next);
     setPendingSwitch(null);
     setFreeHistory([]);
+    setSelection([]);
     setShowTargets(isStepped(mode));
     setHeld(null);
     setConsultIdx(null);
@@ -341,27 +352,102 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setMessage({
       kind: 'info',
       text: session.mode === 'freeManual'
-        ? 'Pointe où tu veux : la pièce se pose sur la surface visée (grille d’un demi-tenon, G pour la retirer). Clic : poser · R : tourner · O : orientation · Échap : lâcher.'
+        ? 'Pointe où tu veux : la pièce se pose sur la surface visée (grille d’un demi-tenon, G pour la retirer). Clic : poser · R : tourner · O : orientation · Monter / Descendre (PageUp / PageDown) : hauteur libre · Échap : lâcher.'
         : 'Survole le modèle : la pièce se pose sur la surface visée. Clic : poser · R : tourner · O : orientation · PageUp/PageDown : niveau manuel (A : auto) · Échap : lâcher.',
     });
   };
 
-  /** Free mode: a click on a placed piece takes it again (move, turn, remove). */
+  /** Lowest point of a piece under its origin, for a given pose (real geometry). */
+  const bottomOf = (partKey: string, colorCode: string, pose: readonly number[]) => {
+    const template = loaded?.geometry?.templates.get(trayKey(partKey, colorCode));
+    if (!template) return 0;
+    let v = verticesCache.current.get(partKey);
+    if (!v) {
+      v = templateVertices(template);
+      verticesCache.current.set(partKey, v);
+    }
+    return bottomExtent(v, pose as never);
+  };
+
+  /** Free mode: one placed piece taken again (move, turn, remove). */
   const take = (ref: PieceRef) => {
     if (!ctx || !session || session.mode !== 'freeManual') return;
     const kind = pieceKind(ctx, session, ref);
     const pose = poseOf(ctx, session, ref);
     if (!kind || !pose) return;
     setOrientationIdx(0);
-    setHeld({ ...kind, quarterTurns: 0, layerY: Math.round(pose[13]), orientation: withTranslation(pose, [0, 0, 0]), layerMode: 'auto', moving: ref });
-    setMessage({ kind: 'info', text: 'Pièce reprise : clic pour la reposer · R / O : la tourner · Suppr : la remettre dans le stock · Échap : la laisser où elle était.' });
+    liftXZ.current = null;
+    setHeld({ ...kind, quarterTurns: 0, layerY: pose[13], orientation: withTranslation(pose, [0, 0, 0]), layerMode: 'auto', moving: ref });
+    setMessage({ kind: 'info', text: 'Pièce reprise : clic pour la reposer · R / O : la tourner · Monter / Descendre : hauteur · Suppr : la remettre dans le stock · Échap : la laisser où elle était.' });
   };
 
+  /** Free mode: click on a placed piece = select it; Shift+click = add / remove; click elsewhere = clear. */
+  const select = (ref: PieceRef | null, { shift }: { shift: boolean }) => {
+    if (!session || session.mode !== 'freeManual') return;
+    if (!ref) {
+      if (!shift && selection.length > 0) setSelection([]);
+      return;
+    }
+    const has = selection.some((r) => sameRef(r, ref));
+    const next = shift ? (has ? selection.filter((r) => !sameRef(r, ref)) : [...selection, ref]) : [ref];
+    setSelection(next);
+    setMessage({
+      kind: 'info',
+      text: next.length === 0 ? 'Sélection vide.'
+        : `${next.length} pièce(s) sélectionnée(s) · M ou « Déplacer la sélection » · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`,
+    });
+  };
+
+  /** The selection in hand: one piece as before, several as one rigid group around a common pivot. */
+  const moveSelection = () => {
+    if (!ctx || !session || selection.length === 0) return;
+    if (selection.length === 1) return take(selection[0]!);
+    const members = selection.flatMap((ref) => {
+      const kind = pieceKind(ctx, session, ref);
+      const pose = poseOf(ctx, session, ref);
+      return kind && pose ? [{ ref, ...kind, pose, bottom: bottomOf(kind.partKey, kind.colorCode, pose) }] : [];
+    });
+    if (members.length !== selection.length) return;
+    const group = makeGroup(members);
+    liftXZ.current = null;
+    setHeld({ partKey: members[0]!.partKey, colorCode: members[0]!.colorCode, quarterTurns: 0, layerY: group.pivot[1], orientation: IDENTITY, layerMode: 'auto', group });
+    setMessage({ kind: 'info', text: `Groupe de ${members.length} pièces en main : déplace la souris, clic pour le poser · R : tourner · Monter / Descendre : hauteur · Échap : le laisser où il était.` });
+  };
+
+  /** Puts the pieces in hand (moved piece or group) back into the stock, in one action. */
   const removeHeld = () => {
-    if (!session || !held?.moving) return;
-    commitFree(removePiece(session, held.moving));
+    if (!session || !(held?.moving || held?.group)) return;
+    const refs = held.group ? held.group.members.map((m) => m.ref) : [held.moving!];
+    commitFree(removePieces(session, refs));
     setHeld(null);
-    setMessage({ kind: 'ok', text: 'Pièce remise dans le stock.' });
+    setSelection([]);
+    setMessage({ kind: 'ok', text: refs.length === 1 ? 'Pièce remise dans le stock.' : `${refs.length} pièces remises dans le stock.` });
+  };
+
+  const removeSelection = () => {
+    if (!session || selection.length === 0 || held) return;
+    commitFree(removePieces(session, selection));
+    setMessage({ kind: 'ok', text: selection.length === 1 ? 'Pièce remise dans le stock.' : `${selection.length} pièces remises dans le stock.` });
+    setSelection([]);
+  };
+
+  /** Free mode: manual height, independent of the model levels; the piece goes straight up or down. */
+  const lift = (steps: number, step = heightStep) => {
+    if (!held || session?.mode !== 'freeManual') return;
+    const shown = previewRef.current;
+    const from = held.layerMode === 'manual' ? held.layerY : shown?.layerY ?? held.layerY;
+    if (shown) liftXZ.current = [shown.previewPose[12], shown.previewPose[14]];
+    setHeld({ ...held, layerMode: 'manual', layerY: liftedY(from, steps, step) });
+  };
+  const autoHeight = () => {
+    if (!held) return;
+    liftXZ.current = null;
+    setHeld({ ...held, layerMode: 'auto' });
+  };
+  const cancelHeld = () => {
+    if (!held) return;
+    setHeld(null);
+    if (held.moving || held.group) setMessage({ kind: 'info', text: held.group ? 'Groupe laissé où il était.' : 'Pièce laissée où elle était.' });
   };
 
   /** Free mode: result of a drop (new piece, moved piece, or the assisted placement). */
@@ -374,6 +460,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     const where = matchToModel(ctx, r.session).byPiece.has(r.pieceId) ? ' à sa place dans le modèle' : ' librement';
     if (held.moving) {
       setHeld(null);
+      setSelection([{ kind: 'free', id: r.pieceId }]);
       return setMessage({ kind: 'ok', text: `Pièce déplacée${where}.` });
     }
     if (stockLeft(ctx, r.session, held.partKey, held.colorCode) <= 0) setHeld(null);
@@ -386,7 +473,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     if (!session) return;
     setConsultIdx(null);
     if (session.mode !== 'freeManual') return setSession(undo(session));
-    if (held?.moving) setHeld(null);
+    if (held?.moving || held?.group) setHeld(null);
     if (freeHistory.length > 0) {
       setSession(freeHistory.at(-1)!);
       setFreeHistory((h) => h.slice(0, -1));
@@ -412,6 +499,20 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   const drop = () => {
     const shown = previewRef.current;
     if (!ctx || !session || !held || !shown) return;
+    if (session.mode === 'freeManual' && held.group) {
+      // the whole group or nothing: one action, undone at once
+      const group = held.group;
+      const poses = groupPoses(group, held.quarterTurns, [shown.pose[12], shown.pose[13], shown.pose[14]]);
+      const r = moveGroup(ctx, session, group.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+      if (process.env.NODE_ENV !== 'production') window.__brickLabLastDrop = { pose: [...shown.pose], layerY: shown.layerY, ok: r.ok, targetId: null };
+      if (!r.ok) return setMessage({ kind: 'error', text: `Groupe non déplacé : ${FREE_FAILURE[r.reason]}` });
+      commitFree(r.session);
+      previewRef.current = null;
+      setPreview(null);
+      setHeld(null);
+      setSelection([...r.refs]);
+      return setMessage({ kind: 'ok', text: `Groupe de ${group.members.length} pièces déplacé (« Annuler » le remet en place d’un coup).` });
+    }
     if (session.mode === 'freeManual') {
       // no comparison with the model: the piece goes where it is shown
       const r = held.moving ? movePiece(ctx, session, held.moving, shown.previewPose) : placeFree(ctx, session, held, shown.previewPose);
@@ -429,7 +530,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
 
   // Height of the held brick under its current orientation, from its real geometry.
   const heldBottom = useMemo(() => {
-    if (!held || !loaded?.geometry) return 0;
+    if (!held || !loaded?.geometry || held.group) return 0; // a group rests on its pivot, its lowest point
+
     const template = loaded.geometry.templates.get(trayKey(held.partKey, held.colorCode));
     if (!template) return 0;
     let v = verticesCache.current.get(held.partKey);
@@ -444,7 +546,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     lastHover.current = { ray, hit };
     if (!ctx || !session || !held) return;
     const r = session.mode === 'freeManual' && occupied
-      ? resolveFreeHover(ctx, held, ray, hit, heldBottom, { groundY, grid: snap.grid, magnet: snap.magnet, occupied })
+      ? resolveFreeHover(ctx, held, ray, hit, heldBottom, { groundY, grid: snap.grid, magnet: snap.magnet && !held.group, occupied, fixedXZ: liftXZ.current })
       : resolveHover(ctx, session, held, ray, hit, heldBottom);
     if (!r) return;
     previewRef.current = r;
@@ -480,7 +582,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     [ctx, held?.partKey, held?.colorCode],
   );
   const nextOrientation = useCallback(() => {
-    if (!held || heldOrientations.length === 0) return;
+    if (!held || held.group || heldOrientations.length === 0) return;
     const next = (orientationIdx + 1) % heldOrientations.length;
     setOrientationIdx(next);
     setHeld({ ...held, orientation: heldOrientations[next]! });
@@ -494,19 +596,32 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
         undoAction();
         return;
       }
-      if ((e.key === 'g' || e.key === 'G') && session?.mode === 'freeManual') return setSnap((v) => ({ ...v, grid: !v.grid }));
-      if (!held) return;
+      const free = session?.mode === 'freeManual';
+      if ((e.key === 'g' || e.key === 'G') && free) return setSnap((v) => ({ ...v, grid: !v.grid }));
+      if (!held) {
+        // free mode, nothing in hand: the selection
+        if (!free || selection.length === 0) return;
+        if (e.key === 'm' || e.key === 'M') moveSelection();
+        else if (e.key === 'Escape') setSelection([]);
+        else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          removeSelection();
+        }
+        return;
+      }
       if (e.key === 'r' || e.key === 'R') setHeld({ ...held, quarterTurns: held.quarterTurns + (e.shiftKey ? 3 : 1) });
       else if (e.key === 'o' || e.key === 'O') nextOrientation();
-      else if (e.key === 'Escape') {
-        setHeld(null);
-        if (held.moving) setMessage({ kind: 'info', text: 'Pièce laissée où elle était.' });
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && held.moving) {
+      else if (e.key === 'Escape') cancelHeld();
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && (held.moving || held.group)) {
         e.preventDefault();
         removeHeld();
       }
-      else if (e.key === 'a' || e.key === 'A') setHeld({ ...held, layerMode: 'auto' });
-      else if (e.key === 'PageUp' || e.key === 'PageDown') {
+      else if (e.key === 'a' || e.key === 'A') autoHeight();
+      else if ((e.key === 'PageUp' || e.key === 'PageDown') && free) {
+        // free height: one plate per key (Shift: 1 LDU), whatever the model levels
+        e.preventDefault();
+        lift(e.key === 'PageUp' ? 1 : -1, e.shiftKey ? FINE_HEIGHT_STEP_LDU : heightStep);
+      } else if (e.key === 'PageUp' || e.key === 'PageDown') {
         // manual fallback: starts from the default layer (lowest one with an open compatible
         // target), so it never costs more keys than the former keyboard-only scheme
         e.preventDefault();
@@ -517,7 +632,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [held, layers, session, nextOrientation, undoAction, removeHeld]);
+  }, [held, layers, session, nextOrientation, undoAction, removeHeld, selection, moveSelection, removeSelection, lift, autoHeight, cancelHeld, heightStep]);
 
   // Dev/test only: read-only view of the game state for the E2E "scripted player".
   useEffect(() => {
@@ -532,6 +647,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       freePieces: () => (session ? freePiecesOf(session).map((f) => ({ id: f.id, partKey: f.partKey, colorCode: f.colorCode, pose: [...f.pose] })) : []),
       atModel: () => (session ? atModelCount(session, match ?? { byPiece: new Map(), unmatched: [] }) : 0),
       ground: () => groundY,
+      selection: () => [...selection],
       held: () => (held
         ? {
           ...held, orientation: [...held.orientation], orientationIndex: orientationIdx, orientationCount: heldOrientations.length, layerIndex: layers.indexOf(held.layerY),
@@ -544,7 +660,16 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     return () => {
       delete window.__brickLabGame;
     };
-  }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers, occupied, match, groundY]);
+  }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers, occupied, match, groundY, selection]);
+
+  // pieces of the selection that no longer exist (undo, removal) leave it
+  useEffect(() => {
+    if (!ctx || !session) return;
+    setSelection((sel) => {
+      const kept = sel.filter((r) => poseOf(ctx, session, r) !== null);
+      return kept.length === sel.length ? sel : kept;
+    });
+  }, [ctx, session]);
 
   const restart = async () => {
     if (!loaded) return;
@@ -554,6 +679,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     if (!(await store.clearProgress(loaded.hash))) return;
     setSession(null);
     setFreeHistory([]);
+    setSelection([]);
     setHeld(null);
     setConsultIdx(null);
     setMessage(null);
@@ -636,9 +762,19 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       : openCandidates.filter((o) => isStepped(session.mode) || (held && o.partKey === held.partKey && o.colorCode === held.colorCode)).map((o) => o.occurrenceId),
   );
   // a piece taken again (free mode) is shown only in the hand
-  const movingAnchored = held?.moving?.kind === 'anchored' ? held.moving.occurrenceId : null;
-  let solidIds = session ? (movingAnchored ? new Set([...placedSet].filter((id) => id !== movingAnchored)) : placedSet) : new Set(ctx?.occurrences.map((o) => o.occurrenceId) ?? []);
+  const inHand = new Set([held?.moving, ...(held?.group?.members.map((m) => m.ref) ?? [])].flatMap((r) => (r?.kind === 'anchored' ? [r.occurrenceId] : [])));
+  let solidIds = session ? (inHand.size > 0 ? new Set([...placedSet].filter((id) => !inHand.has(id))) : placedSet) : new Set(ctx?.occurrences.map((o) => o.occurrenceId) ?? []);
   let highlightIds: Set<string> = synced && consultIdx !== null && shownStep ? new Set(shownStep.occurrenceIds) : new Set();
+  if (freeMode) {
+    // selected pieces: free ones by id, anchored ones (older builds) through the highlight
+    for (const r of selection) if (r.kind === 'anchored' && !inHand.has(r.occurrenceId)) highlightIds.add(r.occurrenceId);
+  }
+  const selectedFree = new Set(selection.flatMap((r) => (r.kind === 'free' ? [r.id] : [])));
+  const groupPreview = held?.group && preview
+    ? groupPoses(held.group, held.quarterTurns, [preview.pose[12], preview.pose[13], preview.pose[14]])
+      .map((pose, i) => ({ partKey: held.group!.members[i]!.partKey, colorCode: held.group!.members[i]!.colorCode, pose }))
+    : null;
+  const heightAboveGround = preview ? Math.round((groundY - (preview.layerY + heldBottom)) * 100) / 100 : null;
   if (editing && report) {
     // editor preview: built up to the current step, its bricks highlighted, unassigned as ghosts
     const before = mapping.steps.slice(0, Math.max(0, editIdx)).flatMap((st) => st.occurrenceIds);
@@ -653,6 +789,18 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     : loaded.libraryProblem ? `Rendu indisponible : ${loaded.libraryProblem}`
       : geometry ? `Géométrie LDraw : ${geometry.templates.size} combinaison(s) pièce/couleur chargée(s), ${missing.length} référence(s) manquante(s), ${Math.round(geometry.durationMs)} ms.`
         : '';
+
+  // status of the piece in hand: in the bottom bar (guided, synced), in the bar over the 3D view (free mode)
+  const heldInfo = held ? (
+    <span className="small muted" data-testid="held-info">
+      {held.moving ? 'Pièce reprise · ' : held.group ? `Groupe de ${held.group.members.length} pièces · ` : ''}
+      {held.layerMode === 'auto' ? 'Niveau auto (surface)' : freeMode ? 'Hauteur manuelle (A : auto)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
+      {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}
+      {preview?.targetId
+        ? <strong className="ok" data-testid="target-found"> · {freeMode ? 'à sa place dans le modèle' : 'emplacement trouvé'}, clic pour poser</strong>
+        : freeMode && preview ? <span data-testid="free-pose"> · pose libre, clic pour poser</span> : null}
+    </span>
+  ) : null;
 
   return (
     <div className="app">
@@ -702,10 +850,10 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               highlightIds={highlightIds}
               held={editing ? null : held}
               previewPose={preview?.previewPose ?? null}
-              onHover={updatePreview}
+              onHover={(ray, hit) => { liftXZ.current = null; updatePreview(ray, hit); }}
               onDrop={drop}
               {...(editing ? { onPick: pickInEditor } : {})}
-              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), onTake: take } : {})}
+              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select } : {})}
               groundY={groundY}
               recenterToken={recenter}
             />
@@ -736,6 +884,33 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
             </div>
           )}
           {message && <div className={`toast ${message.kind}`} role="status" data-testid="message">{message.text}</div>}
+          {freeMode && !editing && (held || selection.length > 0) && (
+            <div className="manip-bar" data-testid="manip-bar">
+              {held ? (
+                <>
+                  {heldInfo}
+                  {heightAboveGround !== null && <span className="small" data-testid="height-info">bas à {heightAboveGround} LDU du sol</span>}
+                  <button type="button" data-testid="lift-up" onClick={() => lift(1)} title="PageUp (Maj : 1 LDU)">▲ Monter</button>
+                  <button type="button" data-testid="lift-down" onClick={() => lift(-1)} title="PageDown (Maj : 1 LDU)">▼ Descendre</button>
+                  <span className="segmented" role="group" aria-label="Pas de hauteur">
+                    <button type="button" data-testid="step-8" aria-pressed={heightStep === HEIGHT_STEP_LDU} onClick={() => setHeightStep(HEIGHT_STEP_LDU)}>8 LDU</button>
+                    <button type="button" data-testid="step-1" aria-pressed={heightStep === FINE_HEIGHT_STEP_LDU} onClick={() => setHeightStep(FINE_HEIGHT_STEP_LDU)}>1 LDU</button>
+                  </span>
+                  <button type="button" data-testid="height-auto" onClick={autoHeight} disabled={held.layerMode === 'auto'} title="A">Hauteur auto</button>
+                  <button type="button" data-testid="rotate" onClick={() => setHeld({ ...held, quarterTurns: held.quarterTurns + 1 })}>⟳ Tourner (R)</button>
+                  {(held.moving || held.group) && <button type="button" data-testid="remove-piece" onClick={removeHeld}>Remettre dans le stock (Suppr)</button>}
+                  <button type="button" data-testid="cancel-held" onClick={cancelHeld}>{held.moving || held.group ? 'Laisser en place (Échap)' : 'Lâcher (Échap)'}</button>
+                </>
+              ) : (
+                <>
+                  <span className="small" data-testid="selection-info">{selection.length} pièce(s) sélectionnée(s)</span>
+                  <button type="button" data-testid="move-selection" onClick={moveSelection}>Déplacer la sélection (M)</button>
+                  <button type="button" data-testid="remove-selection" onClick={removeSelection}>Remettre dans le stock</button>
+                  <button type="button" data-testid="clear-selection" onClick={() => setSelection([])}>Désélectionner</button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <Splitter side={panel.side} total={panel.total} context={editing ? 'editor' : 'atelier'} onResize={panel.setSide} />
@@ -861,18 +1036,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
             />
           )}
           <div className="tray-actions">
-            {held && (
-              <span className="small muted" data-testid="held-info">
-                {held.moving ? 'Pièce reprise · ' : ''}
-                {held.layerMode === 'auto' ? 'Niveau auto (surface)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
-                {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}
-                {preview?.targetId
-                  ? <strong className="ok" data-testid="target-found"> · {freeMode ? 'à sa place dans le modèle' : 'emplacement trouvé'}, clic pour poser</strong>
-                  : freeMode && preview ? <span data-testid="free-pose"> · pose libre, clic pour poser</span> : null}
-              </span>
-            )}
+            {held && !freeMode && heldInfo}
             {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}>Orientation suivante (O)</button>}
-            {held?.moving && <button type="button" data-testid="remove-piece" onClick={removeHeld}>Remettre dans le stock (Suppr)</button>}
             <button type="button" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}>Annuler</button>
             {isStepped(session.mode) && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
             <label className="small">Mode{' '}

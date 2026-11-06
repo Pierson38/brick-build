@@ -89,6 +89,10 @@ npm run build   OK (production, 0 avertissement)
 
 ## 7. Verdict
 
+**Après la recette humaine du propriétaire (06/11/2026) : NO-GO**, deux limitations (hauteur libre, groupes), corrigées sur la même branche : [MONTAGE_LIBRE_CORRECTIONS.md](MONTAGE_LIBRE_CORRECTIONS.md) (cause, corrections, tests, recette réelle, compatibilité des sauvegardes), recette ciblée [RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md).
+
+Verdict de la première version, avant cette recette :
+
 **GO sous condition : recette humaine** ([RECETTE_HUMAINE_MONTAGE_LIBRE.md](RECETTE_HUMAINE_MONTAGE_LIBRE.md)), en particulier le confort de pose à la souris et au trackpad, et l'application Safari.
 
 Démontré : en montage libre, une pièce du stock se pose où l'on pointe, loin de sa place officielle (jusqu'à 671 LDU sur 31039), se reprend, se déplace, se tourne et se retire ; quantités et couleurs du set respectées, pièces identiques distinctes ; poses réelles enregistrées et restaurées après rechargement et **redémarrage du serveur** ; anciennes parties restaurées sans changement ; passage vers le guidé explicite ; modes guidé et synchronisé inchangés (suites P5–P8 rejouées, même pose refusée en guidé). La fusion reste soumise à ton GO explicite.
