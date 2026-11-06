@@ -8,6 +8,7 @@ const loading = () => <p style={{ padding: 24 }}>Chargement…</p>;
 const BrickLabApp = dynamic(() => import('@/components/BrickLabApp'), { ssr: false, loading });
 const CollectionView = dynamic(() => import('@/components/library/CollectionView'), { ssr: false, loading });
 const SetDetail = dynamic(() => import('@/components/library/SetDetail'), { ssr: false, loading });
+const AddSetPage = dynamic(() => import('@/components/library/add/AddSetPage'), { ssr: false, loading });
 const LibraryAtelier = dynamic(() => import('@/components/library/LibraryAtelier'), { ssr: false, loading });
 
 export function ClientRoot() {
@@ -21,6 +22,11 @@ export function StandaloneAtelier() {
 
 export function SetDetailRoot({ setId }: { setId: string }) {
   return <SetDetail setId={setId} />;
+}
+
+/** P8: search by set number, quick local import, compatibility sheet, one-step confirmation. */
+export function AddSetRoot() {
+  return <AddSetPage />;
 }
 
 export function LibraryAtelierRoot({ buildId }: { buildId: string }) {

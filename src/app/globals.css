@@ -189,3 +189,28 @@ label.block { display: block; padding: 2px 0; }
 .diff tr.differs td, .diff tr.differs th { background: #fffbeb; font-weight: 600; }
 .browser-save { border: 1px solid #fcd34d; background: #fffdf5; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .browser-save h3 { margin: 0 !important; }
+
+/* P8: Ajouter un set */
+.add-main { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.add-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.add-panel h2 { margin: 0; font-size: 17px; }
+.add-panel.done { border-color: #86efac; }
+.search-row { display: flex; gap: 8px; }
+.search-row input { flex: 1; font-size: 18px; padding: 8px 12px; }
+.dropzone { border: 2px dashed var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; background: #fafbfc; }
+.dropzone.over { border-color: var(--accent); background: #eff6ff; }
+.sources > li { padding: 6px 0; border-bottom: 1px solid #eef1f5; }
+.sources > li:last-child { border-bottom: none; }
+.source-body { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin-top: 4px; }
+.omr-models { width: 100%; }
+.omr-models li { justify-content: space-between; padding: 4px 0; }
+.file-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.file-card-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.file-card-head button { margin-left: auto; }
+.build-choice { padding-left: 4px; }
+.build-choice input[aria-label] { min-width: 220px; }
+.pdf-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px solid #eef1f5; }
+.pdf-row button { margin-left: auto; }
+.assoc { margin-right: 12px; white-space: nowrap; }
+.compat { border-left: 3px solid var(--accent); padding: 4px 10px; }
+.compat-headline { margin: 2px 0; font-weight: 600; }

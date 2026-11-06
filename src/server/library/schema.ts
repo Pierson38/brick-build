@@ -3,6 +3,7 @@ import {
   ID_RE, LIBRARY_FORMAT, LIBRARY_SCHEMA_VERSION, MAX_NAME, SET_NUMBER_RE, SHA256_RE,
   type FileKind, type LibraryBuild, type LibraryFile, type LibraryIndex, type LibrarySet, type ModelSnapshot,
 } from '@/domain/library/types';
+import type { FileProvenance, ProvenanceSource } from '@/domain/library/import-types';
 import { safeSegments } from './paths';
 
 // Server-only. The index is read back from disk at every operation and treated as untrusted:
@@ -38,7 +39,36 @@ function parseFile(key: string, f: unknown): LibraryFile {
   const loc = r.location;
   need(isRecord(loc) && (loc.type === 'blob' || loc.type === 'external') && typeof loc.path === 'string' && safeSegments(loc.path) !== null, `emplacement du fichier ${key.slice(0, 12)}`);
   const l = loc as { type: 'blob' | 'external'; path: string };
-  return { sha256: key, kind: r.kind as FileKind, size: r.size as number, originalName: r.originalName as string, location: { type: l.type, path: l.path }, addedAtIso: r.addedAtIso as string };
+  const provenance = r.provenance === undefined ? undefined : parseProvenance(r.provenance);
+  need(r.provenance === undefined || provenance !== null, `provenance du fichier ${key.slice(0, 12)}`);
+  return {
+    sha256: key, kind: r.kind as FileKind, size: r.size as number, originalName: r.originalName as string, location: { type: l.type, path: l.path }, addedAtIso: r.addedAtIso as string,
+    ...(provenance ? { provenance } : {}),
+  };
+}
+
+const SOURCES: readonly ProvenanceSource[] = ['upload', 'discovery', 'omr'];
+const httpsUrl = (v: unknown) => typeof v === 'string' && v.length <= 1000 && /^https:\/\/[^\s]+$/.test(v);
+
+/** Provenance of a file (P8). Optional fields are dropped when absent; anything malformed → null. */
+export function parseProvenance(v: unknown): FileProvenance | null {
+  if (!isRecord(v) || !SOURCES.includes(v.source as ProvenanceSource)) return null;
+  const out: { -readonly [K in keyof FileProvenance]: FileProvenance[K] } = { source: v.source as ProvenanceSource };
+  for (const k of ['url', 'pageUrl'] as const) {
+    if (v[k] === undefined) continue;
+    if (!httpsUrl(v[k])) return null;
+    out[k] = v[k] as string;
+  }
+  for (const k of ['license', 'author'] as const) {
+    if (v[k] === undefined) continue;
+    if (typeof v[k] !== 'string' || (v[k] as string).length > 300) return null;
+    out[k] = v[k] as string;
+  }
+  if (v.retrievedAtIso !== undefined) {
+    if (!iso(v.retrievedAtIso)) return null;
+    out.retrievedAtIso = v.retrievedAtIso as string;
+  }
+  return out;
 }
 
 function parseSet(s: unknown): LibrarySet {

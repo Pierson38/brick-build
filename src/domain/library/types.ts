@@ -1,5 +1,6 @@
 import type { BuildMode } from '../build/engine';
 import type { StepPlanKind } from '../build/build-plan';
+import type { FileProvenance } from './import-types';
 
 /**
  * Personal library (P7): sets owned by the user, the files they imported or that were found in
@@ -24,6 +25,8 @@ export interface LibraryFile {
   readonly originalName: string;
   readonly location: FileLocation;
   readonly addedAtIso: string;
+  /** Source, licence and author known when the file was added (P8; absent for P7 files). */
+  readonly provenance?: FileProvenance;
 }
 
 export interface LibrarySet {

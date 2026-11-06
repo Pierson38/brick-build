@@ -5,14 +5,16 @@ import { availableModes } from '@/domain/build/engine';
 import { restoreProgress, type LocalBuildProgress } from '@/domain/build/progress';
 import { analyzeModel, type ModelAnalysis } from '@/domain/import/analyze';
 import { MAX_MAPPING_BYTES, parseMapping, parseMappingText, serializeMapping, validateMapping, type InstructionMapping } from '@/domain/instructions/mapping';
+import type { FileProvenance, ImportInput, ImportResult } from '@/domain/library/import-types';
+import { parseSetNumber, sameSetNumber } from '@/domain/library/set-number';
 import {
   buildStatus, cleanName, ID_RE, SET_NUMBER_RE, SHA256_RE,
-  type BuildView, type FileKind, type FileState, type FileView, type LibraryBuild, type LibraryFile, type LibraryIndex, type LibrarySet,
+  type BuildView, type FileKind, type FileLocation, type FileState, type FileView, type LibraryBuild, type LibraryFile, type LibraryIndex, type LibrarySet,
   type LibraryView, type MappingView, type ModelSnapshot, type ProgressView,
 } from '@/domain/library/types';
 import { Mutex, linkNewFile, readJson, tmpName, writeFileAtomic } from './fs-atomic';
 import { LIBRARY_DIRNAME, resolveInside, safeSegments, UnsafePathError } from './paths';
-import { emptyIndex, MAX_INDEX_BYTES, parseIndex, parseRecord, RECORD_FORMAT, type StoredRecord } from './schema';
+import { emptyIndex, MAX_INDEX_BYTES, parseIndex, parseProvenance, parseRecord, RECORD_FORMAT, type StoredRecord } from './schema';
 
 // Server-only. The personal library on the local disk: one JSON index, content-addressed copies of
 // imported files, per-build records. Never deletes or overwrites a user file: removals go to
@@ -86,6 +88,50 @@ export interface NewBuildInput {
   readonly mappingFileId?: string;
 }
 
+/** A file of an import, read and checked (see LibraryStore.readRef). */
+export interface ResolvedFile {
+  readonly sha256: string;
+  readonly kind: FileKind;
+  readonly name: string;
+  readonly size: number;
+  readonly bytes: Buffer;
+  /** Same bytes already in the index (whatever the origin of this reference). */
+  readonly known: LibraryFile | undefined;
+  readonly origin: 'library' | 'staged' | 'discovered';
+  readonly provenance: FileProvenance | null;
+  /** `discovered`: path relative to the data folder. */
+  readonly rel?: string;
+  /** `staged`: extension of the staged copy. */
+  readonly ext?: string;
+}
+
+export interface StagedFile {
+  readonly sha256: string;
+  readonly kind: FileKind;
+  readonly size: number;
+  readonly originalName: string;
+  readonly provenance: FileProvenance;
+  readonly inLibrary: boolean;
+}
+
+const STAGED_FORMAT = 'brick-lab-staged-file';
+const STAGING_TTL_MS = 7 * 24 * 3600 * 1000;
+interface StagedMeta {
+  readonly format: typeof STAGED_FORMAT;
+  readonly sha256: string;
+  readonly kind: FileKind;
+  readonly size: number;
+  readonly originalName: string;
+  readonly ext: string;
+  readonly provenance: FileProvenance;
+  readonly stagedAtIso: string;
+}
+
+/** Folder of the data directory where each kind of file may be found in place (P7 layout). */
+export const DISCOVERY_TOP: Record<FileKind, string> = { model: 'models', pdf: 'instructions', mapping: 'mappings' };
+
+const blobExt = (kind: FileKind, name: string) => (kind === 'model' ? (path.extname(name).toLowerCase() === '.ldr' ? '.ldr' : '.mpd') : kind === 'pdf' ? '.pdf' : '.json');
+
 export interface FileBytes {
   readonly file: LibraryFile;
   readonly bytes: Buffer;
@@ -157,8 +203,10 @@ export class LibraryStore {
     const check = parseIndex(JSON.parse(JSON.stringify(next)));
     if (!check.ok) throw new LibraryError('INVALID', `Modification refusée : ${check.error}`);
     const text = `${JSON.stringify(next, null, 2)}\n`;
-    await writeFileAtomic(this.p('backups', `library-${stamp(now)}-r${String(next.revision).padStart(6, '0')}.json`), text);
+    // the index first, then its copy: a backup never describes a version that did not become current
+    // (P8: an interrupted FIRST write used to leave a backup without index, which locks the library)
     await writeFileAtomic(this.p('library.json'), text);
+    await writeFileAtomic(this.p('backups', `library-${stamp(now)}-r${String(next.revision).padStart(6, '0')}.json`), text);
     await this.pruneDir(this.p('backups'), MAX_INDEX_BACKUPS);
     return next;
   }
@@ -219,7 +267,8 @@ export class LibraryStore {
     return bytes;
   }
 
-  private validateContent(kind: FileKind, bytes: Buffer, name: string): void {
+  /** Checks the real format of a file (never trusts its name alone). Returns the LDraw header of a model. */
+  private validateContent(kind: FileKind, bytes: Buffer, name: string): { author?: string; license?: string } {
     const ext = path.extname(name).toLowerCase();
     if (kind === 'model') {
       if (ext !== '.mpd' && ext !== '.ldr') throw new LibraryError('UNSUPPORTED', 'Formats de modèle acceptés : .mpd et .ldr.');
@@ -228,12 +277,15 @@ export class LibraryStore {
       if (a.model.occurrences.length === 0) {
         throw new LibraryError('INVALID', `Modèle inutilisable : aucune pièce lue. ${a.diagnostics.filter((d) => d.severity === 'error').slice(0, 3).map((d) => d.message).join(' ')}`.trim());
       }
+      const meta = a.document.sections[0]?.meta;
+      return { ...(meta?.author ? { author: meta.author.slice(0, 300) } : {}), ...(meta?.license ? { license: meta.license.slice(0, 300) } : {}) };
     } else if (kind === 'pdf') {
       if (ext !== '.pdf' || bytes.subarray(0, 1024).indexOf('%PDF-') < 0) throw new LibraryError('UNSUPPORTED', 'Ce fichier n’est pas un PDF.');
     } else {
       const parsed = parseMappingText(bytes.toString('utf8'));
       if (!parsed.ok) throw new LibraryError('INVALID', `Fichier de correspondances refusé : ${parsed.errors.join(' ')}`);
     }
+    return {};
   }
 
   /**
@@ -268,8 +320,7 @@ export class LibraryStore {
           if (await this.verifiedBytes(known).then(() => true, () => false)) return { file: known, duplicate: true };
         }
         await fs.writeFile(tmp, bytes, { flag: 'wx', mode: 0o600 });
-        const ext = kind === 'model' ? path.extname(name).toLowerCase() : kind === 'pdf' ? '.pdf' : '.json';
-        const rel = `blobs/${sha.slice(0, 2)}/${sha}${ext}`;
+        const rel = `blobs/${sha.slice(0, 2)}/${sha}${blobExt(kind, name)}`;
         const target = this.p(...rel.split('/'));
         if (!(await linkNewFile(tmp, target))) {
           // the blob exists (orphan of an interrupted import, or restored): keep it only if identical
@@ -600,6 +651,282 @@ export class LibraryStore {
   async readThumbnail(buildId: string): Promise<Buffer | null> {
     const { build } = await this.buildOf(buildId);
     return fs.readFile(this.p('builds', buildId, `thumbnail-${build.modelFileId.slice(0, 16)}.png`)).catch(() => null);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // P8: staging area and one-step import (docs/implementation/P8_ARCHITECTURE_IMPORT.md)
+  // ---------------------------------------------------------------------------------------------
+
+  private stagingPath(sha: string, suffix: string) {
+    if (!SHA256_RE.test(sha)) throw new LibraryError('INVALID', 'Empreinte invalide.');
+    return this.p('staging', `${sha}${suffix}`);
+  }
+
+  /**
+   * Keeps a file chosen, dropped or downloaded during an import in `library/staging/`, checked
+   * (size, real format) and named by its SHA-256, WITHOUT touching the index: nothing appears in
+   * the collection before confirmation, and a cancelled import leaves no index entry.
+   */
+  async stage(kind: FileKind, originalName: string, chunks: AsyncIterable<Uint8Array>, provenance: FileProvenance): Promise<StagedFile> {
+    const name = cleanFileName(originalName);
+    const hash = createHash('sha256');
+    const parts: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of chunks) {
+      size += chunk.byteLength;
+      if (size > MAX_BYTES[kind]) throw new LibraryError('TOO_LARGE', `${name} : fichier trop volumineux (limite ${Math.round(MAX_BYTES[kind] / 1024 / 1024)} Mo).`);
+      hash.update(chunk);
+      parts.push(Buffer.from(chunk));
+    }
+    if (size === 0) throw new LibraryError('INVALID', `${name} : fichier vide.`);
+    const bytes = Buffer.concat(parts, size);
+    const header = this.validateContent(kind, bytes, name);
+    const sha = hash.digest('hex');
+    // the licence and author written in the file itself win over what a source page says
+    const prov: FileProvenance = parseProvenance({ ...provenance, ...header }) ?? { source: provenance.source };
+    return this.exclusive(async () => {
+      const index = await this.readIndex();
+      const known = index.files[sha];
+      if (known && known.kind !== kind) throw new LibraryError('INVALID', `${name} est déjà dans la bibliothèque comme ${known.kind}.`);
+      const ext = blobExt(kind, name);
+      const data = this.stagingPath(sha, ext);
+      await fs.mkdir(path.dirname(data), { recursive: true });
+      const tmp = tmpName(data);
+      await fs.writeFile(tmp, bytes, { flag: 'wx', mode: 0o600 });
+      try {
+        if (!(await linkNewFile(tmp, data)) && sha256(await fs.readFile(data)) !== sha) await writeFileAtomic(data, bytes);
+      } finally {
+        await fs.rm(tmp, { force: true });
+      }
+      const previous = await this.readStagedMeta(sha).catch(() => null);
+      // a download keeps its source when the same bytes are dropped again
+      const keep = previous !== null && previous.provenance.source === 'omr' && prov.source !== 'omr';
+      const meta: StagedMeta = {
+        format: STAGED_FORMAT, sha256: sha, kind, size, ext,
+        originalName: keep ? previous.originalName : name, provenance: keep ? previous.provenance : prov, stagedAtIso: new Date().toISOString(),
+      };
+      await writeFileAtomic(this.stagingPath(sha, '.meta.json'), `${JSON.stringify(meta)}\n`);
+      await this.pruneStaging();
+      return { sha256: sha, kind, size, originalName: meta.originalName, provenance: meta.provenance, inLibrary: Boolean(known) };
+    });
+  }
+
+  private async readStagedMeta(sha: string): Promise<StagedMeta> {
+    const raw = await readJson(this.stagingPath(sha, '.meta.json'), 64 * 1024).catch(() => null);
+    if (!raw || typeof raw !== 'object') throw new LibraryError('NOT_FOUND', 'Fichier préparé introuvable : ajoute-le de nouveau.');
+    const r = raw as Record<string, unknown>;
+    const provenance = parseProvenance(r.provenance);
+    const ext = typeof r.ext === 'string' && ['.mpd', '.ldr', '.pdf', '.json'].includes(r.ext) ? r.ext : null;
+    if (r.format !== STAGED_FORMAT || r.sha256 !== sha || !['model', 'pdf', 'mapping'].includes(r.kind as string) || typeof r.size !== 'number' || typeof r.originalName !== 'string' || !ext || !provenance) {
+      throw new LibraryError('NOT_FOUND', 'Fichier préparé illisible : ajoute-le de nouveau.');
+    }
+    return { format: STAGED_FORMAT, sha256: sha, kind: r.kind as FileKind, size: r.size, originalName: cleanFileName(r.originalName), ext, provenance, stagedAtIso: String(r.stagedAtIso) };
+  }
+
+  /** Unconfirmed preparations older than a week are temporary copies: they are removed. */
+  private async pruneStaging() {
+    const dir = this.p('staging');
+    const limit = Date.now() - STAGING_TTL_MS;
+    for (const n of await fs.readdir(dir).catch(() => [] as string[])) {
+      const f = path.join(dir, n);
+      const stat = await fs.lstat(f).catch(() => null);
+      if (stat?.isFile() && stat.mtimeMs < limit) await fs.rm(f, { force: true });
+    }
+  }
+
+  /**
+   * Bytes of a file referenced by the browser, checked against the SHA-256 it claims. The browser
+   * never gives a path, except a `discovered` one, which must stay inside models/, instructions/
+   * or mappings/ of the data folder.
+   */
+  async readRef(ref: unknown, kind: FileKind, index?: LibraryIndex): Promise<ResolvedFile> {
+    const idx = index ?? (await this.readIndex());
+    if (typeof ref !== 'object' || ref === null) throw new LibraryError('INVALID', 'Référence de fichier invalide.');
+    const r = ref as Record<string, unknown>;
+    const sha = r.sha256;
+    if (typeof sha !== 'string' || !SHA256_RE.test(sha)) throw new LibraryError('INVALID', 'Empreinte invalide.');
+    const known = idx.files[sha];
+    if (known && known.kind !== kind) throw new LibraryError('INVALID', `${known.originalName} n’est pas un fichier de ce type.`);
+    if (r.origin === 'library') {
+      if (!known) throw new LibraryError('NOT_FOUND', 'Fichier inconnu de la bibliothèque.');
+      return { sha256: sha, kind, name: known.originalName, size: known.size, bytes: await this.verifiedBytes(known), known, origin: 'library', provenance: known.provenance ?? null };
+    }
+    if (r.origin === 'staged') {
+      const meta = await this.readStagedMeta(sha);
+      if (meta.kind !== kind) throw new LibraryError('INVALID', `${meta.originalName} n’est pas un fichier de ce type.`);
+      const bytes = await fs.readFile(this.stagingPath(sha, meta.ext)).catch(() => {
+        throw new LibraryError('NOT_FOUND', `${meta.originalName} : fichier préparé introuvable, ajoute-le de nouveau.`);
+      });
+      if (sha256(bytes) !== sha) throw new LibraryError('FILE_PROBLEM', `${meta.originalName} : fichier préparé modifié, ajoute-le de nouveau.`, { state: 'HASH_MISMATCH' });
+      return { sha256: sha, kind, name: meta.originalName, size: bytes.length, bytes, known, origin: 'staged', provenance: meta.provenance, ext: meta.ext };
+    }
+    if (r.origin === 'discovered') {
+      const rel = r.rel;
+      const top = DISCOVERY_TOP[kind];
+      if (typeof rel !== 'string' || safeSegments(rel) === null || rel.split('/')[0] !== top) {
+        throw new LibraryError('FORBIDDEN', `Seuls les fichiers de ${top}/ du dossier de données peuvent être ajoutés ainsi.`);
+      }
+      const abs = await resolveInside(this.dataDir, rel).catch((e: unknown) => {
+        throw e instanceof UnsafePathError ? new LibraryError('FORBIDDEN', e.message) : new LibraryError('NOT_FOUND', `${rel} est introuvable.`);
+      });
+      const stat = await fs.stat(abs);
+      if (!stat.isFile() || stat.size > MAX_BYTES[kind]) throw new LibraryError('INVALID', `${rel} : fichier refusé.`);
+      const bytes = await fs.readFile(abs);
+      if (sha256(bytes) !== sha) throw new LibraryError('CONFLICT', `${rel} a changé depuis la recherche : relance la recherche.`);
+      return { sha256: sha, kind, name: cleanFileName(path.basename(abs)), size: bytes.length, bytes, known, origin: 'discovered', provenance: known?.provenance ?? null, rel };
+    }
+    throw new LibraryError('INVALID', 'Origine de fichier inconnue.');
+  }
+
+  /**
+   * Adds a new set, or new builds to a set, from files of any origin, in ONE index write: either
+   * everything is in the collection, or nothing is (copies written before an interruption are
+   * content-addressed and reused by the next attempt). Retrying is safe: a build already in the
+   * target set is reported, not duplicated; its progress and mapping are never replaced.
+   */
+  async importSet(input: ImportInput): Promise<ImportResult> {
+    const builds = Array.isArray(input?.builds) ? input.builds : [];
+    if (builds.length === 0 || builds.length > 20) throw new LibraryError('INVALID', 'Choisis au moins un modèle 3D (20 au plus).');
+    const target = input.target;
+    let setNumber = '';
+    let name = '';
+    if (target?.type === 'new') {
+      const parsed = parseSetNumber(target.setNumber);
+      setNumber = parsed.ok ? parsed.value.canonical : typeof target.setNumber === 'string' ? target.setNumber.trim() : '';
+      if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', 'Numéro de set invalide (ex. 31040 ou 31040-1).');
+      name = cleanName(target.name) ?? '';
+      if (!name) throw new LibraryError('INVALID', 'Nom de set invalide (1 à 120 caractères).');
+    } else if (target?.type !== 'existing' || typeof target.setId !== 'string' || !ID_RE.test(target.setId)) {
+      throw new LibraryError('INVALID', 'Destination de l’import invalide.');
+    }
+    for (const b of builds) {
+      if (typeof b !== 'object' || b === null || typeof b.rootName !== 'string' || !Array.isArray(b.booklets) || b.booklets.length > 20) throw new LibraryError('INVALID', 'Construction invalide.');
+      if (!cleanName(b.label)) throw new LibraryError('INVALID', 'Nom de construction invalide.');
+    }
+    return this.exclusive(async () => {
+      const index0 = await this.readIndex();
+      // 1. every file is read and checked now (SHA-256, real format), before anything is written
+      const files = new Map<string, ResolvedFile>();
+      const use = async (ref: unknown, kind: FileKind) => {
+        const f = await this.readRef(ref, kind, index0);
+        if (!files.has(f.sha256)) {
+          if (f.origin !== 'library') this.validateContent(kind, f.bytes, f.name);
+          files.set(f.sha256, f);
+        }
+        return f.sha256;
+      };
+      const wanted: { label: string; model: string; rootName: string; booklets: string[]; mapping: string | null }[] = [];
+      for (const b of builds) {
+        const model = await use(b.model, 'model');
+        const booklets: string[] = [];
+        for (const x of b.booklets) booklets.push(await use(x, 'pdf'));
+        wanted.push({ label: cleanName(b.label)!, model, rootName: b.rootName, booklets: [...new Set(booklets)], mapping: b.mapping ? await use(b.mapping, 'mapping') : null });
+      }
+      // 2. new copies (content-addressed, never overwriting); files left in place are only referenced
+      const now = new Date();
+      const added: Record<string, LibraryFile> = {};
+      let reused = 0;
+      for (const f of files.values()) {
+        if (f.known && (await this.verifiedBytes(f.known).then(() => true, () => false))) {
+          reused++;
+          continue;
+        }
+        const location: FileLocation = f.origin === 'discovered' ? { type: 'external', path: f.rel! } : { type: 'blob', path: await this.writeBlob(f) };
+        const provenance = f.provenance ?? parseProvenance({ source: f.origin === 'discovered' ? 'discovery' : 'upload', ...(f.kind === 'model' ? this.validateContent('model', f.bytes, f.name) : {}) });
+        added[f.sha256] = {
+          sha256: f.sha256, kind: f.kind, size: f.size, originalName: f.known?.originalName ?? f.name, location, addedAtIso: f.known?.addedAtIso ?? now.toISOString(),
+          ...(provenance ? { provenance } : {}),
+        };
+      }
+      // 3. one index write
+      let result: { setId: string; created: LibraryBuild[]; present: { build: LibraryBuild; mapping: string | null }[]; mappings: [string, InstructionMapping][] } | null = null;
+      await this.commit(async (index, at) => {
+        const withFiles: LibraryIndex = { ...index, files: { ...index.files, ...added } };
+        let set: LibrarySet;
+        let sets = index.sets;
+        if (target.type === 'new') {
+          const same = index.sets.filter((s) => sameSetNumber(s.setNumber, setNumber));
+          // the same request again (answer lost, page reloaded): the set it created is reused
+          const retry = same.find((s) => wanted.every((w) => index.builds.some((b) => b.setId === s.id && b.modelFileId === w.model && b.rootName === w.rootName)));
+          if (retry) set = retry;
+          else if (same.length > 0 && !target.allowSameNumber) {
+            throw new LibraryError('DUPLICATE', `Le set ${same[0]!.setNumber} (« ${same[0]!.name} ») est déjà dans ta collection : ajoute plutôt une construction à ce set.`, { setId: same[0]!.id });
+          } else {
+            set = { id: newId('s'), setNumber, name, createdAtIso: at.toISOString(), updatedAtIso: at.toISOString() };
+            sets = [...sets, set];
+          }
+        } else {
+          const found = index.sets.find((s) => s.id === target.setId);
+          if (!found) throw new LibraryError('NOT_FOUND', 'Set inconnu : il a peut-être été retiré entre-temps.');
+          set = found;
+        }
+        const created: LibraryBuild[] = [];
+        const present: { build: LibraryBuild; mapping: string | null }[] = [];
+        const mappings: [string, InstructionMapping][] = [];
+        for (const w of wanted) {
+          const existing = [...index.builds, ...created].find((b) => b.setId === set.id && b.modelFileId === w.model && b.rootName === w.rootName);
+          if (existing) {
+            present.push({ build: existing, mapping: w.mapping });
+            continue;
+          }
+          const made = await this.makeBuild({ ...withFiles, builds: [...index.builds, ...created] }, set.id, {
+            label: w.label, modelFileId: w.model, rootName: w.rootName, bookletFileIds: w.booklets, ...(w.mapping ? { mappingFileId: w.mapping } : {}),
+          }, at);
+          created.push(made.build);
+          if (made.mapping) mappings.push([made.build.id, made.mapping]);
+        }
+        result = { setId: set.id, created, present, mappings };
+        if (created.length > 0) sets = sets.map((s) => (s.id === set.id ? { ...s, updatedAtIso: at.toISOString() } : s));
+        return { ...withFiles, sets, builds: [...index.builds, ...created] };
+      });
+      const r = result!;
+      // 4. per-build records: a mapping is written only where none exists (never replaced)
+      for (const [buildId, m] of r.mappings) await this.writeRecord(buildId, 'mapping', serializeMapping(m), null, 'import');
+      const mappingsKept: string[] = [];
+      for (const p of r.present) {
+        if (!p.mapping) continue;
+        if (await this.readRecord(p.build.id, 'mapping').catch(() => 'unreadable' as const)) {
+          mappingsKept.push(p.build.label);
+          continue;
+        }
+        const index = await this.readIndex();
+        const { analysis } = await this.analysis(p.build);
+        const model = index.files[p.build.modelFileId]!;
+        const m = this.checkMapping((await this.verifiedBytes(index.files[p.mapping]!)).toString('utf8'), { sha256: model.sha256, fileName: model.originalName, rootName: p.build.rootName, occurrences: analysis.model.occurrences });
+        await this.writeRecord(p.build.id, 'mapping', serializeMapping(m), null, 'import');
+      }
+      // 5. confirmed preparations leave the staging area (their bytes are now a blob of the library)
+      for (const f of files.values()) {
+        if (f.origin !== 'staged') continue;
+        await fs.rm(this.stagingPath(f.sha256, f.ext!), { force: true });
+        await fs.rm(this.stagingPath(f.sha256, '.meta.json'), { force: true });
+      }
+      return {
+        setId: r.setId,
+        created: r.created.map((b) => ({ id: b.id, label: b.label })),
+        alreadyPresent: r.present.map((p) => ({ id: p.build.id, label: p.build.label })),
+        mappingsKept,
+        filesAdded: Object.keys(added).length,
+        filesReused: reused,
+      };
+    });
+  }
+
+  /** Content-addressed copy in `blobs/`: created once, never overwritten (an identical one is reused). */
+  private async writeBlob(f: ResolvedFile): Promise<string> {
+    const rel = `blobs/${f.sha256.slice(0, 2)}/${f.sha256}${f.ext ?? blobExt(f.kind, f.name)}`;
+    const target = this.p(...rel.split('/'));
+    await fs.mkdir(this.p('tmp'), { recursive: true });
+    const tmp = this.p('tmp', `${randomBytes(8).toString('hex')}.part`);
+    try {
+      await fs.writeFile(tmp, f.bytes, { flag: 'wx', mode: 0o600 });
+      if (!(await linkNewFile(tmp, target)) && sha256(await fs.readFile(target)) !== f.sha256) {
+        throw new LibraryError('STORAGE', `Un fichier différent occupe déjà ${rel} : rien n’a été écrasé.`);
+      }
+    } finally {
+      await fs.rm(tmp, { force: true });
+    }
+    return rel;
   }
 
   // ---------------------------------------------------------------------------------------------

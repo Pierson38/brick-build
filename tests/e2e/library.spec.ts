@@ -78,19 +78,23 @@ test('add a set with a model, two booklets and a mapping; incompatible mapping a
   await page.goto('/');
   await expect(page.getByText('Ta collection est vide')).toBeVisible({ timeout: 60_000 }); // first compilation of the page in dev
   await page.getByTestId('add-set').click();
-  await page.getByTestId('add-model-input').setInputFiles(SYNC8);
-  await expect(page.getByTestId('add-model-row')).toContainText('8 pièces');
-  await page.getByTestId('add-number').fill('90001-1');
-  await page.getByTestId('add-name').fill('Maison de test');
-  await page.getByTestId('add-pdf-input').setInputFiles([file('notice-test.pdf', PDF, 'application/pdf'), file('notice-test-2.pdf', PDF2, 'application/pdf')]);
-  // the mapping of another model is refused before anything is sent
-  await page.getByTestId('add-mapping-input').setInputFiles(file('autre.brick-mapping.json', Buffer.from(serializeMapping(mapping('e'.repeat(64)))), 'application/json'));
-  await expect(page.getByTestId('add-mapping-status')).toContainText('concerne un autre modèle');
-  await page.getByTestId('add-submit').click();
-  await expect(page.getByTestId('add-error')).toContainText('incompatible');
-  await page.getByTestId('add-mapping-input').setInputFiles(file('perso.brick-mapping.json', Buffer.from(serializeMapping(mapping())), 'application/json'));
-  await expect(page.getByTestId('add-mapping-status')).toContainText('4 étape(s), 0 vérifiée(s), pour « Modèle principal »');
-  await page.getByTestId('add-submit').click();
+  await expect(page.getByTestId('quick-input')).toBeAttached({ timeout: 60_000 });
+  await page.getByTestId('search-number').fill('90001-1');
+  // P8 quick import: the model, two booklets and the mapping of another model, all at once
+  await page.getByTestId('quick-input').setInputFiles([
+    file('notice-sync-8.mpd', SYNC8_BYTES, 'text/plain'), file('notice-test.pdf', PDF, 'application/pdf'), file('notice-test-2.pdf', PDF2, 'application/pdf'),
+    file('autre.brick-mapping.json', Buffer.from(serializeMapping(mapping('e'.repeat(64)))), 'application/json'),
+  ]);
+  await expect(page.getByTestId('build-choice')).toContainText('8 pièces');
+  await expect(page.getByTestId('rejected')).toContainText('concernent un autre modèle');
+  await expect(page.getByTestId('compat-headline')).toHaveText('Modèle prêt pour le montage guidé.');
+  await page.getByTestId('quick-input').setInputFiles(file('perso.brick-mapping.json', Buffer.from(serializeMapping(mapping())), 'application/json'));
+  await expect(page.getByTestId('mapping-perso.brick-mapping.json')).toBeChecked();
+  await expect(page.getByTestId('compat-headline')).toHaveText('Notice synchronisée disponible.');
+  await page.getByTestId('confirm-name').fill('Maison de test');
+  await page.getByTestId('import-submit').click();
+  await expect(page.getByTestId('import-done')).toContainText('Ajouté à ta collection');
+  await page.goto('/');
   const card = page.getByTestId('set-card-90001-1');
   await expect(card).toContainText('Maison de test');
   await expect(card).toContainText('8 pièces');
@@ -102,15 +106,12 @@ test('add a set with a model, two booklets and a mapping; incompatible mapping a
   // locally rendered thumbnail
   await expect(card.locator('img.thumb')).toBeVisible({ timeout: 30_000 });
 
-  // the same model again: refused, pointing to the existing set
+  // the same model again: shown as already in the collection, it cannot be added a second time
   await page.getByTestId('add-set').click();
-  await page.getByTestId('add-model-input').setInputFiles({ name: 'copie.mpd', mimeType: 'text/plain', buffer: SYNC8_BYTES });
-  await page.getByTestId('add-number').fill('90002-1');
-  await page.getByTestId('add-name').fill('Copie');
-  await page.getByTestId('add-submit').click();
-  await expect(page.getByTestId('add-error')).toContainText('déjà dans ta collection : 90001-1 Maison de test');
-  await expect(page.getByTestId('add-error').getByRole('link', { name: 'Ouvrir ce set' })).toBeVisible();
-  await page.getByRole('button', { name: 'Annuler' }).click();
+  await page.getByTestId('quick-input').setInputFiles(file('copie.mpd', SYNC8_BYTES, 'text/plain'));
+  await expect(page.getByTestId('already-in-collection')).toContainText('Ce modèle existe déjà dans ta collection : 90001-1 Maison de test');
+  await expect(page.getByTestId('build-check')).toBeDisabled();
+  await expect(page.getByTestId('import-submit')).toHaveCount(0);
   // the PDFs were stored once each
   const blobs = (await fs.readdir(path.join(E2E_DATA_DIR, 'library', 'blobs'), { recursive: true })).filter((n) => String(n).endsWith('.pdf'));
   expect(blobs).toHaveLength(2);
