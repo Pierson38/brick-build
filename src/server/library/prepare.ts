@@ -35,8 +35,9 @@ export async function existingSets(store: LibraryStore, index: LibraryIndex, sn:
     for (const b of index.builds.filter((x) => x.setId === s.id)) {
       const mapping = await store.readRecord(b.id, 'mapping').catch(() => null);
       const progress = await store.readRecord(b.id, 'progress').catch(() => null);
-      const placed = progress && typeof progress.payload === 'object' && progress.payload !== null && Array.isArray((progress.payload as { placedOccurrenceIds?: unknown }).placedOccurrenceIds)
-        ? (progress.payload as { placedOccurrenceIds: unknown[] }).placedOccurrenceIds.length : 0;
+      const payload = progress && typeof progress.payload === 'object' && progress.payload !== null ? progress.payload as { placedOccurrenceIds?: unknown; freePieces?: unknown } : {};
+      // pieces on a model target + free pieces (free mode)
+      const placed = (Array.isArray(payload.placedOccurrenceIds) ? payload.placedOccurrenceIds.length : 0) + (Array.isArray(payload.freePieces) ? payload.freePieces.length : 0);
       builds.push({ id: b.id, label: b.label, modelSha256: b.modelFileId, rootName: b.rootName, hasMapping: mapping !== null, placed });
     }
     out.push({ id: s.id, setNumber: s.setNumber, name: s.name, builds });

@@ -105,7 +105,12 @@ export interface MappingView {
 
 export interface ProgressView {
   readonly revision: number;
+  /** Pieces taken from the stock (on a model target or free). */
   readonly placed: number;
+  /** Free mode: pieces placed at a pose chosen by the player (0 otherwise). */
+  readonly free: number;
+  /** Pieces standing at their place in the model (on their target, or free and recognised). */
+  readonly atModel: number;
   readonly total: number;
   readonly mode: BuildMode;
   readonly lastPdfPage: number | null;
@@ -156,9 +161,13 @@ export const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const SET_NUMBER_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,31}$/;
 export const MAX_NAME = 120;
 
-export function buildStatus(placed: number, total: number): BuildStatus {
+/**
+ * `atModel`: pieces at their place in the model. A stock used up in the free mode is not a finished
+ * model: "done" only when every piece stands where the model puts it.
+ */
+export function buildStatus(placed: number, total: number, atModel = placed): BuildStatus {
   if (placed <= 0 || total <= 0) return 'NOT_STARTED';
-  return placed >= total ? 'DONE' : 'IN_PROGRESS';
+  return atModel >= total ? 'DONE' : 'IN_PROGRESS';
 }
 
 /** Status of a set: the most advanced build wins over "not started", "in progress" over "done". */

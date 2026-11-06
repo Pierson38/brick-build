@@ -40,6 +40,10 @@ export interface HoverHit {
   readonly distance?: number;
   /** Occurrence of a hovered ghost. */
   readonly occurrenceId?: string;
+  /** Hovered placed piece standing upright: its origin (LDraw), i.e. the top of its body (free mode). */
+  readonly anchor?: readonly [number, number, number];
+  /** The hit face looks up (LDraw -Y): something can rest on it (free mode). */
+  readonly up?: boolean;
 }
 
 export interface HoverResolution {
@@ -48,7 +52,7 @@ export interface HoverResolution {
   /** Pose shown for the held brick: the target itself when the drop would be accepted. */
   readonly previewPose: Matrix4Tuple;
   readonly layerY: number;
-  readonly source: 'ghost' | 'surface' | 'ground' | 'ray' | 'manual' | 'none';
+  readonly source: 'ghost' | 'surface' | 'ground' | 'ray' | 'manual' | 'none' | 'free';
   /** Occurrence that a click would place right now, if any. */
   readonly targetId: string | null;
 }

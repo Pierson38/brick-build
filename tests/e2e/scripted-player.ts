@@ -63,7 +63,7 @@ export async function hover(page: Page, ldraw: [number, number, number]): Promis
  * are only used (and counted) when that fails. The test hooks only tell the "player" where the
  * spot is on screen, they never place anything.
  */
-export async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVariant: boolean, pickIndex = 0): Promise<void> {
+export async function placeOneByPointer(page: Page, stats: DropStats, preferSymmetricVariant: boolean, pickIndex = 0, depth = 0): Promise<void> {
   const cands = await game<Candidate[]>(page, 'candidates');
   const target = cands[Math.min(pickIndex, cands.length - 1)]!;
   const before = await progressCount(page);
@@ -136,13 +136,26 @@ export async function placeOneByPointer(page: Page, stats: DropStats, preferSymm
     await page.mouse.down();
     await page.mouse.up();
     stats.drops++;
+    let miss = false;
     try {
       await expect.poll(() => progressCount(page), { timeout: 2_000 }).toBe(before + 1);
-      return;
+      // the free mode accepts any pose: a drop away from the model spot is a miss for this validation
+      const last = await page.evaluate(() => window.__brickLabLastDrop);
+      if (last?.targetId) return;
+      miss = true;
+      stats.retries++;
+      stats.failures.push(`${target.id}: posée hors de l'emplacement du modèle | reçu ${last?.pose.slice(12, 15).map((v) => v.toFixed(0))} | source ${held.previewSource}`);
+      await page.keyboard.press('ControlOrMeta+z');
+      await expect.poll(() => progressCount(page), { timeout: 2_000 }).toBe(before);
     } catch {
       stats.retries++;
       const last = await page.evaluate(() => window.__brickLabLastDrop);
       stats.failures.push(`${target.id}: ${await page.getByTestId('message').textContent()} | cible ${[t[12], t[13], t[14]].map((v) => v.toFixed(0))} | reçu ${last?.pose.slice(12, 15).map((v) => v.toFixed(0))} | source ${held.previewSource} mode ${held.layerMode}`);
+    }
+    if (miss) {
+      // undone: start again from the tray (the piece may have left the hand)
+      if (depth >= 2) throw new Error(`Pose hors emplacement 3 fois : ${stats.failures.at(-1)}`);
+      return placeOneByPointer(page, stats, preferSymmetricVariant, pickIndex, depth + 1);
     }
   }
   throw new Error(`Pose refusée 3 fois : ${stats.failures.at(-1)}`);

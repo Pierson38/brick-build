@@ -53,7 +53,7 @@ export function listRecentSessions(limit = 8): RecentSession[] {
       out.push({
         hash: key.slice(PREFIX.length),
         displayName: value.displayName,
-        placed: value.placedOccurrenceIds.length,
+        placed: value.placedOccurrenceIds.length + (Array.isArray(value.freePieces) ? value.freePieces.length : 0),
         total: typeof value.totalOccurrences === 'number' ? value.totalOccurrences : 0,
         updatedAtIso: typeof value.updatedAtIso === 'string' ? value.updatedAtIso : '',
       });

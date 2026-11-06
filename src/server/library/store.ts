@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { availableModes } from '@/domain/build/engine';
+import { matchToModel } from '@/domain/build/free';
 import { restoreProgress, type LocalBuildProgress } from '@/domain/build/progress';
 import { analyzeModel, type ModelAnalysis } from '@/domain/import/analyze';
 import { MAX_MAPPING_BYTES, parseMapping, parseMappingText, serializeMapping, validateMapping, type InstructionMapping } from '@/domain/instructions/mapping';
@@ -986,9 +987,15 @@ export class LibraryStore {
         const p = rec.payload as Partial<LocalBuildProgress>;
         const restored = occurrences ? restoreProgress(rec.payload, build.modelFileId, occurrences) : null;
         if (restored && !restored.ok) problems.push(`Progression enregistrée incompatible avec le modèle (${restored.reason}) : elle est conservée mais ne peut pas être reprise.`);
+        const freeCount = restored?.ok ? restored.session.free?.length ?? 0 : Array.isArray(p.freePieces) ? p.freePieces.length : 0;
+        const anchored = restored?.ok ? restored.session.placed.length : Array.isArray(p.placedOccurrenceIds) ? p.placedOccurrenceIds.length : 0;
+        // recognised free pieces (without the part symmetries, only known with the geometry: may undercount, never overcounts)
+        const recognised = restored?.ok && occurrences && freeCount > 0 ? matchToModel({ occurrences }, restored.session).byPiece.size : 0;
         progress = {
           revision: rec.revision,
-          placed: restored?.ok ? restored.session.placed.length : Array.isArray(p.placedOccurrenceIds) ? p.placedOccurrenceIds.length : 0,
+          placed: anchored + freeCount,
+          free: freeCount,
+          atModel: anchored + recognised,
           total: build.snapshot.occurrenceCount,
           mode: restored?.ok ? restored.session.mode : 'freeManual',
           lastPdfPage: restored?.ok ? restored.lastPdfPage ?? null : null,
@@ -1007,7 +1014,7 @@ export class LibraryStore {
     const hasThumbnail = await fs.access(this.p('builds', build.id, `thumbnail-${build.modelFileId.slice(0, 16)}.png`)).then(() => true, () => false);
     return {
       id: build.id, setId: build.setId, label: build.label, rootName: build.rootName, snapshot: build.snapshot, model, booklets, mapping, progress,
-      status: buildStatus(progress?.placed ?? 0, build.snapshot.occurrenceCount), modes, syncBlocker, hasThumbnail, problems,
+      status: buildStatus(progress?.placed ?? 0, build.snapshot.occurrenceCount, progress?.atModel), modes, syncBlocker, hasThumbnail, problems,
       updatedAtIso: progress && progress.updatedAtIso > build.updatedAtIso ? progress.updatedAtIso : build.updatedAtIso,
     };
   }

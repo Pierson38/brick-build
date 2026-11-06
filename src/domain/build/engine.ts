@@ -33,8 +33,23 @@ export const DEFAULT_TOLERANCES: SnapTolerances = { maxDistanceLdu: 10, maxAngle
 
 export interface BuildSession {
   readonly mode: BuildMode;
-  /** Placed occurrence ids, in placement order (for undo). */
+  /** Pieces placed ON a target of the model (occurrence ids), in placement order (for undo). */
   readonly placed: readonly string[];
+  /**
+   * Free mode only: pieces placed where the player chose, at their real pose (see free.ts).
+   * Absent or empty in the guided and synchronised modes.
+   */
+  readonly free?: readonly FreePiece[];
+}
+
+/** A piece taken from the set's stock and placed at a pose chosen by the player, not a model target. */
+export interface FreePiece {
+  /** `f1`, `f2`…, unique in the build. */
+  readonly id: string;
+  readonly partKey: string;
+  readonly colorCode: string;
+  /** Global LDraw pose actually chosen (rotation + translation), column-major. */
+  readonly pose: Matrix4Tuple;
 }
 
 export interface BuildContext {
@@ -91,6 +106,7 @@ export function activeStepIndex(ctx: BuildContext, session: BuildSession): numbe
   return ctx.plan.steps.findIndex((s) => s.occurrenceIds.some((id) => !placed.has(id)));
 }
 
+/** Every occurrence placed on its target (free pieces never count: see free.ts for the free mode). */
 export function isComplete(ctx: BuildContext, session: BuildSession): boolean {
   return session.placed.length === ctx.occurrences.length;
 }
@@ -107,7 +123,7 @@ export function candidates(ctx: BuildContext, session: BuildSession): BrickOccur
   return ctx.occurrences.filter((o) => !placed.has(o.occurrenceId));
 }
 
-/** Remaining stock grouped by reference + colour (candidates only). */
+/** Remaining stock grouped by reference + colour (candidates only, minus the free pieces). */
 export function tray(ctx: BuildContext, session: BuildSession): TrayItem[] {
   const open = candidates(ctx, session);
   const items = new Map<string, { partKey: string; partRef: string; colorCode: string; remaining: number; total: number }>();
@@ -118,6 +134,10 @@ export function tray(ctx: BuildContext, session: BuildSession): TrayItem[] {
     items.set(key, item);
   }
   for (const o of open) items.get(trayKey(o.partKey, o.colorCode))!.remaining += 1;
+  for (const f of session.free ?? []) {
+    const item = items.get(trayKey(f.partKey, f.colorCode));
+    if (item) item.remaining -= 1;
+  }
   return [...items.entries()].filter(([, v]) => v.remaining > 0).map(([key, v]) => ({ key, ...v }));
 }
 
@@ -202,8 +222,12 @@ export function rewindToStep(ctx: BuildContext, session: BuildSession, stepIndex
   return { ...session, placed: session.placed.filter((id) => !drop.has(id)) };
 }
 
-/** Changes the mode of a running build; placed bricks are kept, the active step is recomputed. */
+/**
+ * Changes the mode of a running build; placed bricks are kept, the active step is recomputed.
+ * Leaving the free mode with free pieces goes through free.ts `toStepped()` (explicit choice).
+ */
 export function switchMode(session: BuildSession, mode: BuildMode): BuildSession {
+  if (mode !== 'freeManual' && (session.free?.length ?? 0) > 0) throw new Error('switchMode: pièces libres, passer par toStepped()');
   return { ...session, mode };
 }
 

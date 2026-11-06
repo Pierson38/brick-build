@@ -1,4 +1,5 @@
-import type { BuildMode } from '../build/engine';
+import type { BuildMode, FreePiece } from '../build/engine';
+import { poseToLDraw } from '../build/free';
 import { restoreProgress, type LocalBuildProgress } from '../build/progress';
 import type { BrickOccurrence } from '../ldraw/types';
 
@@ -11,13 +12,15 @@ import type { BrickOccurrence } from '../ldraw/types';
 export interface SaveSummary {
   readonly mode: BuildMode;
   readonly placed: readonly string[];
+  /** Free mode: pieces placed at a pose chosen by the player. */
+  readonly free: readonly FreePiece[];
   readonly page: number | null;
   readonly bookletSha256: string | null;
   readonly mappingDigest: string | null;
   readonly updatedAtIso: string;
 }
 
-export type DiffKey = 'mode' | 'placed' | 'page' | 'booklet' | 'mapping';
+export type DiffKey = 'mode' | 'placed' | 'free' | 'page' | 'booklet' | 'mapping';
 
 export interface SaveDiff {
   readonly keys: readonly DiffKey[];
@@ -37,6 +40,7 @@ export function summarise(raw: unknown, modelSha: string, occurrences: readonly 
   return {
     mode: r.session.mode,
     placed: r.session.placed,
+    free: r.session.free ?? [],
     page: r.lastPdfPage ?? null,
     bookletSha256: r.lastBookletSha256 ?? null,
     mappingDigest: r.mappingDigest ?? null,
@@ -52,6 +56,7 @@ export function compareSaves(library: SaveSummary, browser: SaveSummary): SaveDi
   const keys: DiffKey[] = [];
   if (library.mode !== browser.mode) keys.push('mode');
   if (onlyInLibrary.length > 0 || onlyInBrowser.length > 0) keys.push('placed');
+  if (freeSignature(library.free) !== freeSignature(browser.free)) keys.push('free');
   if (library.page !== browser.page) keys.push('page');
   if (library.bookletSha256 !== browser.bookletSha256) keys.push('booklet');
   if (library.mappingDigest !== browser.mappingDigest) keys.push('mapping');
@@ -61,7 +66,12 @@ export function compareSaves(library: SaveSummary, browser: SaveSummary): SaveDi
 
 /** Identity of a browser save, to remember that the user chose to keep the library's. */
 export const saveSignature = (s: SaveSummary) =>
-  JSON.stringify([s.mode, [...s.placed].sort(), s.page, s.bookletSha256, s.mappingDigest]);
+  JSON.stringify([s.mode, [...s.placed].sort(), s.page, s.bookletSha256, s.mappingDigest, ...(s.free.length > 0 ? [freeSignature(s.free)] : [])]);
+
+/** Free pieces compared by identity, reference, colour and stored pose. */
+function freeSignature(free: readonly FreePiece[]): string {
+  return JSON.stringify([...free].map((f) => [f.id, f.partKey, f.colorCode, poseToLDraw(f.pose)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+}
 
 export type OpenDecision =
   | { readonly kind: 'none' }

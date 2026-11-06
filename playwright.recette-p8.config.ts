@@ -15,6 +15,7 @@ export const RECETTE_SET = process.env.P8_RECETTE_SET ?? '31045';
 
 export default defineConfig({
   testDir: 'tests/recette',
+  testMatch: 'p8-reel.spec.ts',
   timeout: 20 * 60_000,
   workers: 1,
   reporter: [['list']],

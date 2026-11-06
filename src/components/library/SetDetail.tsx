@@ -159,6 +159,11 @@ function BuildPanel({ set, build, revision, refresh, notify }: { set: SetView; b
           <ProgressBar placed={build.progress?.placed ?? 0} total={build.snapshot.occurrenceCount} />
           <span className="small" data-testid="detail-progress">{build.progress?.placed ?? 0}/{build.snapshot.occurrenceCount} pièces posées</span>
           {build.progress && <span className="small muted">· {MODE_SHORT[build.progress.mode]} · {formatDate(build.progress.updatedAtIso)}</span>}
+          {build.progress && build.progress.free > 0 && (
+            <span className="small muted" data-testid="detail-free">
+              · {build.progress.free} posée(s) librement, {build.progress.atModel}/{build.snapshot.occurrenceCount} à leur place dans le modèle
+            </span>
+          )}
         </div>
         {model && (
           <BrowserSavePanel buildId={build.id} modelSha={build.model.sha256} rootName={build.rootName} fileName={build.model.originalName}

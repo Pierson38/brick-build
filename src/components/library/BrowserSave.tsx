@@ -64,7 +64,8 @@ const mappingText = (s: SaveSummary) => (s.mappingDigest === null ? '—' : `emp
 export function SaveDiffView({ diff, total }: { diff: SaveDiff; total: number }) {
   const { library: l, browser: b } = diff;
   const rows: [string, string, string, boolean][] = [
-    ['Pièces posées', `${l.placed.length}/${total}`, `${b.placed.length}/${total}`, diff.keys.includes('placed')],
+    ['Pièces posées', `${l.placed.length + l.free.length}/${total}`, `${b.placed.length + b.free.length}/${total}`, diff.keys.includes('placed') || diff.keys.includes('free')],
+    ...(l.free.length > 0 || b.free.length > 0 ? [['Dont posées librement', String(l.free.length), String(b.free.length), diff.keys.includes('free')] as [string, string, string, boolean]] : []),
     ['Mode', MODE_SHORT[l.mode], MODE_SHORT[b.mode], diff.keys.includes('mode')],
     ['Page de la notice', pageText(l), pageText(b), diff.keys.includes('page')],
     ['Livret affiché', bookletText(l, b), bookletText(b, l), diff.keys.includes('booklet')],
