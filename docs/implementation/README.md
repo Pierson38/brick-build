@@ -26,6 +26,9 @@ Le dépôt contient deux familles de documents :
 - [Atelier — panneaux redimensionnables, notice ajustée, miniatures des pièces : rapport](UX_ATELIER_RAPPORT.md)
 - [Recette humaine du lot UX atelier (faite par le propriétaire, 06/11/2026)](RECETTE_HUMAINE_UX_ATELIER.md)
 - [Limitation connue : le montage libre n'est libre que dans l'ordre](LIMITATION_MONTAGE_LIBRE.md)
+- [Véritable montage libre : architecture (cible du modèle ≠ pose du joueur)](MONTAGE_LIBRE_ARCHITECTURE.md)
+- [Véritable montage libre : rapport, tests, mesures, verdict](MONTAGE_LIBRE_RAPPORT.md)
+- [Recette humaine du véritable montage libre (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
 
 ## Démarrage développeur
 
