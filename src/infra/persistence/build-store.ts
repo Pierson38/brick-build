@@ -73,7 +73,8 @@ export function libraryBuildStore(init: LibraryStoreInit): BuildStore {
   const game = (p: unknown) => {
     if (p === null || typeof p !== 'object') return 'null';
     const r = p as Partial<LocalBuildProgress>;
-    return JSON.stringify([r.buildMode, [...(r.placedOccurrenceIds ?? [])].sort(), r.mappingDigest ?? null]);
+    // free pieces are part of the game: a conflict on them is never resolved silently
+    return JSON.stringify([r.buildMode, [...(r.placedOccurrenceIds ?? [])].sort(), r.mappingDigest ?? null, r.freePieces ?? []]);
   };
   const listeners = new Set<(s: SaveState) => void>();
   const emit = (s: SaveState) => listeners.forEach((l) => l(s));

@@ -59,7 +59,7 @@ function SetCard({ set, version }: { set: SetView; version: number }) {
         {main && (
           <div className="progress-line">
             <ProgressBar placed={main.progress?.placed ?? 0} total={main.snapshot.occurrenceCount} />
-            <span className="small" data-testid="card-progress">{main.progress?.placed ?? 0}/{main.snapshot.occurrenceCount} pièces posées</span>
+            <span className="small" data-testid="card-progress">{main.progress?.placed ?? 0}/{main.snapshot.occurrenceCount} pièces posées{main.progress && main.progress.free > 0 ? ' (montage libre)' : ''}</span>
             <StatusBadge status={setStatus(set.builds)} />
           </div>
         )}

@@ -52,37 +52,50 @@ test('free mode: two levels placed by pointing only, height taken from the surfa
   expect(keys).toEqual([]); // not a single key for the whole build
 });
 
-test('far from any spot: no magnet, the click is refused with a message', async ({ page }) => {
-  await importModel(page, 'no-steps.ldr');
+test('far from any spot: placed where pointed in free mode (no magnet); the same click is refused in guided mode', async ({ page }) => {
+  // changed by the true free building (06/11/2026): the free mode no longer refuses a pose away from the model
+  await importModel(page, 'mini-4-pieces.mpd');
   await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
   await page.getByTestId('tray-3001.dat-4').click();
-  const p = await point(page, [0, 24, 120]);
+  let p = await point(page, [0, 24, 120]);
+  await expect(page.getByTestId('target-found')).toHaveCount(0);
+  await expect(page.getByTestId('free-pose')).toBeVisible();
+  await page.mouse.click(p.x, p.y);
+  await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
+  await expect(page.getByTestId('free-info')).toHaveText('1 posée(s) librement · 0 à leur place dans le modèle');
+  // guided mode: validation against the model unchanged
+  await page.getByRole('button', { name: 'Abandonner' }).click();
+  await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+  await page.getByTestId('tray-3001.dat-4').click();
+  p = await point(page, [0, 24, 120]);
   await expect(page.getByTestId('target-found')).toHaveCount(0);
   await page.mouse.click(p.x, p.y);
   await expect(page.getByTestId('message')).toContainText('Trop loin');
-  await expect(page.getByTestId('progress')).toHaveText('0/2 pièces posées');
+  await expect(page.getByTestId('progress')).toHaveText('0/4 pièces posées');
 });
 
 test('identical bricks: each pointed spot gets its own brick, an occupied spot is never offered', async ({ page }) => {
+  // changed by the true free building: pointing on top of a placed brick now places a brick there
+  // (free), instead of being refused; the occupied model spot is still never offered by the magnet
   const text = ['0 FILE same.ldr', '1 4 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat', '1 4 80 0 0 1 0 0 0 1 0 0 0 1 3001.dat', '1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat'].join('\n');
   await importModel(page, { name: 'same.mpd', text });
   await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
   await page.getByTestId('tray-3001.dat-4').click();
   let p = await point(page, [80, 24, 0]);
+  await expect(page.getByTestId('target-found')).toBeVisible();
   await page.mouse.click(p.x, p.y);
   await expect(page.getByTestId('progress')).toHaveText('1/3 pièces posées');
-  // pointing at the brick just placed: the surface is its top, so the brick goes ABOVE it (no target there)
+  // pointing at the brick just placed: its top is the surface, the brick goes ABOVE it, no model spot there
   p = await point(page, [80, 0, 0]);
   await expect(page.getByTestId('target-found')).toHaveCount(0);
   await page.mouse.click(p.x, p.y);
-  await expect(page.getByTestId('progress')).toHaveText('1/3 pièces posées');
-  // the two remaining spots, on two levels
-  for (const [n, at] of [[2, [0, 24, 0]], [3, [0, 0, 0]]] as const) {
-    p = await point(page, [...at]);
-    await expect(page.getByTestId('target-found')).toBeVisible();
-    await page.mouse.click(p.x, p.y);
-    await expect(page.getByTestId('progress')).toHaveText(`${n}/3 pièces posées`);
-  }
+  await expect(page.getByTestId('progress')).toHaveText('2/3 pièces posées');
+  // the last brick on a model spot; the stock is used up, the build is not called the official model
+  p = await point(page, [0, 24, 0]);
+  await expect(page.getByTestId('target-found')).toBeVisible();
+  await page.mouse.click(p.x, p.y);
+  await expect(page.getByTestId('progress')).toHaveText('3/3 pièces posées');
+  await expect(page.getByTestId('free-done')).toContainText('Toutes les pièces du set sont posées (3/3). Montage libre : ta construction n’est pas comparée au modèle officiel — 2 pièce(s) à leur place dans le modèle.');
 });
 
 test('manual layers remain as a fallback; A returns to surface mode', async ({ page }) => {

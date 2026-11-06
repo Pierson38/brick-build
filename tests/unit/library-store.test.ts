@@ -480,3 +480,47 @@ it('LibraryError carries an HTTP status', () => {
   expect(new LibraryError('CONFLICT', 'x').status).toBe(409);
   expect(new LibraryError('CORRUPT_INDEX', 'x').status).toBe(503);
 });
+
+describe('library: true free building', () => {
+  const at = (x: number, y: number, z: number, q = 0): [number, ...number[]] => {
+    const c = [1, 0, -1, 0][q]!, s = [0, 1, 0, -1][q]!;
+    return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, x, y, z, 1];
+  };
+  const pieces = [
+    { id: 'f1', partKey: '3001.dat', colorCode: '4', pose: at(412.5, -8, -260.25, 1) },
+    { id: 'f2', partKey: '3001.dat', colorCode: '1', pose: at(80, 0, 0) },
+  ] as never;
+
+  it('free poses are saved, read back by a fresh store (server restart) and counted; v3 refused when it does not fit', async () => {
+    const model = (await ingest('model', 'mini-4-pieces.mpd', MINI)).file;
+    const { builds } = await store.createSet({ setNumber: '90120-1', name: 'Libre', builds: [{ label: 'Principal', modelFileId: model.sha256 }] });
+    const buildId = builds[0]!.id;
+    const progress = serializeProgress(model.sha256, 'mini-4-pieces.mpd', { mode: 'freeManual', placed: ['mini-4-pieces.mpd#3'], free: pieces }, 4);
+    expect(progress.schemaVersion).toBe(3);
+    await store.putProgress(buildId, progress, null);
+
+    const fresh = new LibraryStore(dir);
+    const rec = await fresh.readRecord(buildId, 'progress');
+    expect(rec!.payload).toEqual(JSON.parse(JSON.stringify(progress)));
+    const b = (await fresh.view()).sets[0]!.builds[0]!;
+    // 1 on its target + f2 recognised at its place (blue at 80,0,0); f1 elsewhere
+    expect(b.progress).toMatchObject({ placed: 3, free: 2, atModel: 2, mode: 'freeManual' });
+    expect(b.status).toBe('IN_PROGRESS');
+
+    // a red brick both on its target and free: stock exceeded, refused, nothing written
+    const twice = { ...progress, placedOccurrenceIds: ['mini-4-pieces.mpd#0'] };
+    await expect(fresh.putProgress(buildId, twice, rec!.revision)).rejects.toMatchObject({ code: 'INVALID' });
+    expect((await fresh.readRecord(buildId, 'progress'))!.payload).toEqual(rec!.payload);
+  });
+
+  it('every piece at its place in the model: the build is done, even placed freely', async () => {
+    const model = (await ingest('model', 'mini-4-pieces.mpd', MINI)).file;
+    const { builds } = await store.createSet({ setNumber: '90121-1', name: 'Libre exact', builds: [{ label: 'Principal', modelFileId: model.sha256 }] });
+    const all = [[0, 0, 0, '4'], [80, 0, 0, '1'], [0, -24, 0, '2'], [80, -24, 0, '14']] as const;
+    const free = all.map(([x, y, z, c], i) => ({ id: `f${i + 1}`, partKey: '3001.dat', colorCode: c, pose: at(x, y, z) })) as never;
+    await store.putProgress(builds[0]!.id, serializeProgress(model.sha256, 'mini-4-pieces.mpd', { mode: 'freeManual', placed: [], free }, 4), null);
+    const b = (await store.view()).sets[0]!.builds[0]!;
+    expect(b.progress).toMatchObject({ placed: 4, free: 4, atModel: 4 });
+    expect(b.status).toBe('DONE');
+  });
+});

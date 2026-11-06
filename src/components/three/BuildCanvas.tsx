@@ -4,7 +4,8 @@ import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { DoubleSide, type Group, Matrix4, type Object3D, Ray as ThreeRay, Vector3 } from 'three';
-import { trayKey } from '@/domain/build/engine';
+import { trayKey, type FreePiece } from '@/domain/build/engine';
+import type { PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
@@ -18,6 +19,8 @@ export interface HeldBrick {
   readonly orientation: Matrix4Tuple;
   /** auto = height from the surface under the pointer; manual = PageUp/PageDown. */
   readonly layerMode: LayerMode;
+  /** Free mode: a placed piece taken again to move, turn or remove it (hidden at its pose meanwhile). */
+  readonly moving?: PieceRef;
 }
 
 interface Props {
@@ -35,18 +38,48 @@ interface Props {
   readonly onDrop: () => void;
   /** Click without drag and without a held brick on a shown brick (mapping editor). */
   readonly onPick?: (occurrenceId: string, modifiers: { readonly alt: boolean }) => void;
+  /** Free mode: pieces placed at a pose chosen by the player. */
+  readonly freePieces?: readonly FreePiece[];
+  /** Free mode: click without drag and without a held piece on a placed piece takes it again. */
+  readonly onTake?: (ref: PieceRef) => void;
+  /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
+  readonly groundY?: number;
   readonly recenterToken: number;
 }
 
 
 type Variant = BrickVariant;
 
-/** Finds the occurrence root (PlacedBrick) an intersected mesh belongs to. */
-function brickOf(object: Object3D): { variant: Variant; occurrenceId: string } | null {
+interface BrickHit {
+  readonly variant: Variant;
+  readonly occurrenceId: string;
+  /** Free piece id (free mode). */
+  readonly pieceId?: string;
+  /** Origin of an upright piece (LDraw): the top of its body. */
+  readonly anchor?: readonly [number, number, number];
+}
+
+/** Finds the piece root (PlacedBrick) an intersected mesh belongs to. */
+function brickOf(object: Object3D): BrickHit | null {
   for (let o: Object3D | null = object; o; o = o.parent) {
-    if (o.userData.variant) return { variant: o.userData.variant as Variant, occurrenceId: o.userData.occurrenceId as string };
+    if (o.userData.variant) {
+      return { variant: o.userData.variant as Variant, occurrenceId: o.userData.occurrenceId as string, pieceId: o.userData.pieceId as string | undefined, anchor: o.userData.anchor as BrickHit['anchor'] };
+    }
   }
   return null;
+}
+
+/** Ground = the lowest point of the finished model, from the real geometry of each part. */
+export function modelGroundY(occurrences: readonly BrickOccurrence[], templates: ReadonlyMap<string, Group>): number {
+  const vertices = new Map<string, number[]>();
+  let ground = 0;
+  for (const o of occurrences) {
+    const template = templates.get(trayKey(o.partKey, o.colorCode));
+    if (!template) continue;
+    if (!vertices.has(o.partKey)) vertices.set(o.partKey, templateVertices(template));
+    ground = Math.max(ground, o.targetMatrix[13] + bottomExtent(vertices.get(o.partKey)!, o.targetMatrix));
+  }
+  return ground;
 }
 
 export function BuildCanvas(props: Props) {
@@ -68,20 +101,10 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, onTake, groundY: givenGround }: Props) {
   const root = useRef<Group>(null);
-  // Ground = the lowest point of the finished model, from the real geometry of each part.
-  const groundY = useMemo(() => {
-    const vertices = new Map<string, number[]>();
-    let ground = 0;
-    for (const o of occurrences) {
-      const template = templates.get(trayKey(o.partKey, o.colorCode));
-      if (!template) continue;
-      if (!vertices.has(o.partKey)) vertices.set(o.partKey, templateVertices(template));
-      ground = Math.max(ground, o.targetMatrix[13] + bottomExtent(vertices.get(o.partKey)!, o.targetMatrix));
-    }
-    return ground;
-  }, [occurrences, templates]);
+  const computedGround = useMemo(() => (givenGround === undefined ? modelGroundY(occurrences, templates) : 0), [givenGround, occurrences, templates]);
+  const groundY = givenGround ?? computedGround;
   const byId = useMemo(() => new Map(occurrences.map((o) => [o.occurrenceId, o] as const)), [occurrences]);
 
   const toHover = (e: ThreeEvent<PointerEvent | MouseEvent>): { ray: Ray; hit: HoverHit | null } => {
@@ -100,7 +123,12 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         hit = { kind: 'ghost', x: p.x, y: p.y, z: p.z, occurrenceId: brick.occurrenceId };
         break;
       }
-      hit = { kind: 'solid', x: p.x, y: p.y, z: p.z, distance: p.distanceTo(r.origin) };
+      // free mode: the face orientation and the piece origin tell where a piece can rest on it
+      const normal = i.face?.normal.clone().transformDirection(i.object.matrixWorld).transformDirection(inverse);
+      hit = {
+        kind: 'solid', x: p.x, y: p.y, z: p.z, distance: p.distanceTo(r.origin),
+        ...(brick.anchor ? { anchor: brick.anchor } : {}), ...(normal ? { up: normal.y < -0.5 } : {}),
+      };
       break;
     }
     return { ray: { origin: [r.origin.x, r.origin.y, r.origin.z], direction: [r.direction.x, r.direction.y, r.direction.z] }, hit };
@@ -121,10 +149,15 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       onClick={(e) => {
         if (e.delta > 4) return; // an orbit drag
         if (!held) {
-          const brick = onPick ? e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held') : null;
+          const brick = onPick || onTake ? e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held') : null;
           if (!brick) return;
-          e.stopPropagation();
-          onPick!(brick.occurrenceId, { alt: e.altKey });
+          if (onPick) {
+            e.stopPropagation();
+            onPick(brick.occurrenceId, { alt: e.altKey });
+          } else if (onTake && brick.variant === 'solid') {
+            e.stopPropagation();
+            onTake(brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId });
+          }
           return;
         }
         e.stopPropagation();
@@ -136,6 +169,11 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         const template = templates.get(trayKey(o.partKey, o.colorCode));
         if (!variant || !template) return null;
         return <PlacedBrick key={`${o.occurrenceId}:${variant}`} template={template} matrix={o.targetMatrix} variant={variant} id={o.occurrenceId} />;
+      })}
+      {freePieces?.map((f) => {
+        const template = templates.get(trayKey(f.partKey, f.colorCode));
+        if (!template || (held?.moving?.kind === 'free' && held.moving.id === f.id)) return null;
+        return <PlacedBrick key={`free:${f.id}`} template={template} matrix={f.pose} variant="solid" id={`free:${f.id}`} pieceId={f.id} />;
       })}
       {held && previewPose && templates.get(trayKey(held.partKey, held.colorCode)) && (
         <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={previewPose} variant="held" id="held" />
@@ -151,17 +189,20 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
   );
 }
 
-function PlacedBrick({ template, matrix, variant, id }: { template: Group; matrix: Matrix4Tuple; variant: Variant; id: string }) {
+function PlacedBrick({ template, matrix, variant, id, pieceId }: { template: Group; matrix: Matrix4Tuple; variant: Variant; id: string; pieceId?: string }) {
   const object = useMemo(() => {
     const o = cloneTemplate(template, variant);
     o.matrixAutoUpdate = false;
     o.userData.occurrenceId = id;
     o.userData.variant = variant;
+    if (pieceId) o.userData.pieceId = pieceId;
     return o;
-  }, [template, variant, id]);
+  }, [template, variant, id, pieceId]);
   useEffect(() => {
     object.matrix.fromArray([...matrix]);
     object.matrixWorldNeedsUpdate = true;
+    // upright piece: its origin is the top of its body (LDraw convention), something can stand on it
+    object.userData.anchor = matrix[5] > 0.99 ? [matrix[12], matrix[13], matrix[14]] : undefined;
   }, [object, matrix]);
   return <primitive object={object} />;
 }
