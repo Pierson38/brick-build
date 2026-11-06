@@ -23,6 +23,8 @@ Le dépôt contient deux familles de documents :
 - [P8 — import simplifié : sources, permissions, stratégie et risques](P8_ARCHITECTURE_IMPORT.md)
 - [P8 — rapport, recette réelle, limites, verdict](P8_RAPPORT.md)
 - [Recette humaine P8 (à faire par le propriétaire)](RECETTE_HUMAINE_P8.md)
+- [Atelier — panneaux redimensionnables, notice ajustée, miniatures des pièces : rapport](UX_ATELIER_RAPPORT.md)
+- [Recette humaine du lot UX atelier (à faire par le propriétaire)](RECETTE_HUMAINE_UX_ATELIER.md)
 
 ## Démarrage développeur
 
