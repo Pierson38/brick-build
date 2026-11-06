@@ -1,4 +1,4 @@
-import { determinant3, distance, fromLDraw, rotationAngleDeg, withTranslation } from '../ldraw/matrix';
+import { determinant3, distance, fromLDraw, IDENTITY, multiply, rotationAngleDeg, rotationY, withTranslation } from '../ldraw/matrix';
 import { equivalentTargets } from '../ldraw/symmetry';
 import type { BrickOccurrence, Matrix4Tuple } from '../ldraw/types';
 import {
@@ -29,6 +29,11 @@ export const PLATE_LDU = 8;
 const STUD_LDU = 4;
 /** Bound on stored coordinates (untrusted saves). */
 export const MAX_COORD_LDU = 100_000;
+/** Manual height of the held piece: one plate, or 1 LDU for fine adjustment. */
+export const HEIGHT_STEP_LDU = 8;
+export const FINE_HEIGHT_STEP_LDU = 1;
+/** In manual height, the model magnet only snaps horizontally, on a spot at the chosen height. */
+const SAME_HEIGHT_LDU = 0.5;
 
 export type PieceRef =
   | { readonly kind: 'anchored'; readonly occurrenceId: string }
@@ -217,6 +222,8 @@ export function toStepped(ctx: BuildContext, session: BuildSession, mode: Exclud
 }
 
 export interface FreeHoverOptions {
+  /** Manual height: horizontal position kept after a height change, until the pointer moves. */
+  readonly fixedXZ?: readonly [number, number] | null;
   /** Lowest point of the finished model: the ground the free pieces stand on. */
   readonly groundY: number;
   /** Half-stud grid and plate levels (otherwise 1 LDU and the exact surface height). */
@@ -239,28 +246,43 @@ export function resolveFreeHover(
   ctx: BuildContext, held: HeldState, ray: Ray, hit: HoverHit | null, bottom: number, options: FreeHoverOptions,
 ): HoverResolution | null {
   const free = freePose(held, ray, hit, bottom, options);
+  const manual = held.layerMode === 'manual';
+  // a height chosen by hand is never changed by the magnet: it may only snap on a spot at that height
+  const sameHeight = (y: number) => !manual || Math.abs(y - held.layerY) <= SAME_HEIGHT_LDU;
   if (options.magnet) {
     // the free pose itself on a model spot, else the P5 search (surface layers, spot in the air, ghost)
     const own = free ? tryPlace(ctx, options.occupied, held, free.pose, FREE_TARGET_MAGNET) : null;
-    if (free && own?.ok) {
-      const target = ctx.occurrences.find((o) => o.occurrenceId === own.occurrenceId)!;
+    const target = own?.ok ? ctx.occurrences.find((o) => o.occurrenceId === own.occurrenceId)! : null;
+    if (free && target && sameHeight(target.targetMatrix[13])) {
       // on the spot; an equivalent rotation of a symmetric part is kept as the player turned it
       const t = target.targetMatrix;
       const previewPose = rotationAngleDeg(free.pose, t) <= FREE_TARGET_MAGNET.maxAngleDeg ? t : withTranslation(free.pose, [t[12], t[13], t[14]]);
       return { ...free, previewPose, layerY: t[13], targetId: target.occurrenceId };
     }
-    const r = resolveHover(ctx, options.occupied, held, ray, hit, bottom, FREE_TARGET_MAGNET);
-    if (r?.targetId) return r;
+    if (!options.fixedXZ) {
+      const r = resolveHover(ctx, options.occupied, held, ray, hit, bottom, FREE_TARGET_MAGNET);
+      if (r?.targetId && sameHeight(r.previewPose[13])) return r;
+    }
   }
   return free;
+}
+
+/** Manual height after `steps` × `step` LDU up (positive) or down; LDraw -Y is up. */
+export function liftedY(y: number, steps: number, step: number = HEIGHT_STEP_LDU): number {
+  return round(y - steps * step, 0.01);
 }
 
 function freePose(held: HeldState, ray: Ray, hit: HoverHit | null, bottom: number, options: FreeHoverOptions): HoverResolution | null {
   const { grid, groundY } = options;
   let x: number, y: number, z: number;
   let source: HoverResolution['source'] = 'free';
-  if (held.layerMode === 'manual' || !hit) {
-    // a horizontal plane at the current level (manual layers, or nothing under the pointer)
+  if (held.layerMode === 'manual' && options.fixedXZ) {
+    // the height was just changed by hand: straight up or down, the piece does not slide
+    [x, y, z] = [options.fixedXZ[0], held.layerY, options.fixedXZ[1]];
+    source = 'manual';
+  } else if (held.layerMode === 'manual' || !hit) {
+    // a horizontal plane at the chosen height (manual height, or nothing under the pointer): the
+    // height is kept while the piece follows the pointer, whatever the model levels
     const dy = ray.direction[1];
     if (Math.abs(dy) < 1e-9) return null;
     const t = (held.layerY - ray.origin[1]) / dy;
@@ -297,3 +319,82 @@ function freePose(held: HeldState, ray: Ray, hit: HoverHit | null, bottom: numbe
   const pose = heldPose(held.orientation, held.quarterTurns, [round(x, 0.01), round(y, 0.01), round(z, 0.01)]);
   return { pose, previewPose: pose, layerY: pose[13], source, targetId: null };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Groups: several placed pieces moved as one rigid object (explicit selection, no physics)
+// ---------------------------------------------------------------------------------------------
+
+export interface GroupMember {
+  readonly ref: PieceRef;
+  readonly partKey: string;
+  readonly colorCode: string;
+  /** Pose relative to the group pivot (translation only: the pivot frame is not rotated). */
+  readonly rel: Matrix4Tuple;
+}
+
+export interface PieceGroup {
+  readonly members: readonly GroupMember[];
+  /** Pivot where the group was taken: horizontal centre (on the grid), lowest point of the group. */
+  readonly pivot: readonly [number, number, number];
+}
+
+/**
+ * Group of placed pieces around a coherent pivot: the centre of their origins (on the half-stud
+ * grid, so that a moved group stays on the grid) at the height of the lowest point of the group,
+ * so that the group rests on a surface like a single piece whose bottom is the pivot.
+ * `bottom` of each member: lowest point under its origin for its pose (see surface.ts bottomExtent).
+ */
+export function makeGroup(members: readonly { ref: PieceRef; partKey: string; colorCode: string; pose: Matrix4Tuple; bottom: number }[]): PieceGroup {
+  const xs = members.map((m) => m.pose[12]), zs = members.map((m) => m.pose[14]);
+  const cx = Math.round(((Math.min(...xs) + Math.max(...xs)) / 2) / FREE_GRID_LDU) * FREE_GRID_LDU;
+  const cz = Math.round(((Math.min(...zs) + Math.max(...zs)) / 2) / FREE_GRID_LDU) * FREE_GRID_LDU;
+  const low = Math.max(...members.map((m) => m.pose[13] + m.bottom));
+  const pivot = [cx, low, cz] as const;
+  return {
+    pivot,
+    members: members.map((m) => ({ ref: m.ref, partKey: m.partKey, colorCode: m.colorCode, rel: withTranslation(m.pose, [m.pose[12] - cx, m.pose[13] - low, m.pose[14] - cz]) })),
+  };
+}
+
+/** Poses of the members for the pivot at `at`, turned `quarterTurns` × 90° around the vertical axis. */
+export function groupPoses(group: PieceGroup, quarterTurns: number, at: readonly [number, number, number]): Matrix4Tuple[] {
+  const frame = withTranslation(rotationY(quarterTurns), at);
+  return group.members.map((m) => multiply(frame, m.rel));
+}
+
+/** The pivot pose of a group that has not moved (identity rotation at its pivot). */
+export const groupHome = (group: PieceGroup): Matrix4Tuple => withTranslation(IDENTITY, group.pivot);
+
+export type GroupResult =
+  | { readonly ok: true; readonly session: BuildSession; readonly refs: readonly PieceRef[] }
+  | { readonly ok: false; readonly reason: FreeFailure };
+
+/**
+ * Moves several placed pieces at once — all or nothing: one invalid pose or unknown piece and the
+ * build is unchanged. Free pieces keep their id; a piece that was on its model target becomes a free
+ * piece (new id). The stock is unchanged. `refs` = the moved pieces, in the same order, after the move.
+ */
+export function moveGroup(ctx: BuildContext, session: BuildSession, moves: readonly { ref: PieceRef; pose: Matrix4Tuple }[]): GroupResult {
+  if (session.mode !== 'freeManual') return { ok: false, reason: 'NOT_FREE_MODE' };
+  const keys = moves.map((m) => (m.ref.kind === 'free' ? `f:${m.ref.id}` : `a:${m.ref.occurrenceId}`));
+  if (new Set(keys).size !== keys.length) return { ok: false, reason: 'UNKNOWN_PIECE' };
+  if (!moves.every((m) => isRigidPose(m.pose))) return { ok: false, reason: 'INVALID_POSE' };
+  if (!moves.every((m) => poseOf(ctx, session, m.ref) !== null)) return { ok: false, reason: 'UNKNOWN_PIECE' };
+  let next = session;
+  const refs: PieceRef[] = [];
+  for (const m of moves) {
+    const r = movePiece(ctx, next, m.ref, m.pose);
+    if (!r.ok) return { ok: false, reason: r.reason }; // not reached after the checks above; nothing is returned half-done
+    next = r.session;
+    refs.push({ kind: 'free', id: r.pieceId });
+  }
+  return { ok: true, session: next, refs };
+}
+
+/** Puts several placed pieces back into the stock at once. */
+export function removePieces(session: BuildSession, refs: readonly PieceRef[]): BuildSession {
+  return refs.reduce((s, r) => removePiece(s, r), session);
+}
+
+export const sameRef = (a: PieceRef, b: PieceRef): boolean =>
+  a.kind === b.kind && (a.kind === 'free' ? a.id === (b as { id: string }).id : a.occurrenceId === (b as { occurrenceId: string }).occurrenceId);

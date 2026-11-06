@@ -196,6 +196,7 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
     // 4) move and turn the second piece
     const second = free[1]!;
     await clickAt(page, [second.pose[12]!, second.pose[13]!, second.pose[14]!]);
+    await page.keyboard.press('m');
     await expect(page.getByTestId('held-info')).toContainText('Pièce reprise');
     await page.keyboard.press('r');
     await clickAt(page, spots[10]!);
@@ -213,7 +214,81 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
     await expect.poll(() => progressCount(page)).toBe(10);
     expect((await game<Free[]>(page, 'freePieces')).some((f) => f.id === third.id)).toBe(true);
 
-    // 6) smoothness: orbit the camera with the mouse while measuring frames
+    // 6) free height on a real piece: auto on top of the stack, then down a plate and up 3 × 1 LDU,
+    //    placed exactly where previewed (a height the automatic placement cannot give there)
+    const heldNow = async () => {
+      await frame(page);
+      return page.evaluate(() => window.__brickLabGame!.held()) as Promise<{ previewPose: number[]; bottom: number; partKey: string }>;
+    };
+    const stackTop = (await game<Free[]>(page, 'freePieces')).at(-1)!;
+    const longKey = await page.locator('.tray-item').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!).find((id) => /tray-(3460|3034|32018|3008|3009|3666|3710)\.dat-/.test(id)) ?? els[0]!.getAttribute('data-testid')!);
+    await page.getByTestId(longKey).click();
+    const sp = await onCanvas(page, [stackTop.pose[12]!, stackTop.pose[13]!, stackTop.pose[14]!]);
+    await page.mouse.move(sp!.x, sp!.y, { steps: 4 });
+    const autoHeld = await heldNow();
+    await page.getByTestId('step-8').click();
+    await page.getByTestId('lift-down').click();
+    await page.getByTestId('step-1').click();
+    for (let i = 0; i < 3; i++) await page.getByTestId('lift-up').click();
+    const manualHeld = await heldNow();
+    expect(manualHeld.previewPose[13]! - autoHeld.previewPose[13]!).toBeCloseTo(5, 2);
+    await page.screenshot({ path: path.join(PROOFS, `libre-${s.number}-hauteur-manuelle.png`) });
+    const dropAt = await onCanvas(page, [manualHeld.previewPose[12]!, manualHeld.previewPose[13]!, manualHeld.previewPose[14]!]);
+    await page.mouse.move(dropAt!.x, dropAt!.y, { steps: 2 });
+    await page.mouse.click(dropAt!.x, dropAt!.y);
+    await expect.poll(() => progressCount(page)).toBe(11);
+    const lowered = (await game<Free[]>(page, 'freePieces')).at(-1)!;
+    expect(lowered.pose.slice(12, 15)).toEqual(manualHeld.previewPose.slice(12, 15).map((v) => Math.round(v * 100) / 100));
+    entry.manualHeight = { part: longKey.replace('tray-', ''), auto: autoHeld.previewPose[13], placed: lowered.pose[13], loweredBy: lowered.pose[13]! - autoHeld.previewPose[13]! };
+    await page.keyboard.press('Escape');
+
+    // 7) a group of three pieces on the ground (click, Shift+click), moved, turned and raised as one
+    const ground3 = (await game<Free[]>(page, 'freePieces')).filter((f) => ['f1', 'f4', 'f5'].includes(f.id));
+    for (const [i, f] of ground3.entries()) {
+      const q = await onCanvas(page, [f.pose[12]!, f.pose[13]!, f.pose[14]!]);
+      await page.mouse.move(q!.x, q!.y, { steps: 2 });
+      if (i > 0) await page.keyboard.down('Shift');
+      await page.mouse.click(q!.x, q!.y);
+      if (i > 0) await page.keyboard.up('Shift');
+    }
+    await expect(page.getByTestId('selection-info')).toHaveText('3 pièce(s) sélectionnée(s)');
+    const trayBefore = await page.locator('.tray-item .count').allTextContents();
+    await page.screenshot({ path: path.join(PROOFS, `libre-${s.number}-groupe-selection.png`) });
+    await page.getByTestId('move-selection').click();
+    const target = (await groundSpots(page, 16)).at(-1)!;
+    const tq = await onCanvas(page, target);
+    await page.mouse.move(tq!.x, tq!.y, { steps: 4 });
+    await page.keyboard.press('r');
+    await page.getByTestId('step-8').click();
+    await page.getByTestId('lift-up').click();
+    const pivot = (await heldNow()).previewPose;
+    await page.screenshot({ path: path.join(PROOFS, `libre-${s.number}-groupe-en-main.png`) });
+    const pq = await onCanvas(page, [pivot[12]!, pivot[13]!, pivot[14]!]);
+    await page.mouse.move(pq!.x, pq!.y, { steps: 2 });
+    await page.mouse.click(pq!.x, pq!.y);
+    await expect(page.getByTestId('message')).toContainText('Groupe de 3 pièces déplacé');
+    const movedGroup = (await game<Free[]>(page, 'freePieces')).filter((f) => ['f1', 'f4', 'f5'].includes(f.id));
+    const d = (a: Free, b: Free) => Math.hypot(a.pose[12]! - b.pose[12]!, a.pose[13]! - b.pose[13]!, a.pose[14]! - b.pose[14]!);
+    for (const [i, j] of [[0, 1], [0, 2], [1, 2]] as const) expect(d(movedGroup[i]!, movedGroup[j]!)).toBeCloseTo(d(ground3[i]!, ground3[j]!), 6);
+    expect(await page.locator('.tray-item .count').allTextContents()).toEqual(trayBefore);
+    await expect.poll(() => progressCount(page)).toBe(11);
+    entry.group = { ids: movedGroup.map((f) => f.id), before: ground3.map((f) => f.pose.slice(12, 15)), after: movedGroup.map((f) => f.pose.slice(12, 15)), distancesKept: true, stockUnchanged: true };
+    // one undo restores the three poses; the move is done again for the restart check
+    await page.getByRole('button', { name: 'Annuler' }).click();
+    expect((await game<Free[]>(page, 'freePieces')).filter((f) => ['f1', 'f4', 'f5'].includes(f.id))).toEqual(ground3);
+    await page.getByTestId('move-selection').click();
+    await page.mouse.move(tq!.x, tq!.y, { steps: 4 });
+    await page.keyboard.press('r');
+    await page.getByTestId('lift-up').click();
+    const pivot2 = (await heldNow()).previewPose;
+    const pq2 = await onCanvas(page, [pivot2[12]!, pivot2[13]!, pivot2[14]!]);
+    await page.mouse.move(pq2!.x, pq2!.y, { steps: 2 });
+    await page.mouse.click(pq2!.x, pq2!.y);
+    await expect(page.getByTestId('message')).toContainText('Groupe de 3 pièces déplacé');
+    await page.screenshot({ path: path.join(PROOFS, `libre-${s.number}-groupe-pose.png`) });
+    await page.keyboard.press('Escape');
+
+    // 8) smoothness: orbit the camera with the mouse while measuring frames
     const box = (await page.getByTestId('build-canvas').boundingBox())!;
     const during = frames(page, 1500);
     await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.3);
@@ -223,7 +298,7 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
     entry.framesOrbit = await during;
     await page.getByRole('button', { name: 'Centrer' }).click();
 
-    // 7) leaving the free mode is explicit when pieces are off the model
+    // 9) leaving the free mode is explicit when pieces are off the model
     if ((await page.getByTestId('mode-select').locator('option[value="guided"]').count()) > 0) {
       await page.getByTestId('mode-select').selectOption('guided');
       await expect(page.getByTestId('mode-switch-confirm')).toContainText('hors du modèle officiel');

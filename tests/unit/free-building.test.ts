@@ -2,15 +2,15 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { activeStepIndex, createSession, heldPose, switchMode, tray, tryPlace, type BuildContext, type BuildSession } from '@/domain/build/engine';
 import {
-  FREE_TARGET_MAGNET, atModelCount, isRigidPose, isStockExhausted, matchToModel, movePiece, occupiedView, placeFree, poseFromLDraw, poseToLDraw,
-  removeLast, removePiece, resolveFreeHover, stockLeft, toStepped, usedCount,
+  FREE_TARGET_MAGNET, atModelCount, groupPoses, isRigidPose, isStockExhausted, liftedY, makeGroup, matchToModel, moveGroup, movePiece, occupiedView,
+  placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
 } from '@/domain/build/free';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import type { HeldState, HoverHit, Ray } from '@/domain/build/surface';
 import { analyzeModel } from '@/domain/import/analyze';
 import { compareSaves, saveSignature, summarise } from '@/domain/library/save-compare';
 import { buildStatus } from '@/domain/library/types';
-import { IDENTITY, rotationY, withTranslation } from '@/domain/ldraw/matrix';
+import { IDENTITY, rotationAngleDeg, rotationY, withTranslation } from '@/domain/ldraw/matrix';
 import type { Matrix4Tuple } from '@/domain/ldraw/types';
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/${name}`, import.meta.url), 'utf8');
@@ -259,5 +259,134 @@ describe('free hover: surface, grid and magnet', () => {
     const hit: HoverHit = { kind: 'ground', x: 300, y: 24, z: 0 };
     const r = resolveFreeHover(mini, held({ quarterTurns: 1 }), down(hit), hit, BOTTOM, opts(free()))!;
     expect(r.pose).toEqual(heldPose(IDENTITY, 1, [300, 0, 0]));
+  });
+});
+
+describe('free height, independent of the model levels', () => {
+  const held = (over: Partial<HeldState> = {}): HeldState => ({ partKey: '3001.dat', colorCode: '4', orientation: IDENTITY, quarterTurns: 0, layerY: 0, layerMode: 'auto', ...over });
+  const down = (x: number, z: number): Ray => ({ origin: [x, -1000, z], direction: [0, 1, 0] });
+  const opts = (s: BuildSession, over: Record<string, unknown> = {}) => ({ groundY: 24, grid: true, magnet: true, occupied: occupiedView(s, matchToModel(mini, s)), ...over });
+
+  it('steps of a plate (8 LDU) and of 1 LDU, up or down (LDraw -Y is up)', () => {
+    expect(liftedY(-24, 1)).toBe(-32);
+    expect(liftedY(-24, -1)).toBe(-16);
+    expect(liftedY(-24, 1, 1)).toBe(-25);
+    expect(liftedY(17.41, -2, 1)).toBe(19.41);
+  });
+
+  it('a manual height that is no model level is kept while the piece follows the pointer', () => {
+    // model levels of mini-4-pieces: y = 0 and y = -24; chosen: 11 (a piece 13 LDU into the ground)
+    for (const [x, z] of [[300, 0], [-200, 140]] as const) {
+      const r = resolveFreeHover(mini, held({ layerMode: 'manual', layerY: 11 }), down(x, z), { kind: 'ground', x, y: 24, z }, 24, opts(free()))!;
+      expect([r.pose[12], r.pose[13], r.pose[14]]).toEqual([x, 11, z]);
+      expect(r.source).toBe('manual');
+    }
+  });
+
+  it('lower than the automatic placement can go: on top of a piece auto stops at its top, manual goes below', () => {
+    const s = placed(mini, free(), '4', at(200, 0, 0));
+    const onTop: HoverHit = { kind: 'solid', x: 200, y: 0, z: 0, anchor: [200, 0, 0], up: true };
+    const auto = resolveFreeHover(mini, held({ colorCode: '1' }), down(200, 0), onTop, 24, opts(s))!;
+    expect(auto.pose[13]).toBe(-24); // resting on the red brick
+    const manual = resolveFreeHover(mini, held({ colorCode: '1', layerMode: 'manual', layerY: liftedY(-24, -3, 1) }), down(200, 0), onTop, 24, opts(s))!;
+    expect(manual.pose[13]).toBe(-21); // 3 LDU lower: overlapping the brick below, impossible in auto
+  });
+
+  it('after a height change the piece goes straight up or down (fixed position until the pointer moves)', () => {
+    const r = resolveFreeHover(mini, held({ layerMode: 'manual', layerY: -40 }), down(999, 999), null, 24, opts(free(), { fixedXZ: [130, -70] }))!;
+    expect([r.pose[12], r.pose[13], r.pose[14]]).toEqual([130, -40, -70]);
+  });
+
+  it('the model magnet never changes a manual height: it only snaps on a spot at that height', () => {
+    const near: HoverHit = { kind: 'ground', x: 4, y: 24, z: 1 };
+    expect(resolveFreeHover(mini, held({ layerMode: 'manual', layerY: 0 }), down(4, 1), near, 24, opts(free()))!.targetId).toBe('mini-4-pieces.mpd#0');
+    const r = resolveFreeHover(mini, held({ layerMode: 'manual', layerY: 3 }), down(4, 1), near, 24, opts(free()))!;
+    expect(r.targetId).toBeNull();
+    expect(r.pose[13]).toBe(3);
+  });
+});
+
+describe('groups: several pieces moved as one rigid object', () => {
+  const three = () => {
+    let s = placed(same, free(), '4', at(200, 0, 0));
+    s = placed(same, s, '4', at(260, 0, 0, 1));
+    s = placed(same, s, '4', at(200, -24, 20));
+    return s;
+  };
+  const membersOf = (s: BuildSession) => s.free!.map((f) => ({ ref: { kind: 'free' as const, id: f.id }, partKey: f.partKey, colorCode: f.colorCode, pose: f.pose, bottom: 24 }));
+  const dist = (a: Matrix4Tuple, b: Matrix4Tuple) => Math.hypot(a[12] - b[12], a[13] - b[13], a[14] - b[14]);
+  const relRot = (a: Matrix4Tuple, b: Matrix4Tuple) => rotationAngleDeg(a, b);
+
+  it('pivot: centre of the pieces on the grid, at the lowest point; at home the poses are unchanged', () => {
+    const s = three();
+    const g = makeGroup(membersOf(s));
+    expect(g.pivot).toEqual([230, 24, 10]);
+    expect(groupPoses(g, 0, g.pivot)).toEqual(s.free!.map((f) => f.pose));
+  });
+
+  it('three bricks moved together keep their relative positions; ids and stock unchanged; one action', () => {
+    const s = three();
+    const g = makeGroup(membersOf(s));
+    const poses = groupPoses(g, 0, [g.pivot[0] - 400, g.pivot[1] - 8, g.pivot[2] + 100]);
+    const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.session.free!.map((f) => f.id)).toEqual(['f1', 'f2', 'f3']);
+    expect(r.session.free!.map((f) => [f.pose[12], f.pose[13], f.pose[14]])).toEqual([[-200, -8, 100], [-140, -8, 100], [-200, -32, 120]]);
+    expect(stockLeft(same, r.session, '3001.dat', '4')).toBe(stockLeft(same, s, '3001.dat', '4'));
+    expect(usedCount(r.session)).toBe(3);
+  });
+
+  it('a group turned a quarter keeps every distance and relative orientation', () => {
+    const s = three();
+    const g = makeGroup(membersOf(s));
+    const poses = groupPoses(g, 1, [0, 24, 0]);
+    const before = s.free!.map((f) => f.pose);
+    for (let i = 0; i < 3; i++) {
+      for (let j = i + 1; j < 3; j++) {
+        expect(dist(poses[i]!, poses[j]!)).toBeCloseTo(dist(before[i]!, before[j]!), 9);
+        expect(relRot(poses[i]!, poses[j]!)).toBeCloseTo(relRot(before[i]!, before[j]!), 6);
+      }
+    }
+    expect(poses.every((p) => isRigidPose(p))).toBe(true);
+    expect(rotationAngleDeg(poses[0]!, before[0]!)).toBeCloseTo(90, 6);
+  });
+
+  it('all or nothing: one bad pose or one unknown piece and nothing moves', () => {
+    const s = three();
+    const g = makeGroup(membersOf(s));
+    const poses = groupPoses(g, 0, [0, 24, 0]);
+    const scaled = [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as unknown as Matrix4Tuple;
+    const moves = g.members.map((m, i) => ({ ref: m.ref, pose: i === 2 ? scaled : poses[i]! }));
+    expect(moveGroup(same, s, moves)).toEqual({ ok: false, reason: 'INVALID_POSE' });
+    expect(moveGroup(same, s, [...g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })), { ref: { kind: 'free', id: 'f9' }, pose: poses[0]! }])).toEqual({ ok: false, reason: 'UNKNOWN_PIECE' });
+    expect(moveGroup(same, s, [{ ref: g.members[0]!.ref, pose: poses[0]! }, { ref: g.members[0]!.ref, pose: poses[1]! }])).toEqual({ ok: false, reason: 'UNKNOWN_PIECE' });
+    expect(moveGroup(same, { ...s, mode: 'guided' }, [])).toEqual({ ok: false, reason: 'NOT_FREE_MODE' });
+  });
+
+  it('a group with a piece of an older build: that piece becomes free, the others keep their id', () => {
+    const s: BuildSession = { mode: 'freeManual', placed: ['same.ldr#0'], free: [{ id: 'f4', partKey: '3001.dat', colorCode: '4', pose: at(300, 0, 0) }] };
+    const g = makeGroup([
+      { ref: { kind: 'anchored', occurrenceId: 'same.ldr#0' }, partKey: '3001.dat', colorCode: '4', pose: same.occurrences[0]!.targetMatrix, bottom: 24 },
+      { ref: { kind: 'free', id: 'f4' }, partKey: '3001.dat', colorCode: '4', pose: at(300, 0, 0), bottom: 24 },
+    ]);
+    const poses = groupPoses(g, 0, [g.pivot[0], g.pivot[1], g.pivot[2] + 200]);
+    const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    expect(r.ok && r.refs).toEqual([{ kind: 'free', id: 'f5' }, { kind: 'free', id: 'f4' }]);
+    expect(r.ok && r.session.placed).toEqual([]);
+    expect(r.ok && usedCount(r.session)).toBe(2);
+  });
+
+  it('a moved group is saved in the current format and restored with the same poses', () => {
+    const s = three();
+    const g = makeGroup(membersOf(s));
+    const poses = groupPoses(g, 3, [-60, 16, 90]);
+    const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    if (!r.ok) throw new Error(r.reason);
+    const saved = JSON.parse(JSON.stringify(serializeProgress(HASH, 'same.ldr', r.session, 3)));
+    expect(saved.schemaVersion).toBe(3);
+    const back = restoreProgress(saved, HASH, same.occurrences);
+    expect(back.ok && back.session).toEqual(r.session);
+    expect(removePieces(r.session, r.refs).free).toEqual([]);
   });
 });

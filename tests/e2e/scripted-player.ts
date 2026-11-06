@@ -120,7 +120,19 @@ export async function placeOneByPointer(page: Page, stats: DropStats, preferSymm
       held = await hover(page, [t[12], t[13] + held.bottom, t[14]]);
       if (!held.targetId) held = await hover(page, [t[12], t[13], t[14]]);
     }
-    if (!held.targetId) {
+    if (!held.targetId && (await page.getByTestId('mode-select').inputValue()) === 'freeManual') {
+      // free mode: the free height control (one plate per key, Shift: 1 LDU) up to the spot's height
+      stats.manualFallbacks++;
+      let current = held.layerMode === 'manual' ? held.layerY : held.previewLayerY ?? held.layerY;
+      for (let k = 0; k < 200 && Math.abs(current - t[13]) > 0.5; k++) {
+        const up = current > t[13]; // LDraw -Y is up
+        await page.keyboard.press(`${Math.abs(current - t[13]) >= 8 ? '' : 'Shift+'}${up ? 'PageUp' : 'PageDown'}`);
+        stats.layerKeys++;
+        held = (await game<Held>(page, 'held'))!;
+        current = held.layerY;
+      }
+      held = await hover(page, [t[12], t[13], t[14]]);
+    } else if (!held.targetId) {
       stats.manualFallbacks++;
       const layers = await game<number[]>(page, 'layers');
       const wanted = layers.indexOf(Math.round(t[13]));

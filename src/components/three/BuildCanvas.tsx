@@ -5,7 +5,7 @@ import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { DoubleSide, type Group, Matrix4, type Object3D, Ray as ThreeRay, Vector3 } from 'three';
 import { trayKey, type FreePiece } from '@/domain/build/engine';
-import type { PieceRef } from '@/domain/build/free';
+import type { PieceGroup, PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
@@ -21,6 +21,8 @@ export interface HeldBrick {
   readonly layerMode: LayerMode;
   /** Free mode: a placed piece taken again to move, turn or remove it (hidden at its pose meanwhile). */
   readonly moving?: PieceRef;
+  /** Free mode: several placed pieces moved together (hidden at their poses meanwhile). */
+  readonly group?: PieceGroup;
 }
 
 interface Props {
@@ -40,8 +42,12 @@ interface Props {
   readonly onPick?: (occurrenceId: string, modifiers: { readonly alt: boolean }) => void;
   /** Free mode: pieces placed at a pose chosen by the player. */
   readonly freePieces?: readonly FreePiece[];
-  /** Free mode: click without drag and without a held piece on a placed piece takes it again. */
-  readonly onTake?: (ref: PieceRef) => void;
+  /** Free pieces shown as selected. */
+  readonly selectedFree?: ReadonlySet<string>;
+  /** Free mode, group being moved: the pieces at the pose they would get. */
+  readonly groupPreview?: readonly { readonly partKey: string; readonly colorCode: string; readonly pose: Matrix4Tuple }[] | null;
+  /** Free mode: click without drag and without a held piece — a placed piece, or nothing (null). */
+  readonly onSelect?: (ref: PieceRef | null, modifiers: { readonly shift: boolean }) => void;
   /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
   readonly groundY?: number;
   readonly recenterToken: number;
@@ -101,7 +107,7 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, onTake, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, groundY: givenGround }: Props) {
   const root = useRef<Group>(null);
   const computedGround = useMemo(() => (givenGround === undefined ? modelGroundY(occurrences, templates) : 0), [givenGround, occurrences, templates]);
   const groundY = givenGround ?? computedGround;
@@ -149,14 +155,16 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       onClick={(e) => {
         if (e.delta > 4) return; // an orbit drag
         if (!held) {
-          const brick = onPick || onTake ? e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held') : null;
-          if (!brick) return;
+          // the mapping editor picks any shown brick (ghosts = unassigned ones); free mode selects placed pieces only
+          const brick = onPick || onSelect ? e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held' && (onPick || b.variant !== 'ghost')) : null;
           if (onPick) {
+            if (!brick) return;
             e.stopPropagation();
             onPick(brick.occurrenceId, { alt: e.altKey });
-          } else if (onTake && brick.variant === 'solid') {
+          } else if (onSelect) {
+            // free mode: select a placed piece (Shift: add / remove), or nothing to clear the selection
             e.stopPropagation();
-            onTake(brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId });
+            onSelect(brick ? (brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId }) : null, { shift: e.shiftKey });
           }
           return;
         }
@@ -172,12 +180,19 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       })}
       {freePieces?.map((f) => {
         const template = templates.get(trayKey(f.partKey, f.colorCode));
-        if (!template || (held?.moving?.kind === 'free' && held.moving.id === f.id)) return null;
-        return <PlacedBrick key={`free:${f.id}`} template={template} matrix={f.pose} variant="solid" id={`free:${f.id}`} pieceId={f.id} />;
+        const inHand = (held?.moving?.kind === 'free' && held.moving.id === f.id) || held?.group?.members.some((m) => m.ref.kind === 'free' && m.ref.id === f.id);
+        if (!template || inHand) return null;
+        const variant = selectedFree?.has(f.id) ? 'selected' : 'solid';
+        return <PlacedBrick key={`free:${f.id}:${variant}`} template={template} matrix={f.pose} variant={variant} id={`free:${f.id}`} pieceId={f.id} />;
       })}
-      {held && previewPose && templates.get(trayKey(held.partKey, held.colorCode)) && (
-        <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={previewPose} variant="held" id="held" />
-      )}
+      {held?.group
+        ? groupPreview?.map((g, i) => {
+          const template = templates.get(trayKey(g.partKey, g.colorCode));
+          return template ? <PlacedBrick key={`held-group:${i}`} template={template} matrix={g.pose} variant="held" id={`held-${i}`} /> : null;
+        })
+        : held && previewPose && templates.get(trayKey(held.partKey, held.colorCode)) && (
+          <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={previewPose} variant="held" id="held" />
+        )}
       {/* invisible ground: catches the pointer around the model (also used in manual layer mode) */}
       <mesh name="ground-plane" position={[0, groundY, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[20000, 20000]} />

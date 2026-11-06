@@ -4,7 +4,10 @@ import { promises as fs, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { serializeProgress } from '@/domain/build/progress';
+import type { BuildContext, BuildSession } from '@/domain/build/engine';
+import { groupPoses, makeGroup, moveGroup, placeFree } from '@/domain/build/free';
+import type { Matrix4Tuple } from '@/domain/ldraw/types';
+import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import { analyzeModel } from '@/domain/import/analyze';
 import { addBooklet, addStep, assignToStep, createMapping, serializeMapping, type InstructionMapping } from '@/domain/instructions/mapping';
 import { filterSets, setStatus, type BuildView } from '@/domain/library/types';
@@ -511,6 +514,28 @@ describe('library: true free building', () => {
     const twice = { ...progress, placedOccurrenceIds: ['mini-4-pieces.mpd#0'] };
     await expect(fresh.putProgress(buildId, twice, rec!.revision)).rejects.toMatchObject({ code: 'INVALID' });
     expect((await fresh.readRecord(buildId, 'progress'))!.payload).toEqual(rec!.payload);
+  });
+
+  it('a group moved at once (one save) is read back identically by a fresh store (server restart)', async () => {
+    const model = (await ingest('model', 'mini-4-pieces.mpd', MINI)).file;
+    const { builds } = await store.createSet({ setNumber: '90122-1', name: 'Groupe', builds: [{ label: 'Principal', modelFileId: model.sha256 }] });
+    const a = analyzeModel(MINI.toString('utf8'), 'mini-4-pieces.mpd');
+    const ctx: BuildContext = { occurrences: a.model.occurrences, plan: a.plan };
+    let session: BuildSession = { mode: 'freeManual', placed: [] };
+    for (const [x, y, c] of [[200, 0, '4'], [280, 0, '1'], [200, -24, '2']] as const) {
+      const r = placeFree(ctx, session, { partKey: '3001.dat', colorCode: c }, at(x, y, 40) as unknown as Matrix4Tuple);
+      if (!r.ok) throw new Error(r.reason);
+      session = r.session;
+    }
+    const g = makeGroup(session.free!.map((f) => ({ ref: { kind: 'free' as const, id: f.id }, partKey: f.partKey, colorCode: f.colorCode, pose: f.pose, bottom: 24 })));
+    const poses = groupPoses(g, 1, [-100, 16, -60]);
+    const moved = moveGroup(ctx, session, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    if (!moved.ok) throw new Error(moved.reason);
+    await store.putProgress(builds[0]!.id, serializeProgress(model.sha256, 'mini-4-pieces.mpd', moved.session, 4), null);
+    const fresh = new LibraryStore(dir);
+    const back = restoreProgress((await fresh.readRecord(builds[0]!.id, 'progress'))!.payload, model.sha256, ctx.occurrences);
+    expect(back.ok && back.session).toEqual(moved.session);
+    expect(back.ok && back.session.free!.map((f) => f.id)).toEqual(['f1', 'f2', 'f3']);
   });
 
   it('every piece at its place in the model: the build is done, even placed freely', async () => {
