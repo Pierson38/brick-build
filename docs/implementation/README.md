@@ -20,6 +20,9 @@ Le dépôt contient deux familles de documents :
 - [P7 — bibliothèque personnelle : architecture, sécurité, sauvegarde et restauration](P7_ARCHITECTURE_BIBLIOTHEQUE.md)
 - [P7 — rapport, recette réelle 31040/31009, limites, verdict](P7_RAPPORT.md)
 - [Recette humaine P7 (à faire par le propriétaire)](RECETTE_HUMAINE_P7.md)
+- [P8 — import simplifié : sources, permissions, stratégie et risques](P8_ARCHITECTURE_IMPORT.md)
+- [P8 — rapport, recette réelle, limites, verdict](P8_RAPPORT.md)
+- [Recette humaine P8 (à faire par le propriétaire)](RECETTE_HUMAINE_P8.md)
 
 ## Démarrage développeur
 
@@ -32,7 +35,8 @@ Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm.
    Licence : CC BY 4.0, voir `CAreadme.txt` dans la bibliothèque. Ne jamais la commiter.
 2. `npm ci` puis `npx playwright install chromium`.
 3. `npm run check:ldraw` vérifie la bibliothèque.
-4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée). La page d'accueil est « Ma collection » ; l'atelier P5/P6 sans collection est sur `/atelier`.
+4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée). La page d'accueil est « Ma collection » ; « Ajouter un set » est sur `/ajouter` ; l'atelier P5/P6 sans collection est sur `/atelier`.
+   Facultatif (P8) : `REBRICKABLE_API_KEY=<ta clé>` dans `.env.local` pour afficher nom, année et nombre de pièces annoncé ; `BRICK_LAB_ONLINE=0` pour interdire tout accès Internet (l'import local reste complet).
 5. Recette : `npm run recette` (typecheck + Vitest + Playwright).
 
 Note technique du spike et limites : [10_SPIKE_ET_LOT_P0_P1.md](10_SPIKE_ET_LOT_P0_P1.md).
