@@ -2,6 +2,7 @@
 
 **Signalée par :** le propriétaire, pendant la recette humaine du lot UX (06/11/2026).
 **Statut :** limitation du moteur **antérieure** au lot UX, **non bloquante** pour la PR #6. Chantier dédié décidé par le propriétaire : branche `feat/true-free-building`.
+**Suite :** traitée par la branche `feat/true-free-building` — voir [MONTAGE_LIBRE_ARCHITECTURE.md](MONTAGE_LIBRE_ARCHITECTURE.md) (en attente de recette humaine et de fusion).
 
 ## Constat
 
