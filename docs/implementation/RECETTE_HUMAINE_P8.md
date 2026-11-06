@@ -46,6 +46,18 @@ Ordre conseillé : C6 → C5 → C1 → C2 → C3 → C4 (Chrome d'abord, Safari
 | C3 | **Safari** | Ouvrir http://127.0.0.1:3000 dans Safari ; 31039 « Reprendre » (ne rien poser) ; puis « Ajouter un set » → `31039` → « Rechercher » | Mêmes 3 sets et mêmes progressions (31040 25/65, 31039 x/609) ; reprise identique (mode, page) ; la page d'ajout fonctionne : variante « 31039-1 », ressources, « Ce set est déjà dans ta collection ». Fermer sans confirmer | |
 | C4 | **Hors ligne** (sans ajout) | **Couper le Wi-Fi** ; « Ajouter un set » (page neuve) ; « Choisir des fichiers » : `~/Documents/brick-lab-data/models/31028-1/31028-1.mpd`, `~/Documents/brick-lab-data/instructions/31009-1/31009-1_notice_6038252.pdf` et `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json`, **ensemble** ; puis saisir `31028` → « Rechercher » → « Chercher en ligne » ; **ne pas confirmer** → « ← Ma collection » ; rallumer le Wi-Fi | Modèle 31028 analysé (53 pièces, sans étapes → « Pas d'étapes LDraw dans ce fichier : montage libre uniquement ») ; PDF listé avec son nombre de pages ; correspondances de 31040 **refusées** (« concernent un autre modèle ») ; numéro proposé 31028-1 ; recherche en ligne : « **OMR indisponible** : … » et lien vers la page ; collection inchangée (**3 sets**). Les fichiers choisis sont lus, jamais déplacés | |
 
+**Résultats (06/11/2026)** : les six contrôles sont déclarés **OK par le propriétaire** à l'issue de sa recette humaine (Chrome, puis Safari pour C3). Claude n'a pas observé l'écran et ne rapporte aucune mesure de cette recette.
+
+**Écart entre la déclaration et les traces**, relevé par Claude avant la fusion (lecture seule, vers 19:45) et présenté au propriétaire :
+
+| Contrôle | Trace attendue | Trace observée |
+|---|---|---|
+| C1 | 31039 ≥ 1/609, enregistré après 19:19 ; second démarrage du serveur | 31039 **0/609**, dernier enregistrement **19:09** ; un seul démarrage du serveur (même processus) |
+| C2 | Modèle retéléchargé gardé dans `library/staging/` jusqu'à confirmation | `staging/` vide |
+| C4 | Fichiers déposés gardés dans `library/staging/` | `staging/` vide |
+
+Les autres contrôles (C3, C5, C6) ne laissent pas de trace dans les données. Données intactes : index révision 3, 3 sets, 31040 25/65 (inchangé), `models/`, `instructions/`, `mappings/` identiques à l'inventaire de 19:19. **Décision du propriétaire : fusionner malgré cet écart** (« Merge anyway », 06/11/2026). Les contrôles C1, C2 et C4 reposent donc sur sa seule déclaration ; ils restent couverts par les tests automatiques (reprise après redémarrage en recette réelle isolée 31045, doublons et import hors ligne en unitaires et E2E).
+
 **À la fin** : envoie-moi la colonne « Résultat ». Je vérifierai les traces (index, progressions, intégrité de `models/`, `instructions/`, `mappings/` contre l'inventaire de 19:19), consignerai la recette et préparerai la fusion de la PR #5 **par rebase**, sans la lancer avant ton GO.
 
 ## 0. État avant la recette et sauvegarde (fait par Claude le 06/11/2026, 18:17)
