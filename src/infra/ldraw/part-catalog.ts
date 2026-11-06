@@ -54,6 +54,16 @@ export class PartCatalog {
     return promise;
   }
 
+  /** Colour name from LDConfig ("Light Bluish Grey"), null when unknown. */
+  colourName(colorCode: string): string | null {
+    try {
+      const material = this.loader.getMaterial(colorCode) as Material | null;
+      return material?.name ? material.name.replace(/_/g, ' ').trim() || null : null;
+    } catch {
+      return null;
+    }
+  }
+
   colourHex(colorCode: string): string | null {
     try {
       const material = this.loader.getMaterial(colorCode) as (Material & { color?: Color }) | null;

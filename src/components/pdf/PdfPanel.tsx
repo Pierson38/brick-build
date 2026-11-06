@@ -14,7 +14,7 @@ interface Props {
   readonly banner?: ReactNode;
   readonly caption?: string;
   readonly compact?: boolean;
-  /** Fit the page to the panel width (synchronised mode, editor); +/− go back to fixed zooms. */
+  /** Fit the page to the panel width (default, every mode); +/− go back to fixed zooms, ↔ comes back. */
   readonly fitWidth?: boolean;
 }
 
@@ -22,7 +22,7 @@ interface Props {
  * Local PDF viewer for one or several booklets. Files are read with the File API and never leave
  * the machine. Outside the synchronised mode, the page is independent from the 3D build steps.
  */
-export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF indépendante des étapes 3D.', compact = false, fitWidth = false }: Props) {
+export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF indépendante des étapes 3D.', compact = false, fitWidth = true }: Props) {
   const { booklets, view, active, error, loading } = notice;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [fit, setFit] = useState(fitWidth);
@@ -39,12 +39,37 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const page = view?.page ?? 1;
 
+  // width available for the page: followed with a ResizeObserver (separator, window), settled
+  // before a sharp re-render (the CSS already shrinks the page while the panel moves)
+  const [boxWidth, setBoxWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setBoxWidth(el.clientWidth);
+    const ro = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setBoxWidth(el.clientWidth), 120);
+    });
+    ro.observe(el);
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect();
+    };
+  }, [active]);
+
+  // one render at a time on the canvas: a new one waits until the cancelled one has really stopped
+  const renderChain = useRef<Promise<unknown>>(Promise.resolve());
+  const widthKey = fit ? boxWidth : 0;
   useEffect(() => {
     if (!active || !canvasRef.current) return;
     let task: RenderTask | null = null;
     let cancelled = false;
     setRenderError(null);
-    (async () => {
+    const previous = renderChain.current;
+    const run = (async () => {
+      await previous;
+      if (cancelled) return;
       try {
         const p = await active.doc.getPage(page);
         if (cancelled) return;
@@ -53,21 +78,24 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
         const zoom = fit && available > 0 ? available / p.getViewport({ scale: 1 }).width : ZOOMS[zoomIndex]!;
         if (fit) fitScale.current = zoom;
         const viewport = p.getViewport({ scale: zoom * ratio });
-        const canvas = canvasRef.current!;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = `${Math.floor(viewport.width / ratio)}px`;
+        canvas.dataset.scale = zoom.toFixed(4);
         task = p.render({ canvas, viewport });
         await task.promise;
       } catch (e) {
         if ((e as { name?: string }).name !== 'RenderingCancelledException') setRenderError(`Erreur de rendu de la page ${page}.`);
       }
     })();
+    renderChain.current = run.catch(() => undefined);
     return () => {
       cancelled = true;
       task?.cancel();
     };
-  }, [active, page, zoomIndex, fit]);
+  }, [active, page, zoomIndex, fit, widthKey]);
 
   const go = (delta: number) => active && notice.show(active.sha256, page + delta);
   const shownError = error ?? renderError;
@@ -104,7 +132,7 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
       {active ? (
         <>
           <p className="muted small">{active.fileName} — {caption}</p>
-          <div className="pdf-scroll" ref={scrollRef}><canvas ref={canvasRef} data-testid="pdf-canvas" /></div>
+          <div className={fit ? 'pdf-scroll fit' : 'pdf-scroll'} ref={scrollRef}><canvas ref={canvasRef} data-testid="pdf-canvas" /></div>
         </>
       ) : (
         <p className="muted small">Ta notice reste sur ce Mac : elle est lue localement et n’est pas sauvegardée.</p>
