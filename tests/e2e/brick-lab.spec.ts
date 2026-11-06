@@ -153,8 +153,16 @@ test('local PDF: navigation and zoom independent from 3D steps, no request leave
   await expect(page.getByRole('button', { name: 'Page suivante' })).toBeDisabled();
   await page.getByRole('button', { name: 'Page précédente' }).click();
   await expect(page.getByTestId('pdf-page')).toHaveText('PDF p. 2 / 3');
+  // fitted to the panel width by default (every mode); + goes to the next fixed zoom above it, ↔ comes back
+  await expect(page.getByTestId('pdf-zoom')).toHaveText('Largeur');
+  const fitted = Number(await page.getByTestId('pdf-canvas').getAttribute('data-scale'));
   await page.getByRole('button', { name: 'Zoom avant' }).click();
-  await expect(page.getByTestId('pdf-zoom')).toHaveText('125 %');
+  await expect(page.getByTestId('pdf-zoom')).toHaveText(/^\d+ %$/);
+  expect(Number((await page.getByTestId('pdf-zoom').textContent())!.replace(/\D/g, '')) / 100).toBeGreaterThan(fitted);
+  await page.getByRole('button', { name: 'Zoom avant' }).click();
+  await page.getByRole('button', { name: 'Ajuster à la largeur' }).click();
+  await expect(page.getByTestId('pdf-zoom')).toHaveText('Largeur');
+  await page.getByRole('button', { name: 'Zoom avant' }).click();
   // the canvas really received pixels (rendering is asynchronous)
   const darkPixels = () => page.getByTestId('pdf-canvas').evaluate((c: HTMLCanvasElement) => {
     const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;

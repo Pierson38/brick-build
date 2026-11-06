@@ -20,6 +20,7 @@ import { listRecentSessions, type RecentSession } from '@/infra/persistence/loca
 import { PartsTray } from './build/PartsTray';
 import { ModelSummary } from './import/ModelSummary';
 import { MappingEditor } from './mapping/MappingEditor';
+import { Splitter, useSidePanel } from './layout/Splitter';
 import { PdfPanel } from './pdf/PdfPanel';
 import { useNotice } from './pdf/useNotice';
 import { SyncStepBanner } from './sync/SyncStepBanner';
@@ -133,6 +134,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   // the synchronised mode exists only with a mapping that passes validation: no invented correspondence
   const syncPlan = useMemo(() => (mapping && report?.ok ? mappingToStepPlan(mapping) : null), [mapping, report]);
   const editing = tab === 'mapping' && mapping !== null && loaded !== null;
+  // width of the side panel (notice, model, editor): chosen with the separator, remembered per context
+  const panel = useSidePanel(editing ? 'editor' : 'atelier');
 
   const ctx: BuildContext | null = useMemo(
     () => (loaded
@@ -540,7 +543,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       )}
       </div>
 
-      <main className={editing ? 'workspace editing' : 'workspace'}>
+      <main className={editing ? 'workspace editing' : 'workspace'} ref={panel.ref} style={{ gridTemplateColumns: panel.gridTemplateColumns }} data-side-width={panel.side}>
         <div className="viewport">
           {loaded && geometry && geometry.templates.size > 0 && ctx ? (
             <BuildCanvas
@@ -585,6 +588,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
           {message && <div className={`toast ${message.kind}`} role="status" data-testid="message">{message.text}</div>}
         </div>
 
+        <Splitter side={panel.side} total={panel.total} context={editing ? 'editor' : 'atelier'} onResize={panel.setSide} />
         <aside className="side">
           <nav className="tabs" role="tablist">
             <button type="button" role="tab" aria-selected={tab === 'model'} onClick={() => setTab('model')}>Modèle</button>
@@ -634,7 +638,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               notice={notice}
               initialPage={restoredPdfPage.current}
               compact={editing}
-              fitWidth={synced || editing}
               caption={synced ? 'page pilotée par l’étape de notice en cours.' : editing ? 'page de l’étape éditée.' : 'page PDF indépendante des étapes 3D.'}
               banner={synced && plan ? (
                 <SyncStepBanner
@@ -693,7 +696,14 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               <button type="button" className="button primary" onClick={() => void restart()}>{confirmRestart ? 'Confirmer : recommencer' : 'Recommencer'}</button>
             </div>
           ) : (
-            <PartsTray items={tray(ctx, session)} heldKey={held ? trayKey(held.partKey, held.colorCode) : null} colourOf={(c) => catalog.colourHex(c)} onPick={pick} />
+            <PartsTray
+              items={tray(ctx, session)}
+              heldKey={held ? trayKey(held.partKey, held.colorCode) : null}
+              colourOf={(c) => catalog.colourHex(c)}
+              colourName={(c) => catalog.colourName(c)}
+              {...(geometry ? { templates: geometry.templates } : {})}
+              onPick={pick}
+            />
           )}
           <div className="tray-actions">
             {held && (
