@@ -111,7 +111,7 @@ Non exécuté : `npm run perf` (P8 ne touche ni au rendu ni au moteur).
 
 - **OMR sans API** : la page `/omr/set/<n>` n'est pas documentée ; si elle change, la recherche en ligne ne liste plus rien (message clair, lien, import manuel). Aucune garantie de stabilité.
 - **Notices LEGO** : toujours téléchargées par l'utilisateur ; l'association notice ↔ construction d'un 3-en-1 reste à cocher (proposée seulement pour une construction unique, jamais déduite du PDF).
-- **Écart de spécification à valider** : téléchargement d'un fichier OMR par le serveur local sur clic (architecture § 3). `BRICK_LAB_ONLINE=0` le désactive.
+- **Écart de spécification approuvé** (06/11/2026) : téléchargement d'un fichier OMR par le serveur local sur clic, dans le cadre de l'architecture § 3. `BRICK_LAB_ONLINE=0` le désactive.
 - **Rebrickable** : conditions d'utilisation non lues (page refusée à la lecture automatique) ; facultatif, non testé avec une vraie clé (aucune clé disponible) — testé avec des réponses simulées.
 - **Contrôle des pièces** : premier niveau de fichiers seulement ; une primitive manquante à l'intérieur d'une pièce n'apparaît qu'au rendu.
 - **Recette réelle** : notice de 31045 remplacée par un PDF synthétique ; modèle alternatif de l'OMR non construit (téléchargement des alternatifs vérifié en E2E simulé et listé en réel) ; Safari non testé en P8 (aucun code navigateur spécifique ajouté) → recette humaine.
@@ -126,7 +126,11 @@ Non exécuté : `npm run perf` (P8 ne touche ni au rendu ni au moteur).
 Démontré : un set absent de la collection (31045) s'ajoute en saisissant son numéro, avec **deux clics** pour le modèle (« Chercher en ligne », « Télécharger ») et un dépôt pour la notice ; l'analyse, la fiche de compatibilité et l'ajout ne promettent que les modes réellement disponibles (pas de mode synchronisé sans correspondances validées, inventaire indéterminé signalé) ; la construction démarre sans sélection de fichier, se retrouve dans la collection et se reprend après redémarrage, sans réimport ; un import rejoué ne duplique rien ; l'import local rapide fonctionne sans Internet ; 31040/31009 et le mode synchronisé sont inchangés (suites P5–P7 réelles repassées) ; ta bibliothèque réelle n'a pas été modifiée.
 
 Conditions :
-1. **Valider l'écart de spécification** : téléchargement d'un fichier OMR par le serveur local, sur clic (architecture § 3). Sinon, `BRICK_LAB_ONLINE=0` (ou retrait de la recherche en ligne) ramène au lien + import manuel.
+1. ~~Valider l'écart de spécification~~ : **levée le 06/11/2026** (GO explicite du propriétaire, cadre consigné dans l'architecture § 3 et le journal des décisions).
 2. **Recette humaine P8** (`RECETTE_HUMAINE_P8.md`) dans Chrome et Safari, avec une vraie notice LEGO et, à ta convenance, ajout réel d'un set à ta collection.
 
-La fusion reste soumise à ton accord explicite.
+La fusion reste soumise à ton GO final après la recette humaine.
+
+## 8. Suivi après le rapport
+
+**06/11/2026 — approbation du téléchargement OMR.** Le propriétaire approuve l'écart (condition 1 levée) et l'architecture de téléchargement actuelle, **pas encore la fusion** de la PR #5. Aucun code modifié. Recette humaine en production préparée (`RECETTE_HUMAINE_P8.md`), après vérification de l'état des données réelles et sauvegarde vérifiée (voir ce document, § 0).
