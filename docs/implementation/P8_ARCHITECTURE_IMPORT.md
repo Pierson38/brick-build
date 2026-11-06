@@ -79,9 +79,11 @@ Rapport, tests et verdict : [P8_RAPPORT.md](P8_RAPPORT.md). Recette humaine : [R
 4. **Rebrickable facultatif** (clé locale, 1 requête/s au plus, cache 1 h, jamais renvoyée au navigateur ni journalisée).
 5. **Aucune correspondance générée.** Un mapping n'est proposé que s'il existe déjà, pour l'empreinte exacte du modèle et son modèle principal.
 
-### Écart avec la spécification figée — à valider par le propriétaire
+### Écart avec la spécification figée — approuvé par le propriétaire (06/11/2026)
 
-`README.md` (« Pas de … téléchargement automatique de notices/sets ») et `docs/07` (« Ne pas aspirer automatiquement l'OMR ni LEGO.com ; le choix et le téléchargement des fichiers restent côté utilisateur ») datent de la v1.0. P8 fait télécharger **par le serveur local** un fichier OMR que l'utilisateur a **choisi et demandé par un clic**. Ce n'est ni une aspiration ni un téléchargement automatique (une page et un fichier par clic, rien en arrière-plan), mais le transfert n'est plus fait par le navigateur de l'utilisateur. Les notices LEGO restent entièrement manuelles. La spécification n'est pas modifiée ; l'écart est consigné ici et dans le journal des décisions. Si le propriétaire le refuse, `BRICK_LAB_ONLINE=0` ramène au comportement « lien + import manuel » sans autre changement.
+`README.md` (« Pas de … téléchargement automatique de notices/sets ») et `docs/07` (« Ne pas aspirer automatiquement l'OMR ni LEGO.com ; le choix et le téléchargement des fichiers restent côté utilisateur ») datent de la v1.0. P8 fait télécharger **par le serveur local** un fichier OMR que l'utilisateur a **choisi et demandé par un clic**. Ce n'est ni une aspiration ni un téléchargement automatique (une page et un fichier par clic, rien en arrière-plan), mais le transfert n'est plus fait par le navigateur de l'utilisateur. Les notices LEGO restent entièrement manuelles. La spécification v1.0 n'est pas modifiée (elle reste immuable) ; l'écart est consigné ici et dans le journal des décisions.
+
+**GO explicite du propriétaire (06/11/2026)** pour cet écart. Cadre approuvé par le propriétaire le 06/11/2026 : recherche en ligne déclenchée par une action de l'utilisateur ; téléchargement individuel d'un modèle choisi explicitement ; HTTPS, liste fermée d'hôtes, vérification des adresses et protection SSRF ; aucun téléchargement massif ni tâche réseau en arrière-plan ; conservation de l'auteur, de la licence, de l'URL source et de l'empreinte du fichier ; mode hors ligne conservé via `BRICK_LAB_ONLINE=0` ; aucun téléchargement automatisé des notices officielles LEGO. Toute extension de ce cadre (autre hôte, téléchargement groupé, notices LEGO) demandera une nouvelle autorisation.
 
 ## 4. Parcours
 
