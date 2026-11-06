@@ -89,7 +89,9 @@ export default function AddSetPage() {
       setOnline(null);
       setDownloaded([]);
       setNumber(l.setNumber.canonical);
-      addPicked(l.refs.map((ref) => ({ kind: ref.origin === 'discovered' && ref.rel.startsWith('instructions/') ? 'pdf' : 'model', ref })));
+      // a new search replaces the data-folder files of the previous one; dropped or downloaded files stay
+      const found: Picked[] = l.refs.map((ref) => ({ kind: ref.origin === 'discovered' && ref.rel.startsWith('instructions/') ? 'pdf' : 'model', ref }));
+      setPicked((cur) => [...cur.filter((c) => c.ref.origin !== 'discovered' && !found.some((f) => f.ref.sha256 === c.ref.sha256)), ...found]);
     } catch (e) {
       setErrors([e instanceof Error ? e.message : String(e)]);
     } finally {
@@ -261,7 +263,7 @@ export default function AddSetPage() {
                 </label>
               </div>
             )}
-            <p className="small muted">Les fichiers ajoutés sont copiés dans <code>library/</code> et identifiés par leur SHA-256 ; ceux du dossier de données restent en place. Rien n’est envoyé hors de ce Mac.</p>
+            <p className="small muted">Les fichiers ajoutés sont copiés dans <code>library/</code> et identifiés par leur SHA-256 ; ceux du dossier de données restent en place. Aucun de tes fichiers n’est envoyé hors de ce Mac (Internet ne sert qu’aux recherches et téléchargements que tu demandes).</p>
             {blocker && <p className="small error" data-testid="confirm-blocker">{blocker}</p>}
             <button type="button" className="button primary" disabled={busy !== null || blocker !== null || builds.length === 0} onClick={() => void confirm()} data-testid="import-submit">
               {targetSet ? `Ajouter ${builds.length} construction(s) à ${targetSet.setNumber}` : 'Ajouter à ma collection'}
