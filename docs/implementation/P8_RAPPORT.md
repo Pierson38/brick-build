@@ -134,3 +134,15 @@ La fusion reste soumise à ton GO final après la recette humaine.
 ## 8. Suivi après le rapport
 
 **06/11/2026 — approbation du téléchargement OMR.** Le propriétaire approuve l'écart (condition 1 levée) et l'architecture de téléchargement actuelle, **pas encore la fusion** de la PR #5. Aucun code modifié. Recette humaine en production préparée (`RECETTE_HUMAINE_P8.md`), après vérification de l'état des données réelles et sauvegarde vérifiée (voir ce document, § 0).
+
+**06/11/2026, 19:15 — recette humaine en production : relevé des traces.** Détail point par point : [RECETTE_HUMAINE_P8.md](RECETTE_HUMAINE_P8.md#résultats-consignés-06112026-relevé-de-claude-à-1915). Établi par les données : ajout réel de **31039-1 Blue Power Jet** depuis l'OMR (provenance complète conservée), notice déposée (224 pages), montage libre ouvert (0 pièce posée), une seule écriture d'index, aucun doublon, 31040/31009 et les fichiers des sets intacts. **Sans trace** : fiche de compatibilité, redémarrage du serveur (aucun constaté), essai de doublon, import hors ligne, ouverture de 31040/31009, Safari. Aucun de ces points n'est considéré comme validé sans confirmation du propriétaire. Aucune anomalie trouvée dans les traces ; le brouillon de correspondances vide de 31039 vient de l'atelier (comportement P6/P7), pas de l'import.
+
+## 9. Clôture et verdict de fusion
+
+**État de la branche** : `feat/p8-simplified-import`, aucune modification fonctionnelle depuis la validation finale (§ 5) ; les commits suivants ne touchent que la documentation. Base `origin/main` = `a4d2eeb`, fusion sans conflit signalée par GitHub.
+
+**Verdict de fusion : PRÊT TECHNIQUEMENT, FUSION NON RECOMMANDÉE EN L'ÉTAT.**
+
+- Acquis : validation automatique complète (222 unitaires, 47 E2E sans test ignoré, build), recette réelle isolée de Claude (31045, reprise après redémarrage), recette humaine en production pour la recherche, le téléchargement OMR, l'import de la notice et l'ajout.
+- Manque, faute de trace : ta confirmation des points 4 à 8 et de Safari (voir le tableau de la recette humaine). En particulier, la **reprise après redémarrage** et l'**import hors ligne** n'ont pas été exercés sur ta collection.
+- Pour fusionner : soit tu confirmes les points que tu as observés et tu passes ceux qui manquent (≈ 15 min : § 4.4–4.5, § 5, § 6), soit tu décides explicitement de fusionner sans eux. Dans les deux cas, la fusion attend ton GO.

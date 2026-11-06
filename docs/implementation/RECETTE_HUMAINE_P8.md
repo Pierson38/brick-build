@@ -4,6 +4,31 @@
 
 Durée estimée : 40–50 min. Rapport : [P8_RAPPORT.md](P8_RAPPORT.md).
 
+## Résultats consignés (06/11/2026, relevé de Claude à 19:15)
+
+> Claude n'a pas vu ton écran : ce tableau distingue ce que **les données prouvent** de ce que **seul ton témoignage** peut établir. Aucun point n'est validé tant que tu ne l'as pas confirmé. Heures locales (UTC+1).
+
+**Traces relevées** (lecture seule de `~/Documents/brick-lab-data`, terminal du serveur) :
+
+- Serveur de production démarré **une seule fois** (onglet du terminal : un seul « Ready », aucun arrêt ni relance).
+- Index : révision 2 → **3** (une seule écriture, 19:08:40). Set **31039-1 « Blue Power Jet »** ajouté, 1 construction « Modèle principal », 2 fichiers ajoutés : modèle `31039-1.mpd` (copie de la bibliothèque, provenance **OMR** : `…/media/omr_models/206/31039-1.mpd`, page `…/omr/set/31039-1`, auteur Merlijn Wissink [legolijntje], licence CCAL 2.0, téléchargé à 19:07:25) et notice `6127618.pdf` (25,8 Mo, **224 pages**, déposée). Aucun autre set, aucun doublon, `staging/` vide, pas de corbeille.
+- Modèle 31039 : **609 pièces** dans le fichier OMR (402 dans le modèle principal + 11 sous-modèles utilisés), **sans étapes LDraw** → montage libre uniquement (le protocole le présentait à tort comme un petit set ; nombre de pièces de la boîte non vérifié).
+- Construction 31039 : progression créée à 19:08:51 en **montage libre**, notice `6127618.pdf` ouverte, page 1 → **page 4** (19:09:08), **0 pièce posée**. Un brouillon de correspondances **vide** (0 livret, 0 étape, source « éditeur ») a été créé depuis l'atelier à 19:08:54 — pas par l'import.
+- 31040 : progression **inchangée** (25/65, notice synchronisée, page 6, révision 37 du 06/11 à 16:27). 31009 : toujours aucune progression.
+- `models/`, `instructions/`, `mappings/` : empreintes **identiques** à l'inventaire d'avant la recette.
+
+| Point | Ce que prouvent les traces | Confirmation du propriétaire |
+|---|---|---|
+| 1. Recherche par numéro | Indirect : un modèle de la page OMR de 31039-1 a été téléchargé, ce qui suppose la recherche | à renseigner |
+| 2. Téléchargement OMR par clic | **Oui** : fichier OMR de 31039-1 avec source, auteur, licence et empreinte | à renseigner |
+| 3. Import manuel de la notice PDF | **Oui** : `6127618.pdf` déposée et associée ; qu'il s'agisse du bon livret n'est pas vérifiable par Claude | à renseigner |
+| 4. Fiche de compatibilité | Aucune trace (affichage seulement) | à renseigner |
+| 5. Ajout et reprise après redémarrage | Ajout **oui** ; montage libre ouvert, 0 pièce posée ; **aucun redémarrage du serveur** constaté | à renseigner |
+| 6. Absence de doublons | Aucun doublon dans la collection ; **aucune trace d'un essai** de doublon (pas de nouveau téléchargement ni dépôt) | à renseigner |
+| 7. Import hors ligne | **Aucune trace** (pas de fichier préparé, pas de set 31028) | à renseigner |
+| 8. Non-régression 31040 / 31009 | Données intactes ; ouverture non traçable ; aucune pièce posée sur 31040 | à renseigner |
+| Chrome / Safari | Non traçable (le serveur ne journalise pas les navigateurs) | à renseigner |
+
 ## 0. État avant la recette et sauvegarde (fait par Claude le 06/11/2026, 18:17)
 
 **État vérifié** (lecture seule de `~/Documents/brick-lab-data/library/`) :
@@ -31,7 +56,7 @@ npm run start
 
 Le terminal affiche `http://127.0.0.1:3000`. Ouvre-le dans **Chrome**. (Facultatif : `REBRICKABLE_API_KEY=<ta clé>` dans `.env.local` avant `npm run start` pour voir le nom, l'année et le nombre de pièces annoncé.)
 
-**Set conseillé : 31039 Blue Power Jet** (Creator 3-en-1) : présent sur l'OMR avec son modèle principal et deux alternatifs (Helicopter, Speedboat), **absent** de ta collection et de ton dossier `models/`. Remplaçant : 31038 Changing Seasons. (Les sets 31027, 31028, 31031, 31045… sont déjà dans `models/` : leur fichier serait trouvé localement et le clic OMR ne ferait pas de nouvelle copie.)
+**Set conseillé : 31039 Blue Power Jet** (Creator 3-en-1) : présent sur l'OMR avec son modèle principal et deux alternatifs (Helicopter, Speedboat), **absent** de ta collection et de ton dossier `models/`. *Correction après la recette : le fichier OMR compte 609 pièces et n'a pas d'étapes LDraw (montage libre uniquement), ce n'est pas un petit set.* Remplaçant : 31038 Changing Seasons. (Les sets 31027, 31028, 31031, 31045… sont déjà dans `models/` : leur fichier serait trouvé localement et le clic OMR ne ferait pas de nouvelle copie.)
 
 ## 2. Non-régression 31040 et 31009 (point 8)
 
