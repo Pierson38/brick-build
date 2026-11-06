@@ -1,0 +1,27 @@
+0 FILE p8-trio - main.ldr
+0 Trio de test
+0 Name: p8-trio - main.ldr
+0 Author: Brick Lab Local - test original
+0 !LICENSE CC0-1.0
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 p8-trio - base.ldr
+0 STEP
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 1 80 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 STEP
+0 NOFILE
+0 FILE p8-trio - base.ldr
+0 Name: p8-trio - base.ldr
+0 Author: Brick Lab Local - test original
+0 !LICENSE CC0-1.0
+1 15 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 15 80 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 STEP
+0 NOFILE
+0 FILE p8-trio - tower.ldr
+0 Name: p8-trio - tower.ldr
+0 Author: Brick Lab Local - test original
+0 !LICENSE CC0-1.0
+1 2 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 2 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 2 0 -48 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 NOFILE

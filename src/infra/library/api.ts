@@ -1,3 +1,4 @@
+import type { FileProvenance, ImportInput, ImportResult, LocalLookup, OnlineLookup, PreparedImport } from '@/domain/library/import-types';
 import type { FileKind, LibraryView, SetView, BuildView, DiscoveryResult, LibrarySet } from '@/domain/library/types';
 
 // Browser side of the local library API (same origin, 127.0.0.1). Writes carry the header that the
@@ -31,6 +32,8 @@ const jsonInit = (method: string, body: unknown): RequestInit => ({ method, body
 
 export interface UploadedFile { sha256: string; kind: FileKind; size: number; originalName: string; location: 'blob' | 'external' }
 
+export interface StagedFile { sha256: string; kind: FileKind; size: number; originalName: string; provenance: FileProvenance; inLibrary: boolean }
+
 export const libraryApi = {
   view: () => call<LibraryView>('/api/library'),
   build: (id: string) => call<{ revision: number; set: LibrarySet; build: BuildView }>(`/api/library/builds/${encodeURIComponent(id)}`),
@@ -53,6 +56,17 @@ export const libraryApi = {
     }
     return res.arrayBuffer();
   },
+
+  // P8 simplified import
+  lookup: (number: string) => call<LocalLookup>(`/api/library/lookup?number=${encodeURIComponent(number)}`),
+  lookupOnline: (setNumber: string) => call<OnlineLookup>('/api/library/lookup/online', jsonInit('POST', { setNumber })),
+  stage: (kind: FileKind, file: File) =>
+    call<{ file: StagedFile }>(`/api/library/import/files?kind=${kind}&name=${encodeURIComponent(file.name)}`, {
+      method: 'POST', body: file, headers: { 'content-type': 'application/octet-stream' },
+    }),
+  downloadOmr: (url: string, pageUrl: string | null) => call<{ file: StagedFile }>('/api/library/import/omr', jsonInit('POST', { url, ...(pageUrl ? { pageUrl } : {}) })),
+  prepare: (body: { setNumber?: string; files: unknown[]; extraRoots?: unknown[] }) => call<PreparedImport>('/api/library/import/prepare', jsonInit('POST', body)),
+  importSet: (body: ImportInput) => call<ImportResult>('/api/library/import', jsonInit('POST', body)),
 
   createSet: (body: { setNumber: string; name: string; builds: unknown[]; allowSameNumber?: boolean }) =>
     call<{ set: LibrarySet; builds: { id: string }[] }>('/api/library/sets', jsonInit('POST', body)),

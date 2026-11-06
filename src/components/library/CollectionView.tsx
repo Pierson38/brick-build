@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { filterSets, setStatus, type BuildView, type LibraryView, type SetView, type StatusFilter } from '@/domain/library/types';
 import { libraryApi } from '@/infra/library/api';
 import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
-import { AddSetDialog } from './AddSetDialog';
 import { DiscoveryPanel } from './DiscoveryPanel';
 import { actionLabel, ModeChips, ProgressBar, StatusBadge } from './labels';
 import { ModelPreview, useLibraryModel } from './ModelPreview';
@@ -103,7 +102,6 @@ export default function CollectionView() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StatusFilter>('ALL');
-  const [adding, setAdding] = useState(false);
   const [version, setVersion] = useState(0);
   const [tried, setTried] = useState<ReadonlySet<string>>(new Set());
   const [legacy, setLegacy] = useState<RecentSession[]>([]);
@@ -149,7 +147,7 @@ export default function CollectionView() {
         <span className="muted">Ma collection</span>
         <span className="spacer" />
         <Link href="/atelier" className="small">Atelier sans collection</Link>
-        <button type="button" className="button primary" onClick={() => setAdding(true)} data-testid="add-set">Ajouter un set</button>
+        <Link href="/ajouter" className="button primary" data-testid="add-set">Ajouter un set</Link>
       </header>
       <main className="collection-main">
         <div className="collection-head">
@@ -164,7 +162,7 @@ export default function CollectionView() {
         {error && <p className="banner error" role="alert" data-testid="library-error">{error}</p>}
         {view && view.sets.length === 0 && !error && (
           <div className="empty-state">
-            <p>Ta collection est vide. Ajoute un set (modèle LDraw, notices PDF, correspondances), ou reprends les fichiers déjà rangés dans ton dossier de données.</p>
+            <p>Ta collection est vide. <Link href="/ajouter">Ajoute un set</Link> par son numéro ou en déposant ses fichiers (modèle LDraw, notices PDF, correspondances), ou reprends les fichiers déjà rangés dans ton dossier de données.</p>
           </div>
         )}
         <DiscoveryPanel onAdded={() => void refresh()} />
@@ -187,7 +185,6 @@ export default function CollectionView() {
         )}
         {view && <p className="small muted footer-note">Données : <code>{view.dataDir}</code> · tout reste sur ce Mac · application non affiliée à LEGO.</p>}
       </main>
-      {adding && view && <AddSetDialog view={view} onClose={() => setAdding(false)} onCreated={() => { setAdding(false); void refresh(); }} />}
       {pendingThumb && <ThumbnailMaker key={pendingThumb.id} build={pendingThumb} onDone={thumbDone} />}
     </div>
   );
