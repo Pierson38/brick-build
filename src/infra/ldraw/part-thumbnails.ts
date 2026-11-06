@@ -4,8 +4,8 @@ import { ACESFilmicToneMapping, Box3, DirectionalLight, Group, HemisphereLight, 
  * Thumbnails of the parts to place, drawn from the SAME geometry the 3D view uses (the LDraw
  * template of each part/colour pair, see part-catalog.ts), in an isometric view.
  * One shared off-screen WebGL renderer for the whole page (never one context per thumbnail),
- * one image per template kept in memory, rendered progressively in short time slices so that
- * the construction view stays fluid.
+ * one image per template kept in memory, rendered progressively in short slices of the browser's
+ * idle time so that the construction view, the notice and the restore always come first.
  */
 
 /** Thumbnail size in CSS pixels. */
@@ -18,7 +18,14 @@ const VIEW = new Vector3(1, 0.85, 1.25).normalize();
  */
 const EDGES_MAX_RADIUS = 90;
 /** Rendering budget per slice (ms) before yielding to the page. */
-const SLICE_MS = 10;
+const SLICE_MS = 8;
+/**
+ * Thumbnails are drawn in the browser's idle time: opening a notice, restoring a game or the 3D
+ * view always come first (found by the full E2E suite: drawing them right away delayed the booklet
+ * page of the synchronised mode after a reload). Safari has no requestIdleCallback: spaced slices.
+ */
+const IDLE_TIMEOUT_MS = 300;
+const FALLBACK_DELAY_MS = 40;
 
 export interface Framing {
   readonly center: Vector3;
@@ -69,16 +76,20 @@ export class PartThumbnails {
   private schedule() {
     if (this.scheduled) return;
     this.scheduled = true;
-    setTimeout(() => this.runSlice(), 0);
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback((d) => this.runSlice(d), { timeout: IDLE_TIMEOUT_MS });
+    else setTimeout(() => this.runSlice(null), FALLBACK_DELAY_MS);
   }
 
-  private runSlice() {
+  private runSlice(deadline: IdleDeadline | null) {
     this.scheduled = false;
     const start = performance.now();
-    while (this.queue.length > 0 && performance.now() - start < SLICE_MS) {
-      const job = this.queue.shift()!;
+    const budget = () => (deadline && !deadline.didTimeout ? Math.min(SLICE_MS, deadline.timeRemaining()) : SLICE_MS) - (performance.now() - start);
+    // at least one thumbnail per slice, then as many as the budget allows
+    do {
+      const job = this.queue.shift();
+      if (!job) break;
       job.resolve(this.render(job.template));
-    }
+    } while (this.queue.length > 0 && budget() > 0);
     if (this.queue.length > 0) this.schedule();
   }
 
