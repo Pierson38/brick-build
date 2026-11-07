@@ -2,8 +2,8 @@
 
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
-import { DoubleSide, type Group, Matrix4, type Object3D, Ray as ThreeRay, Vector3 } from 'three';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Group, LineBasicMaterial, LineSegments, Matrix4, type Object3D, Points, PointsMaterial, Ray as ThreeRay, Vector3 } from 'three';
 import { trayKey, type FreePiece } from '@/domain/build/engine';
 import type { PieceGroup, PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
@@ -48,6 +48,18 @@ interface Props {
   readonly groupPreview?: readonly { readonly partKey: string; readonly colorCode: string; readonly pose: Matrix4Tuple }[] | null;
   /** Free mode: click without drag and without a held piece — a placed piece, or nothing (null). */
   readonly onSelect?: (ref: PieceRef | null, modifiers: { readonly shift: boolean }) => void;
+  /**
+   * Free mode, direct manipulation: a press on a placed piece followed by a move beyond DRAG_PX starts
+   * a drag (the camera is suspended meanwhile); the release ends it. A shorter move stays a click.
+   */
+  readonly onDragStart?: (ref: PieceRef, modifiers: { readonly shift: boolean }) => void;
+  readonly onDragEnd?: () => void;
+  /** Free mode: double click on a placed piece (select its connected assembly). */
+  readonly onDoublePick?: (ref: PieceRef) => void;
+  /** Free mode: connectors that the snapping proposal makes fit (markers of the preview). */
+  readonly snapPoints?: readonly (readonly [number, number, number])[] | null;
+  /** Free mode: the three rotation axes drawn through the piece in hand (X red, Y green, Z blue). */
+  readonly axesAt?: readonly [number, number, number];
   /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
   readonly groundY?: number;
   readonly recenterToken: number;
@@ -88,6 +100,24 @@ export function modelGroundY(occurrences: readonly BrickOccurrence[], templates:
   return ground;
 }
 
+/** The three rotation axes (X red, Y green, Z blue), built once; never picked by the pointer. */
+const ROTATION_AXES = (() => {
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute([-45, 0, 0, 45, 0, 0, 0, -45, 0, 0, 45, 0, 0, 0, -45, 0, 0, 45], 3));
+  g.setAttribute('color', new Float32BufferAttribute([0.86, 0.15, 0.15, 0.86, 0.15, 0.15, 0.09, 0.64, 0.29, 0.09, 0.64, 0.29, 0.15, 0.39, 0.92, 0.15, 0.39, 0.92], 3));
+  const lines = new LineSegments(g, new LineBasicMaterial({ vertexColors: true, depthTest: false }));
+  lines.name = 'rotation-axes';
+  lines.renderOrder = 10;
+  lines.raycast = () => undefined;
+  return lines;
+})();
+
+/** Two clicks on the same piece within this delay (ms): a double click. */
+const DOUBLE_MS = 400;
+
+/** Pointer travel (px) separating a click from a drag — the same threshold as the click below. */
+export const DRAG_PX = 4;
+
 export function BuildCanvas(props: Props) {
   const bounds = useMemo(() => modelBounds(props.occurrences), [props.occurrences]);
   return (
@@ -107,8 +137,41 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, groundY: givenGround }: Props) {
   const root = useRef<Group>(null);
+  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+  // press on a placed piece: becomes a drag after DRAG_PX of travel, otherwise stays a click
+  const press = useRef<{ ref: PieceRef; x: number; y: number; started: boolean } | null>(null);
+  // the click that ends a drag is not a click (R3F rounds its own travel, 4.4 px counts as 4)
+  const justDragged = useRef(false);
+  const lastClick = useRef<{ key: string; at: number } | null>(null);
+  const dragHandlers = useRef({ onDragStart, onDragEnd });
+  dragHandlers.current = { onDragStart, onDragEnd };
+  useEffect(() => {
+    const end = () => {
+      const p = press.current;
+      press.current = null;
+      if (controls) controls.enabled = true;
+      if (p?.started) {
+        justDragged.current = true;
+        dragHandlers.current.onDragEnd?.();
+      }
+    };
+    const move = (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || p.started || Math.hypot(e.clientX - p.x, e.clientY - p.y) <= DRAG_PX) return;
+      p.started = true;
+      dragHandlers.current.onDragStart?.(p.ref, { shift: e.shiftKey });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('blur', end);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('blur', end);
+    };
+  }, [controls]);
   const computedGround = useMemo(() => (givenGround === undefined ? modelGroundY(occurrences, templates) : 0), [givenGround, occurrences, templates]);
   const groundY = givenGround ?? computedGround;
   const byId = useMemo(() => new Map(occurrences.map((o) => [o.occurrenceId, o] as const)), [occurrences]);
@@ -146,13 +209,28 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       ref={root}
       rotation={[Math.PI, 0, 0]}
       name="ldraw-root"
+      onPointerDown={(e) => {
+        justDragged.current = false;
+        if (held || !onDragStart || e.button !== 0) return;
+        const brick = e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held' && b.variant !== 'ghost');
+        if (!brick) return; // empty space: the camera
+        // the camera listens on the same element after us: suspended for this press
+        if (controls) controls.enabled = false;
+        press.current = { ref: brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId }, x: e.clientX, y: e.clientY, started: false };
+      }}
       onPointerMove={(e) => {
-        if (!held) return;
+        // free mode also reports the pointer before a piece is in hand: a drag shows its preview at once
+        if (!held && !onDragStart) return;
         e.stopPropagation();
         const { ray, hit } = toHover(e);
         onHover(ray, hit);
       }}
       onClick={(e) => {
+        // R3F calls this once per intersected object: stop here, the flag stays until the next press
+        if (justDragged.current) {
+          e.stopPropagation();
+          return;
+        }
         if (e.delta > 4) return; // an orbit drag
         if (!held) {
           // the mapping editor picks any shown brick (ghosts = unassigned ones); free mode selects placed pieces only
@@ -162,9 +240,20 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
             e.stopPropagation();
             onPick(brick.occurrenceId, { alt: e.altKey });
           } else if (onSelect) {
-            // free mode: select a placed piece (Shift: add / remove), or nothing to clear the selection
+            // free mode: select a placed piece (Shift: add / remove), or nothing to clear the selection;
+            // a second click on the same piece within DOUBLE_MS is a double click (its assembly)
             e.stopPropagation();
-            onSelect(brick ? (brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId }) : null, { shift: e.shiftKey });
+            const ref: PieceRef | null = brick ? (brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId }) : null;
+            const key = ref ? (ref.kind === 'free' ? `f:${ref.id}` : `a:${ref.occurrenceId}`) : null;
+            // the time of the click itself, not of its handling (a slow frame must not split a double click)
+            const now = e.nativeEvent.timeStamp;
+            if (ref && onDoublePick && !e.shiftKey && lastClick.current?.key === key && now - lastClick.current.at < DOUBLE_MS) {
+              lastClick.current = null;
+              onDoublePick(ref);
+            } else {
+              lastClick.current = key ? { key, at: now } : null;
+              onSelect(ref, { shift: e.shiftKey });
+            }
           }
           return;
         }
@@ -193,6 +282,8 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         : held && previewPose && templates.get(trayKey(held.partKey, held.colorCode)) && (
           <PlacedBrick template={templates.get(trayKey(held.partKey, held.colorCode))!} matrix={previewPose} variant="held" id="held" />
         )}
+      {axesAt && <primitive object={ROTATION_AXES} position={[...axesAt]} />}
+      {snapPoints && snapPoints.length > 0 && <SnapMarkers points={snapPoints} />}
       {/* invisible ground: catches the pointer around the model (also used in manual layer mode) */}
       <mesh name="ground-plane" position={[0, groundY, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[20000, 20000]} />
@@ -204,20 +295,45 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
   );
 }
 
+/** Green dots on the connectors the snapping makes fit; drawn over everything, never picked. */
+function SnapMarkers({ points }: { points: readonly (readonly [number, number, number])[] }) {
+  const object = useMemo(() => {
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(points.flatMap((p) => [p[0], p[1] - 0.5, p[2]]), 3));
+    const o = new Points(g, new PointsMaterial({ color: '#16a34a', size: 9, sizeAttenuation: false, depthTest: false }));
+    o.name = 'snap-markers';
+    o.renderOrder = 11;
+    o.raycast = () => undefined;
+    return o;
+  }, [points]);
+  useEffect(() => () => {
+    object.geometry.dispose();
+    (object.material as PointsMaterial).dispose();
+  }, [object]);
+  return <primitive object={object} />;
+}
+
 function PlacedBrick({ template, matrix, variant, id, pieceId }: { template: Group; matrix: Matrix4Tuple; variant: Variant; id: string; pieceId?: string }) {
+  const place = (o: Object3D, m: Matrix4Tuple) => {
+    o.matrix.fromArray([...m]);
+    o.matrixWorldNeedsUpdate = true;
+    // upright piece: its origin is the top of its body (LDraw convention), something can stand on it
+    o.userData.anchor = m[5] > 0.99 ? [m[12], m[13], m[14]] : undefined;
+  };
   const object = useMemo(() => {
     const o = cloneTemplate(template, variant);
     o.matrixAutoUpdate = false;
     o.userData.occurrenceId = id;
     o.userData.variant = variant;
     if (pieceId) o.userData.pieceId = pieceId;
+    // placed at once: a re-created object (selected / not selected) must never be picked at the origin
+    place(o, matrix);
     return o;
-  }, [template, variant, id, pieceId]);
-  useEffect(() => {
-    object.matrix.fromArray([...matrix]);
-    object.matrixWorldNeedsUpdate = true;
-    // upright piece: its origin is the top of its body (LDraw convention), something can stand on it
-    object.userData.anchor = matrix[5] > 0.99 ? [matrix[12], matrix[13], matrix[14]] : undefined;
+  }, [template, variant, id, pieceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // world matrix right after it is attached (before any next pointer event): picking never waits for a frame
+  useLayoutEffect(() => {
+    place(object, matrix);
+    object.updateWorldMatrix(true, true);
   }, [object, matrix]);
   return <primitive object={object} />;
 }

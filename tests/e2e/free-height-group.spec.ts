@@ -68,6 +68,8 @@ const ground = (page: Page) => page.evaluate(() => window.__brickLabGame!.ground
 /** Previewed pose of the held piece (or the group pivot). */
 const shown = async (page: Page) => {
   await frame(page); // the preview follows the height on the next render
+  // slow engines (WebKit on software WebGL): the piece in hand may need a moment after the click
+  await expect.poll(async () => Boolean((await heldState(page))?.previewPose), { timeout: 10_000 }).toBe(true);
   return (await heldState(page))!.previewPose!;
 };
 /** Drop where the preview is: point at the previewed origin (same height), click. */

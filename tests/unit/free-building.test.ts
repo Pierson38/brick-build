@@ -4,9 +4,10 @@ import { activeStepIndex, createSession, heldPose, switchMode, tray, tryPlace, t
 import {
   FREE_TARGET_MAGNET, atModelCount, groupPoses, isRigidPose, isStockExhausted, liftedY, makeGroup, matchToModel, moveGroup, movePiece, occupiedView,
   placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
+  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace,
 } from '@/domain/build/free';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
-import type { HeldState, HoverHit, Ray } from '@/domain/build/surface';
+import { bottomExtent, type HeldState, type HoverHit, type Ray } from '@/domain/build/surface';
 import { analyzeModel } from '@/domain/import/analyze';
 import { compareSaves, saveSignature, summarise } from '@/domain/library/save-compare';
 import { buildStatus } from '@/domain/library/types';
@@ -388,5 +389,72 @@ describe('groups: several pieces moved as one rigid object', () => {
     const back = restoreProgress(saved, HASH, same.occurrences);
     expect(back.ok && back.session).toEqual(r.session);
     expect(removePieces(r.session, r.refs).free).toEqual([]);
+  });
+});
+
+describe('A — rotations on X, Y and Z (free mode)', () => {
+  // the owner's red 32062 axle as placed in 31039: lying, its length (local X) along world Z
+  const LYING: Matrix4Tuple = poseFromLDraw([280, 35.41, -160, 0, 0, -1, 0, 1, 0, 1, 0, 0])!;
+  const lengthAxis = (m: Matrix4Tuple) => [m[0], m[1], m[2]];
+
+  it('a quarter turn around X puts the lying axle upright; the rotation is exact and stored exactly', () => {
+    const up = rotateOrientation(LYING, 'x', 1);
+    expect(lengthAxis(up)).toEqual([0, -1, 0]); // vertical (LDraw -Y is up)
+    const pose = withTranslation(up, [280, 20, -160]);
+    expect(isRigidPose(pose)).toBe(true);
+    expect(poseFromLDraw(poseToLDraw(pose))).toEqual(pose);
+    expect(lengthAxis(rotateOrientation(LYING, 'x', -1))).toEqual([0, 1, 0]);
+  });
+
+  it('X, Y and Z each turn a quarter; four turns come back; no drift after 1 000 random turns', () => {
+    for (const axis of ['x', 'y', 'z'] as const) {
+      let m: Matrix4Tuple = IDENTITY;
+      for (let i = 0; i < 4; i++) m = rotateOrientation(m, axis, 1);
+      expect(m).toEqual(IDENTITY);
+      expect(rotateOrientation(rotateOrientation(IDENTITY, axis, 1), axis, -1)).toEqual(IDENTITY);
+    }
+    let m: Matrix4Tuple = IDENTITY;
+    let seed = 7;
+    for (let i = 0; i < 1000; i++) {
+      seed = (seed * 48271) % 2147483647;
+      m = rotateOrientation(m, (['x', 'y', 'z'] as const)[seed % 3]!, seed % 2 ? 1 : -1);
+    }
+    expect([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]].every((v) => v === 0 || v === 1 || v === -1)).toBe(true);
+    expect(isRigidPose(m)).toBe(true);
+  });
+
+  it('the orientation in words: where the top and the front of the piece point', () => {
+    expect(orientationLabel(IDENTITY)).toEqual({ top: 'haut', front: '−Z' });
+    expect(orientationLabel(rotateOrientation(IDENTITY, 'x', 1))).toEqual({ top: '−Z', front: 'bas' }); // right-hand rule
+    expect(orientationLabel(rotateOrientation(IDENTITY, 'z', 1)).top).toBe('+X');
+    expect(orientationLabel(rotateOrientation(IDENTITY, 'x', 2)).top).toBe('bas');
+  });
+
+  it('a group turned around X keeps every distance and relative orientation, and rests by its new lowest point', () => {
+    let s = placed(same, free(), '4', at(200, 0, 0));
+    s = placed(same, s, '4', at(200, -24, 0));
+    s = placed(same, s, '4', at(260, 0, 0, 1));
+    const members = s.free!.map((f) => ({ ref: { kind: 'free' as const, id: f.id }, partKey: f.partKey, colorCode: f.colorCode, pose: f.pose, bottom: 24 }));
+    const g = makeGroup(members);
+    // a 2 × 4 brick: its lowest point under its origin for a rotation (vertices of its box)
+    const box = [-40, -4, -20, 40, -4, -20, -40, 24, 20, 40, 24, 20, -40, 24, -20, 40, -4, 20];
+    const bottomFn = (_m: unknown, r: Matrix4Tuple) => bottomExtent(box, r);
+    const turn = quarterTurn('x', 1);
+    const poses = rotatedInPlace(g, turn, bottomFn);
+    const before = s.free!.map((f) => f.pose);
+    for (let i = 0; i < 3; i++) {
+      for (let j = i + 1; j < 3; j++) {
+        expect(Math.hypot(poses[i]![12] - poses[j]![12], poses[i]![13] - poses[j]![13], poses[i]![14] - poses[j]![14]))
+          .toBeCloseTo(Math.hypot(before[i]![12] - before[j]![12], before[i]![13] - before[j]![13], before[i]![14] - before[j]![14]), 9);
+        expect(rotationAngleDeg(poses[i]!, poses[j]!)).toBeCloseTo(rotationAngleDeg(before[i]!, before[j]!), 6);
+      }
+    }
+    // lowest point kept (in place)
+    const low = (ps: Matrix4Tuple[]) => Math.max(...ps.map((p) => p[13] + bottomExtent(box, p)));
+    expect(low(poses)).toBeCloseTo(low(before), 6);
+    expect(groupBottom(g, IDENTITY, bottomFn)).toBeCloseTo(0, 9);
+    // atomic, stock unchanged
+    const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    expect(r.ok && usedCount(r.session)).toBe(3);
   });
 });

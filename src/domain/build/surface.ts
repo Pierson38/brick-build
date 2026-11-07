@@ -52,7 +52,7 @@ export interface HoverResolution {
   /** Pose shown for the held brick: the target itself when the drop would be accepted. */
   readonly previewPose: Matrix4Tuple;
   readonly layerY: number;
-  readonly source: 'ghost' | 'surface' | 'ground' | 'ray' | 'manual' | 'none' | 'free';
+  readonly source: 'ghost' | 'surface' | 'ground' | 'ray' | 'manual' | 'none' | 'free' | 'snap';
   /** Occurrence that a click would place right now, if any. */
   readonly targetId: string | null;
 }
