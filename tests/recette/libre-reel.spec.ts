@@ -307,6 +307,64 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
       await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
     }
 
+    // 10) A–D of the owner's second recette, on real parts: a stud piece on the ground, a receptor
+    //     piece snapped onto it (magnet), their assembly selected and dragged as one, turned on X in place
+    const conn = (k: string) => page.evaluate((x) => window.__brickLabGame!.connectors(x), k) as Promise<{ kind: string; pos: number[] }[] | null>;
+    const trayKeys = await page.locator('.tray-item').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!));
+    let studKey = '', recKey = '';
+    for (const id of trayKeys) {
+      const partKey = /^tray-(.+)-[^-]+$/.exec(id)![1]!;
+      const c = (await conn(partKey)) ?? [];
+      const up = c.filter((x) => x.kind === 'stud').length, under = c.filter((x) => x.kind === 'antistud').length;
+      if (!studKey && up >= 2 && under >= 2) studKey = id;
+      else if (studKey && !recKey && under >= 2 && id !== studKey) recKey = id;
+      if (studKey && recKey) break;
+    }
+    expect(studKey && recKey).toBeTruthy();
+    const base = spots[11]!;
+    await page.getByTestId(studKey).click();
+    await clickAt(page, base);
+    await page.keyboard.press('Escape');
+    const baseP = (await game<Free[]>(page, 'freePieces')).at(-1)!;
+    await page.getByTestId(recKey).click();
+    // over the top of the base piece, a little off: the magnet aligns the receptors on its studs
+    const over = await onCanvas(page, [baseP.pose[12]! + 4, baseP.pose[13]!, baseP.pose[14]! + 3]);
+    await page.mouse.move(over!.x, over!.y, { steps: 4 });
+    await frame(page);
+    const snap = await page.evaluate(() => window.__brickLabGame!.snap()) as { pairs: number; targets: string[] } | null;
+    expect(snap?.pairs ?? 0).toBeGreaterThanOrEqual(2);
+    expect(snap!.targets).toEqual([`f:${baseP.id}`]);
+    await page.screenshot({ path: path.join(PROOFS, `libre-${s.number}-aimant-reel.png`) });
+    const dropP = (await page.evaluate(() => window.__brickLabGame!.held()))!.previewPose!;
+    const dq = await onCanvas(page, [dropP[12]!, dropP[13]!, dropP[14]!]);
+    await page.mouse.click(dq!.x, dq!.y);
+    await page.keyboard.press('Escape');
+    const topP = (await game<Free[]>(page, 'freePieces')).at(-1)!;
+    const graph = await page.evaluate(() => window.__brickLabGame!.graph()) as Record<string, string[]>;
+    expect(graph[`f:${topP.id}`]).toContain(`f:${baseP.id}`);
+    // its assembly, dragged by the top piece to another free spot, as one object
+    const tp = await onCanvas(page, [topP.pose[12]!, topP.pose[13]!, topP.pose[14]!]);
+    await page.mouse.click(tp!.x, tp!.y);
+    await page.getByTestId('select-assembly').click();
+    await expect(page.getByTestId('selection-info')).toHaveText('2 pièce(s) sélectionnée(s)');
+    const dest = (await groundSpots(page, 16)).find((sp) => Math.hypot(sp[0] - baseP.pose[12]!, sp[2] - baseP.pose[14]!) > 80)!;
+    const tq2 = await onCanvas(page, [topP.pose[12]!, topP.pose[13]!, topP.pose[14]!]);
+    await page.mouse.move(tq2!.x, tq2!.y);
+    await page.mouse.down();
+    const dd = await onCanvas(page, dest);
+    await page.mouse.move(dd!.x, dd!.y, { steps: 12 });
+    await frame(page);
+    await page.mouse.up();
+    await expect(page.getByTestId('message')).toContainText('Groupe de 2 pièces déplacé');
+    const moved2 = (await game<Free[]>(page, 'freePieces')).filter((f) => f.id === baseP.id || f.id === topP.id);
+    const rel = (a: Free, b: Free) => [12, 13, 14].map((k) => Math.round((a.pose[k]! - b.pose[k]!) * 100) / 100);
+    expect(rel(moved2[1]!, moved2[0]!)).toEqual(rel(topP, baseP));
+    // turned on X in place (the selection stays on the moved assembly), kept for the restart check
+    await page.getByTestId('rot-x-plus').click();
+    await expect(page.getByTestId('message')).toContainText('2 pièces tournées sur place (X +90°)');
+    await page.getByTestId('clear-selection').click();
+    entry.d3 = { studPiece: studKey.replace('tray-', ''), receptorPiece: recKey.replace('tray-', ''), snapPairs: snap!.pairs, connected: true, assemblyMoved: true, turnedX: true };
+
     // saved in the (isolated) library with the real poses
     const hook = await game<Free[]>(page, 'freePieces');
     await expect.poll(async () => ((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { progress: { freePieces?: unknown[] } }).progress.freePieces?.length ?? 0).toBe(hook.length);
@@ -368,4 +426,79 @@ test('part 2: after a server restart, the same assembly is restored; guided mode
     }
     save();
   }
+});
+
+test('part 3: 31039 with its 609 pieces placed — opening, connection graph, assembly, dragging with the magnet', async ({ page, request }) => {
+  const s = SETS.find((x) => x.number === '31039-1')!;
+  const entry = log[s.number]!;
+  const buildId = entry.buildId as string;
+  await page.goto(`/atelier/${buildId}`);
+  await waitAtelier(page);
+  // the build of parts 1–2 goes to the history (Abandonner), then every occurrence of the model is
+  // placed freely at its model pose (a finished 31039), written through the library API. Mirrored
+  // parts of the OMR file (non-rigid poses) cannot be free pieces: they are left out and counted.
+  await page.getByRole('button', { name: 'Abandonner' }).click();
+  await page.getByTestId('confirm-restart').getByRole('button', { name: 'Confirmer l’abandon' }).click();
+  await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
+  const all = await game<Cand[]>(page, 'candidates');
+  const rigid = (m: number[]) => {
+    const det = m[0]! * (m[5]! * m[10]! - m[9]! * m[6]!) - m[4]! * (m[1]! * m[10]! - m[9]! * m[2]!) + m[8]! * (m[1]! * m[6]! - m[5]! * m[2]!);
+    return Math.abs(det - 1) < 1e-3;
+  };
+  const usable = all.filter((c) => rigid(c.matrix));
+  const lib = (await (await request.get(`/api/library/builds/${buildId}`)).json()) as { build: { model: { sha256: string } } };
+  const progress = {
+    schemaVersion: 3, modelContentHash: lib.build.model.sha256, displayName: '31039-1.mpd', buildMode: 'freeManual', placedOccurrenceIds: [], totalOccurrences: all.length,
+    freePieces: usable.map((c, i) => ({ id: `f${i + 1}`, partKey: c.partKey, colorCode: c.colorCode, pose: [c.matrix[12], c.matrix[13], c.matrix[14], c.matrix[0], c.matrix[4], c.matrix[8], c.matrix[1], c.matrix[5], c.matrix[9], c.matrix[2], c.matrix[6], c.matrix[10]].map((v) => Math.round((v ?? 0) * 1e6) / 1e6) })),
+    updatedAtIso: new Date().toISOString(),
+  };
+  await expect.poll(async () => ((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number | null }).revision !== undefined).toBe(true);
+  const rec = (await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number | null };
+  const put = await request.put(`/api/library/builds/${buildId}/progress`, { data: { baseRevision: rec.revision, progress }, headers: { origin: 'http://127.0.0.1:3210', 'x-brick-lab': '1' } });
+  expect(put.ok(), await put.text()).toBe(true);
+  const placedCount = usable.length;
+  const t0 = Date.now();
+  await page.reload();
+  await waitAtelier(page);
+  await expect(page.getByTestId('progress')).toHaveText(`${placedCount}/609 pièces posées`, { timeout: 60_000 });
+  const perf: Record<string, unknown> = { openMs: Date.now() - t0, placed: placedCount, mirroredLeftOut: all.length - placedCount };
+  await page.waitForFunction(() => Object.keys(window.__brickLabGame!.graph()).length > 0, null, { timeout: 60_000 });
+  perf.graph = await page.evaluate(() => { const t = performance.now(); const g = window.__brickLabGame!.graph(); return { ms: Math.round(performance.now() - t), connectedPieces: Object.keys(g).length, links: Object.values(g).reduce((n, v) => n + v.length, 0) / 2 }; });
+  perf.framesIdle = await frames(page, 1500);
+  // the assembly of one piece of the jet
+  const one = (await game<Free[]>(page, 'freePieces'))[0]!;
+  const q = await onCanvas(page, [one.pose[12]!, one.pose[13]!, one.pose[14]!]);
+  if (q) {
+    await page.mouse.click(q.x, q.y);
+    const t1 = Date.now();
+    await page.getByTestId('select-assembly').click();
+    await expect(page.getByTestId('selection-info')).not.toHaveText('1 pièce(s) sélectionnée(s)', { timeout: 30_000 });
+    perf.assembly = { ms: Date.now() - t1, pieces: (await page.evaluate(() => window.__brickLabGame!.selection())).length };
+    await page.getByTestId('clear-selection').click();
+  }
+  // a piece dragged over the jet for 1.5 s: the magnet is computed on every move
+  await page.getByRole('button', { name: 'Centrer' }).click();
+  if (q) {
+    const q2 = await onCanvas(page, [one.pose[12]!, one.pose[13]!, one.pose[14]!]);
+    await page.mouse.move(q2!.x, q2!.y);
+    await page.mouse.down();
+    const during = frames(page, 1500);
+    for (let i = 0; i < 30; i++) await page.mouse.move(q2!.x + Math.sin(i / 3) * 120, q2!.y + Math.cos(i / 4) * 60, { steps: 2 });
+    perf.framesWhileDraggingWithMagnet = await during;
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+  }
+  perf.framesOrbit = await (async () => {
+    const box = (await page.getByTestId('build-canvas').boundingBox())!;
+    const during = frames(page, 1500);
+    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.8);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.7, { steps: 40 });
+    await page.mouse.up();
+    return during;
+  })();
+  await page.screenshot({ path: path.join(PROOFS, 'libre-31039-1-609-pieces.png') });
+  entry.perf609 = perf;
+  save();
+  console.log('PERF', JSON.stringify(perf));
 });

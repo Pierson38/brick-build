@@ -111,14 +111,15 @@ test('identical bricks and exact quantities; the end message does not call it th
   await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
   await expect(page.getByTestId('tray-3001.dat-4')).toContainText('×3');
   await page.getByTestId('tray-3001.dat-4').click();
-  for (const [n, at] of [[1, [-120, 24, 80]], [2, [-60, 24, 80]], [3, [-60, 0, 80]]] as const) {
+  // apart (2 × 4 bricks are 80 long): no stud of one under the other; the third on the second
+  for (const [n, at] of [[1, [-160, 24, 80]], [2, [-40, 24, 80]], [3, [-40, 0, 80]]] as const) {
     await clickAt(page, [...at]);
     await expect(page.getByTestId('progress')).toHaveText(`${n}/3 pièces posées`);
   }
   await expect(page.getByTestId('tray-3001.dat-4')).toHaveCount(0);
   await expect(page.getByTestId('free-done')).toContainText('Toutes les pièces du set sont posées (3/3). Montage libre : ta construction n’est pas comparée au modèle officiel — 0 pièce(s) à leur place dans le modèle.');
   const before = await freePieces(page);
-  expect(before.map(position)).toEqual([[-120, 0, 80], [-60, 0, 80], [-60, -24, 80]]); // the third one stacked on the second
+  expect(before.map(position)).toEqual([[-160, 0, 80], [-40, 0, 80], [-40, -24, 80]]); // the third one stacked on the second
   expect(new Set(before.map((f) => f.id)).size).toBe(3);
 
   // reload: same pieces, same poses (this browser's save)

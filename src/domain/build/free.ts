@@ -357,9 +357,13 @@ export function makeGroup(members: readonly { ref: PieceRef; partKey: string; co
 }
 
 /** Poses of the members for the pivot at `at`, turned `quarterTurns` × 90° around the vertical axis. */
-export function groupPoses(group: PieceGroup, quarterTurns: number, at: readonly [number, number, number]): Matrix4Tuple[] {
-  const frame = withTranslation(rotationY(quarterTurns), at);
-  return group.members.map((m) => multiply(frame, m.rel));
+/**
+ * Poses of the members for the pivot at `at`, the group frame turned by `rotation` (a rotation
+ * matrix, or a number of quarter turns around the vertical axis).
+ */
+export function groupPoses(group: PieceGroup, rotation: Matrix4Tuple | number, at: readonly [number, number, number]): Matrix4Tuple[] {
+  const frame = withTranslation(typeof rotation === 'number' ? rotationY(rotation) : rotation, at);
+  return group.members.map((m) => cleanPose(multiply(frame, m.rel)));
 }
 
 /** The pivot pose of a group that has not moved (identity rotation at its pivot). */
@@ -398,3 +402,65 @@ export function removePieces(session: BuildSession, refs: readonly PieceRef[]): 
 
 export const sameRef = (a: PieceRef, b: PieceRef): boolean =>
   a.kind === b.kind && (a.kind === 'free' ? a.id === (b as { id: string }).id : a.occurrenceId === (b as { occurrenceId: string }).occurrenceId);
+
+// ---------------------------------------------------------------------------------------------
+// Rotations on the three axes (free mode): exact quarter turns, composed by matrix products
+// ---------------------------------------------------------------------------------------------
+
+export type Axis = 'x' | 'y' | 'z';
+
+/** Exact −1 / 0 / 1 when within 1e-9: quarter-turn compositions never drift. */
+const exact = (v: number) => (Math.abs(v) < 1e-9 ? 0 : Math.abs(v - 1) < 1e-9 ? 1 : Math.abs(v + 1) < 1e-9 ? -1 : v);
+
+/** A pose whose rotation coefficients are cleaned (translation untouched). */
+export function cleanPose(m: Matrix4Tuple): Matrix4Tuple {
+  const out = [...m];
+  for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) out[i] = exact(out[i]!);
+  return out as unknown as Matrix4Tuple;
+}
+
+/** `steps` × 90° around the LDraw axis (Y is vertical, pointing down). Same sense as rotationY. */
+export function quarterTurn(axis: Axis, steps: number): Matrix4Tuple {
+  const q = ((steps % 4) + 4) % 4;
+  const c = [1, 0, -1, 0][q]!, s = [0, 1, 0, -1][q]!;
+  if (axis === 'y') return rotationY(q);
+  if (axis === 'x') return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1];
+  return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+}
+
+/** Orientation turned around a world axis through the piece origin (no translation). */
+export function rotateOrientation(orientation: Matrix4Tuple, axis: Axis, steps: number): Matrix4Tuple {
+  return cleanPose(withTranslation(multiply(quarterTurn(axis, steps), orientation), [0, 0, 0]));
+}
+
+const DIRECTIONS: [string, readonly [number, number, number]][] = [['haut', [0, -1, 0]], ['bas', [0, 1, 0]], ['+X', [1, 0, 0]], ['−X', [-1, 0, 0]], ['+Z', [0, 0, 1]], ['−Z', [0, 0, -1]]];
+const nameOf = (v: readonly number[]) => DIRECTIONS.find(([, d]) => d[0] * v[0]! + d[1] * v[1]! + d[2] * v[2]! > 0.9)?.[0] ?? 'incliné';
+
+/** Where the top (local −Y) and the front (local −Z) of a piece point, in words. */
+export function orientationLabel(orientation: Matrix4Tuple): { top: string; front: string } {
+  const top = [-orientation[4], -orientation[5], -orientation[6]];
+  const front = [-orientation[8], -orientation[9], -orientation[10]];
+  return { top: nameOf(top), front: nameOf(front) };
+}
+
+/**
+ * Lowest point under the pivot of a group turned by `rotation` (LDU, LDraw y): the pivot then rests
+ * on a surface like a single piece. `bottomOf(member, rotation)` = lowest point under a member origin.
+ */
+export function groupBottom(group: PieceGroup, rotation: Matrix4Tuple, bottomOf: (m: GroupMember, rotation: Matrix4Tuple) => number): number {
+  let low = -Infinity;
+  for (const m of group.members) {
+    const pose = multiply(withTranslation(rotation, [0, 0, 0]), m.rel);
+    low = Math.max(low, pose[13] + bottomOf(m, withTranslation(pose, [0, 0, 0])));
+  }
+  return Number.isFinite(low) ? low : 0;
+}
+
+/**
+ * Selection turned in place: around the vertical line through the centre of the pieces, the lowest
+ * point kept at the same height. Returns the new poses (same order), for one atomic moveGroup.
+ */
+export function rotatedInPlace(group: PieceGroup, rotation: Matrix4Tuple, bottomOf: (m: GroupMember, rotation: Matrix4Tuple) => number): Matrix4Tuple[] {
+  const b = groupBottom(group, rotation, bottomOf);
+  return groupPoses(group, rotation, [group.pivot[0], round(group.pivot[1] - b, 0.01), group.pivot[2]]);
+}

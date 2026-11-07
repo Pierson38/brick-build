@@ -33,6 +33,12 @@ button:disabled { opacity: 0.45; cursor: default; }
 .manip-bar { position: absolute; left: 12px; top: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.94); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .manip-bar button { padding: 4px 10px; }
 .manip-bar .segmented { display: inline-flex; }
+.manip-bar .status { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 18px; }
+.manip-bar .rotations { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.manip-bar .axis { display: inline-flex; gap: 2px; align-items: center; }
+.manip-bar .axis b { width: 14px; text-align: center; }
+.manip-bar .axis-x b { color: #dc2626; } .manip-bar .axis-y b { color: #16a34a; } .manip-bar .axis-z b { color: #2563eb; }
+.manip-bar .axis button { padding: 4px 6px; }
 .manip-bar .segmented button { border-radius: 0; }
 .manip-bar .segmented button:first-child { border-radius: 6px 0 0 6px; }
 .manip-bar .segmented button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
