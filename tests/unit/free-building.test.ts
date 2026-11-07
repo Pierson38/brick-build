@@ -4,14 +4,14 @@ import { activeStepIndex, createSession, heldPose, switchMode, tray, tryPlace, t
 import {
   FREE_TARGET_MAGNET, atModelCount, groupPoses, isRigidPose, isStockExhausted, liftedY, makeGroup, matchToModel, moveGroup, movePiece, occupiedView,
   placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
-  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace,
+  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace, snapAlong, applyDelta, shownCoords, deltaTo,
 } from '@/domain/build/free';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import { bottomExtent, type HeldState, type HoverHit, type Ray } from '@/domain/build/surface';
 import { analyzeModel } from '@/domain/import/analyze';
 import { compareSaves, saveSignature, summarise } from '@/domain/library/save-compare';
 import { buildStatus } from '@/domain/library/types';
-import { IDENTITY, rotationAngleDeg, rotationY, withTranslation } from '@/domain/ldraw/matrix';
+import { IDENTITY, multiply, rotationAngleDeg, rotationY, withTranslation } from '@/domain/ldraw/matrix';
 import type { Matrix4Tuple } from '@/domain/ldraw/types';
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/${name}`, import.meta.url), 'utf8');
@@ -456,5 +456,40 @@ describe('A — rotations on X, Y and Z (free mode)', () => {
     // atomic, stock unchanged
     const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
     expect(r.ok && usedCount(r.session)).toBe(3);
+  });
+});
+
+describe('transform gizmo: constrained moves, relative steps, shown coordinates', () => {
+  it('a move along X is cut into steps FROM THE START; the other coordinates never change', () => {
+    expect(snapAlong([70, 17.41, -70], [113.6, 17.41, -70], [[1, 0, 0]], () => 10)).toEqual([110, 17.41, -70]);
+    // Y (LDraw -Y up) by one plate from 17.41: 9.41, never an absolute rounding
+    expect(snapAlong([70, 17.41, -70], [70, 8.2, -70], [[0, -1, 0]], (a) => (Math.abs(a[1]) > 0.9 ? 8 : 10))).toEqual([70, 9.41, -70]);
+    // a drift off the dragged axis (rounding of the gizmo) is not taken
+    expect(snapAlong([70, 17.41, -70], [113.6, 17.6, -69.7], [[1, 0, 0]], () => 10)).toEqual([110, 17.41, -70]);
+    // free (⌥): the exact projection
+    expect(snapAlong([0, 0, 0], [13.73, 0, 0], [[1, 0, 0]], () => null)).toEqual([13.73, 0, 0]);
+    // along a local axis (a piece turned 90° around Y): its X is the world -Z
+    expect(snapAlong([0, 0, 0], [0, 0, -18], [[0, 0, -1]], () => 10)).toEqual([0, 0, -20]);
+  });
+
+  it('a group transform keeps every relative pose exactly; rotations are cleaned', () => {
+    const poses = [at(70, 17.41, -70), at(70, 25.41, -60, 2), at(70, 33.41, -10, 1)];
+    const turn = withTranslation(quarterTurn('y', 1), [0, 0, 0]);
+    // pivot at (70, 33.41, -10): delta = T(p) · R · T(-p)
+    const delta = multiply(withTranslation(IDENTITY, [70, 33.41, -10]), multiply(turn, withTranslation(IDENTITY, [-70, -33.41, 10])));
+    const out = applyDelta(delta, poses);
+    expect(out.every((m) => isRigidPose(m) && [0, 1, 2, 4, 5, 6, 8, 9, 10].every((i) => Number.isInteger(m[i])))).toBe(true);
+    const d = (a: Matrix4Tuple, b: Matrix4Tuple) => Math.hypot(a[12] - b[12], a[13] - b[13], a[14] - b[14]);
+    expect(d(out[0]!, out[1]!)).toBeCloseTo(d(poses[0]!, poses[1]!), 9);
+    expect(rotationAngleDeg(out[0]!, out[2]!)).toBeCloseTo(rotationAngleDeg(poses[0]!, poses[2]!), 6);
+    expect(out[2]!.slice(12, 15)).toEqual([70, 33.41, -10]); // the pivot itself does not move
+  });
+
+  it('shown coordinates match the arrows (Y = height above the ground, Z = -LDraw z); typed ones go back exactly', () => {
+    const pivot = at(70, 17.41, -70);
+    expect(shownCoords(pivot, 41.41)).toEqual([70, 24, 70]);
+    const delta = deltaTo(pivot, [100, 32, -40], 41.41);
+    expect(applyDelta(delta, [pivot])[0]!.slice(12, 15)).toEqual([100, 9.41, 40]);
+    expect(shownCoords(applyDelta(delta, [pivot])[0]!, 41.41)).toEqual([100, 32, -40]);
   });
 });

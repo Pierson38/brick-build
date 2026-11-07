@@ -464,3 +464,48 @@ export function rotatedInPlace(group: PieceGroup, rotation: Matrix4Tuple, bottom
   const b = groupBottom(group, rotation, bottomOf);
   return groupPoses(group, rotation, [group.pivot[0], round(group.pivot[1] - b, 0.01), group.pivot[2]]);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Transform gizmo (free mode): constrained moves, relative grid steps, coordinates shown to the player
+// ---------------------------------------------------------------------------------------------
+
+type V3 = readonly [number, number, number];
+const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/**
+ * Position during a drag along `axes` (unit vectors, LDraw): the move FROM THE START of the drag is
+ * cut into whole steps along each dragged axis (null step = free); nothing else changes. Relative,
+ * not absolute: a piece at y = 17.41 moved by one plate goes to 9.41, never to a rounded value.
+ */
+export function snapAlong(start: V3, current: V3, axes: readonly V3[], stepOf: (axis: V3) => number | null): [number, number, number] {
+  const d: V3 = [current[0] - start[0], current[1] - start[1], current[2] - start[2]];
+  const out: [number, number, number] = [start[0], start[1], start[2]];
+  for (const a of axes) {
+    const along = dot3(d, a);
+    const step = stepOf(a);
+    const s = step ? Math.round(along / step) * step : along;
+    for (let k = 0; k < 3; k++) out[k] = out[k]! + s * a[k]!;
+  }
+  return [round(out[0], 0.01), round(out[1], 0.01), round(out[2], 0.01)];
+}
+
+/** Poses after the gizmo transform `delta` (pivot now × pivot at start⁻¹), rotations cleaned. */
+export function applyDelta(delta: Matrix4Tuple, poses: readonly Matrix4Tuple[]): Matrix4Tuple[] {
+  return poses.map((p) => {
+    const m = cleanPose(multiply(delta, p));
+    return withTranslation(m, [round(m[12], 0.01), round(m[13], 0.01), round(m[14], 0.01)]);
+  });
+}
+
+/**
+ * Coordinates shown to the player, matching the gizmo arrows: X as in LDraw, Y = height above the
+ * ground of the model (LDraw -Y is up), Z = -LDraw z (the blue arrow points to -LDraw z).
+ */
+export const shownCoords = (pivot: Matrix4Tuple, groundY: number): [number, number, number] =>
+  [round(pivot[12], 0.01), round(groundY - pivot[13], 0.01), round(-pivot[14] + 0, 0.01)];
+
+/** Translation (LDraw) that brings the pivot to typed coordinates (same convention as shownCoords). */
+export function deltaTo(pivot: Matrix4Tuple, typed: V3, groundY: number): Matrix4Tuple {
+  const target: V3 = [typed[0], groundY - typed[1], -typed[2]];
+  return withTranslation(IDENTITY, [target[0] - pivot[12], target[1] - pivot[13], target[2] - pivot[14]]);
+}
