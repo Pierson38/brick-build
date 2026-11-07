@@ -1,11 +1,11 @@
 'use client';
 
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, TransformControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Group, LineBasicMaterial, LineSegments, Matrix4, type Object3D, Points, PointsMaterial, Ray as ThreeRay, Vector3 } from 'three';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Matrix4, Object3D, Points, PointsMaterial, Ray as ThreeRay, Vector3 } from 'three';
 import { trayKey, type FreePiece } from '@/domain/build/engine';
-import type { PieceGroup, PieceRef } from '@/domain/build/free';
+import { snapAlong, type PieceGroup, type PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
@@ -56,6 +56,15 @@ interface Props {
   readonly onDragEnd?: () => void;
   /** Free mode: double click on a placed piece (select its connected assembly). */
   readonly onDoublePick?: (ref: PieceRef) => void;
+  /**
+   * Free mode: the transform gizmo on the selection (arrows to move along X / Y / Z, rings to turn),
+   * on a proxy at the pivot; the pieces follow it during a drag; the release commits the transform.
+   */
+  readonly gizmo?: GizmoSpec | null;
+  /** The pivot during a gizmo drag (LDraw matrix), for the coordinates shown. */
+  readonly onGizmoLive?: (pivot: Matrix4Tuple) => void;
+  /** End of a gizmo drag: delta = pivot now × pivot at the start⁻¹ (LDraw), to apply to every piece. */
+  readonly onGizmoCommit?: (delta: Matrix4Tuple) => void;
   /** Free mode: connectors that the snapping proposal makes fit (markers of the preview). */
   readonly snapPoints?: readonly (readonly [number, number, number])[] | null;
   /** Free mode: the three rotation axes drawn through the piece in hand (X red, Y green, Z blue). */
@@ -112,6 +121,20 @@ const ROTATION_AXES = (() => {
   return lines;
 })();
 
+export interface GizmoSpec {
+  /** Selected pieces (key `f:` / `a:`) at their current pose. */
+  readonly members: readonly { readonly key: string; readonly partKey: string; readonly colorCode: string; readonly pose: Matrix4Tuple }[];
+  /** Pivot of the gizmo (LDraw): the piece origin and rotation, or the group pivot. */
+  readonly pivot: Matrix4Tuple;
+  readonly mode: 'translate' | 'rotate';
+  readonly space: 'world' | 'local';
+  /** Steps of a move FROM THE START of the drag (LDU): horizontal, vertical; null = free. */
+  readonly stepXZ: number | null;
+  readonly stepY: number | null;
+  /** Rotation step (radians); null = free. */
+  readonly rotationStep: number | null;
+}
+
 /** Two clicks on the same piece within this delay (ms): a double click. */
 const DOUBLE_MS = 400;
 
@@ -137,13 +160,26 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround }: Props) {
+  // pieces carried by the gizmo during its drag: drawn in the gizmo's moving group, hidden here
+  const [gizmoHidden, setGizmoHidden] = useState<ReadonlySet<string>>(new Set());
+  // the gizmo moves a proxy at the pivot INSIDE the LDraw root (LDraw coordinates); the pieces follow
+  // in one group; the gizmo itself is rendered beside the root (world space), not through a portal
+  const gizmoProxy = useMemo(() => new Object3D(), []);
+  const gizmoCarried = useMemo(() => {
+    const g = new Group();
+    g.matrixAutoUpdate = false;
+    g.name = 'gizmo-carried';
+    return g;
+  }, []);
   const root = useRef<Group>(null);
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
   // press on a placed piece: becomes a drag after DRAG_PX of travel, otherwise stays a click
   const press = useRef<{ ref: PieceRef; x: number; y: number; started: boolean } | null>(null);
   // the click that ends a drag is not a click (R3F rounds its own travel, 4.4 px counts as 4)
   const justDragged = useRef(false);
+  // the pointer is on a gizmo handle (set by the gizmo on hover): a press there belongs to it
+  const gizmoHover = useRef(false);
   const lastClick = useRef<{ key: string; at: number } | null>(null);
   const dragHandlers = useRef({ onDragStart, onDragEnd });
   dragHandlers.current = { onDragStart, onDragEnd };
@@ -204,14 +240,15 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
   };
 
   return (
-    // LDraw is -Y up: flip the whole model once; every matrix below stays in LDraw coordinates.
+    <>
+    {/* LDraw is -Y up: flip the whole model once; every matrix below stays in LDraw coordinates. */}
     <group
       ref={root}
       rotation={[Math.PI, 0, 0]}
       name="ldraw-root"
       onPointerDown={(e) => {
         justDragged.current = false;
-        if (held || !onDragStart || e.button !== 0) return;
+        if (held || !onDragStart || e.button !== 0 || gizmoHover.current) return; // a gizmo handle: the gizmo
         const brick = e.intersections.map((i) => brickOf(i.object)).find((b) => b && b.variant !== 'held' && b.variant !== 'ghost');
         if (!brick) return; // empty space: the camera
         // the camera listens on the same element after us: suspended for this press
@@ -264,13 +301,13 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       {occurrences.map((o) => {
         const variant = highlightIds?.has(o.occurrenceId) ? 'selected' : solidIds.has(o.occurrenceId) ? 'solid' : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
         const template = templates.get(trayKey(o.partKey, o.colorCode));
-        if (!variant || !template) return null;
+        if (!variant || !template || gizmoHidden.has(`a:${o.occurrenceId}`)) return null;
         return <PlacedBrick key={`${o.occurrenceId}:${variant}`} template={template} matrix={o.targetMatrix} variant={variant} id={o.occurrenceId} />;
       })}
       {freePieces?.map((f) => {
         const template = templates.get(trayKey(f.partKey, f.colorCode));
         const inHand = (held?.moving?.kind === 'free' && held.moving.id === f.id) || held?.group?.members.some((m) => m.ref.kind === 'free' && m.ref.id === f.id);
-        if (!template || inHand) return null;
+        if (!template || inHand || gizmoHidden.has(`f:${f.id}`)) return null;
         const variant = selectedFree?.has(f.id) ? 'selected' : 'solid';
         return <PlacedBrick key={`free:${f.id}:${variant}`} template={template} matrix={f.pose} variant={variant} id={`free:${f.id}`} pieceId={f.id} />;
       })}
@@ -291,7 +328,186 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
       </mesh>
       <gridHelper args={[2000, 100, '#c3c9d4', '#dde2ea']} position={[0, groundY, 0]} />
+      {gizmo && !held && (
+        <>
+          <primitive object={gizmoProxy} />
+          <primitive object={gizmoCarried}>
+            {gizmoHidden.size > 0 && gizmo.members.map((m) => {
+              const template = templates.get(trayKey(m.partKey, m.colorCode));
+              return template ? <PlacedBrick key={m.key} template={template} matrix={m.pose} variant="held" id={`gizmo-${m.key}`} /> : null;
+            })}
+          </primitive>
+        </>
+      )}
     </group>
+      {gizmo && !held && (
+        <SelectionGizmo
+          spec={gizmo}
+          proxy={gizmoProxy}
+          carried={gizmoCarried}
+          onLive={(m) => onGizmoLive?.(m)}
+          onCommit={(d) => onGizmoCommit?.(d)}
+          onHidden={setGizmoHidden}
+          onPress={() => {
+            // the gizmo took the press: no piece drag, no click on what is behind it…
+            press.current = null;
+            justDragged.current = true;
+          }}
+          onRelease={(moved) => {
+            // …unless nothing moved: then it was a click (e.g. Shift+click on a piece under an arrow)
+            if (!moved) justDragged.current = false;
+          }}
+          hover={gizmoHover}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Transform gizmo (three-stdlib TransformControls through drei) on a proxy placed at the pivot,
+ * INSIDE the LDraw root (its matrix is in LDraw coordinates); the gizmo itself lives in the scene
+ * root (it works in world space). Moves are stepped from the start of the drag along the dragged
+ * axis only (snapAlong): no surprise jump. The pieces follow in one group (one matrix per frame).
+ */
+function SelectionGizmo({ spec, proxy, carried, onLive, onCommit, onHidden, onPress, onRelease, hover }: {
+  spec: GizmoSpec; proxy: Object3D; carried: Group;
+  onLive: (pivot: Matrix4Tuple) => void; onCommit: (delta: Matrix4Tuple) => void; onHidden: (keys: ReadonlySet<string>) => void;
+  onPress: () => void; onRelease: (moved: boolean) => void; hover: { current: boolean };
+}) {
+  const scene = useThree((s) => s.scene);
+  const controls = useRef<{ axis: string | null; mode: string; space: string; dragging: boolean; addEventListener: (t: string, f: () => void) => void; removeEventListener: (t: string, f: () => void) => void } | null>(null);
+  const start = useRef<Matrix4 | null>(null);
+  const [, setDragging] = useState(false);
+  const [free, setFree] = useState(false); // ⌥ held: no step
+  const orbit = useThree((st) => st.controls) as unknown as { enabled: boolean } | null;
+  /** Ends a drag without applying it: back to the start, nothing committed. */
+  const cancel = () => {
+    if (!start.current) return;
+    start.current.decompose(proxy.position, proxy.quaternion, proxy.scale);
+    proxy.updateMatrix();
+    start.current = null;
+    carried.matrix.identity();
+    setDragging(false);
+    onHidden(new Set());
+    onRelease(false);
+    // stops the gizmo (its "dragging-changed" gives the camera back)
+    if (controls.current) controls.current.dragging = false;
+  };
+  // during a gizmo drag: Escape cancels it, no other key of the atelier acts (selection kept)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!start.current || e.key === 'Alt' || e.key === 'Shift') return;
+      e.stopImmediatePropagation();
+      if (e.key === 'Escape') cancel();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  });
+  // removed while dragging (selection changed elsewhere): the camera is never left disabled
+  useEffect(() => () => {
+    if (start.current && orbit) orbit.enabled = true;
+  }, [orbit]);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => setFree(e.altKey);
+    window.addEventListener('keydown', on);
+    window.addEventListener('keyup', on);
+    return () => {
+      window.removeEventListener('keydown', on);
+      window.removeEventListener('keyup', on);
+    };
+  }, []);
+  // the proxy at the pivot whenever no drag is in progress
+  useLayoutEffect(() => {
+    if (start.current) return;
+    new Matrix4().fromArray([...spec.pivot]).decompose(proxy.position, proxy.quaternion, proxy.scale);
+    proxy.updateMatrix();
+    proxy.updateMatrixWorld(true);
+  }, [spec.pivot, proxy]);
+  // the gizmo tells when the pointer is on one of its handles
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      hover.current = Boolean(controls.current?.axis) || Boolean(controls.current?.dragging);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      hover.current = false;
+    };
+  }, [hover]);
+  // only the three arrows and the three rings: the centre and plane handles (free move, view ring,
+  // trackball) would cover the piece, whose own press is the direct drag with the magnet
+  useEffect(() => {
+    const g = (controls.current as unknown as { children: { gizmo?: Record<string, Object3D>; picker?: Record<string, Object3D> }[] } | null)?.children.find((c) => c.gizmo && c.picker);
+    if (!g) return;
+    for (const group of [...Object.values(g.gizmo!), ...Object.values(g.picker!)]) {
+      for (const child of [...group.children]) if (['XYZ', 'XY', 'YZ', 'XZ', 'E', 'XYZE'].includes(child.name)) group.remove(child);
+    }
+  }, []);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    window.__brickLabGizmo = { controls: () => controls.current as never, proxy: () => proxy, scene: () => scene };
+    return () => {
+      delete window.__brickLabGizmo;
+    };
+  }, [proxy, scene]);
+
+  const stepOf = (a: readonly [number, number, number]) => (free ? null : Math.abs(a[1]) > 0.9 ? spec.stepY : spec.stepXZ);
+  const onObjectChange = () => {
+    if (!start.current) return;
+    const ctl = controls.current;
+    if (ctl?.mode === 'translate' && ctl.axis) {
+      // the dragged axes, in LDraw coordinates (world: X, -Y, -Z after the flip; local: the piece axes)
+      const r = new Matrix4().extractRotation(start.current).elements;
+      const local = ctl.space === 'local';
+      const axes: (readonly [number, number, number])[] = [];
+      if (ctl.axis.includes('X')) axes.push(local ? [r[0]!, r[1]!, r[2]!] : [1, 0, 0]);
+      if (ctl.axis.includes('Y')) axes.push(local ? [r[4]!, r[5]!, r[6]!] : [0, -1, 0]);
+      if (ctl.axis.includes('Z')) axes.push(local ? [r[8]!, r[9]!, r[10]!] : [0, 0, -1]);
+      const s = start.current.elements;
+      const p = snapAlong([s[12]!, s[13]!, s[14]!], [proxy.position.x, proxy.position.y, proxy.position.z], axes, stepOf);
+      proxy.position.set(...p);
+    }
+    proxy.updateMatrix();
+    carried.matrix.multiplyMatrices(proxy.matrix, new Matrix4().copy(start.current).invert());
+    carried.matrixWorldNeedsUpdate = true;
+    onLive(proxy.matrix.toArray() as unknown as Matrix4Tuple);
+  };
+
+  return (
+    // the gizmo works in world space: rendered beside the flipped LDraw group (no portal: a portal
+    // has its own event layer, which swallowed the clicks around the gizmo — found by the E2E suite)
+    <TransformControls
+        ref={controls as never}
+        object={proxy}
+        mode={spec.mode}
+        space={spec.space}
+        size={0.7}
+        rotationSnap={free ? null : spec.rotationStep}
+        onMouseDown={() => {
+          proxy.updateMatrix();
+          start.current = proxy.matrix.clone();
+          carried.matrix.identity();
+          carried.matrixWorldNeedsUpdate = true;
+          onPress();
+          setDragging(true);
+          onHidden(new Set(spec.members.map((m) => m.key)));
+        }}
+        onObjectChange={onObjectChange}
+        onMouseUp={() => {
+          if (!start.current) return;
+          proxy.updateMatrix();
+          const delta = new Matrix4().multiplyMatrices(proxy.matrix, new Matrix4().copy(start.current).invert());
+          start.current = null;
+          setDragging(false);
+          onHidden(new Set());
+          const moved = !delta.equals(new Matrix4());
+          onRelease(moved);
+          if (moved) onCommit(delta.toArray() as unknown as Matrix4Tuple);
+        }}
+      />
   );
 }
 
@@ -362,6 +578,8 @@ function modelBounds(occurrences: readonly BrickOccurrence[]): { center: [number
 
 declare global {
   interface Window {
+    /** Dev/test only: the transform gizmo (its controls, its proxy). */
+    __brickLabGizmo?: { controls: () => { axis: string | null; mode: string; space: string; dragging: boolean; size: number; camera: { position: Vector3; fov: number; zoom: number } } | null; proxy: () => Object3D; scene: () => Object3D };
     __brickLab?: {
       /** Screen position (client px) of an LDraw-space point. Dev/test only. */
       project: (ldraw: readonly [number, number, number]) => { x: number; y: number };

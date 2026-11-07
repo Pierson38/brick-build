@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { expect, test, webkit, type Page } from '@playwright/test';
+import { clickAt, dropHere, frame, freePieces, ground, held, importModel, open, OWNER, P, point } from './free-helpers';
 
 /**
  * Owner's recette on 31039 (07/11/2026): (A) rotations on X / Y / Z, (B) direct manipulation by
@@ -8,64 +8,9 @@ import { expect, test, webkit, type Page } from '@playwright/test';
  * model with the parts and poses of the owner's 31039 assembly (white 3034, orange 3023, green
  * 99780, grey 30157) and the red 32062 axle; standalone atelier (browser save).
  */
-export const MODEL = ['0 FILE assemblage.ldr', '0 Name: assemblage.ldr',
-  '1 15 0 33.41 0 1 0 0 0 1 0 0 0 1 3034.dat', '1 25 0 25.41 0 1 0 0 0 1 0 0 0 1 3023.dat', '1 25 40 25.41 0 1 0 0 0 1 0 0 0 1 3023.dat',
-  '1 2 -40 25.41 0 1 0 0 0 1 0 0 0 1 99780.dat', '1 2 80 25.41 0 1 0 0 0 1 0 0 0 1 99780.dat', '1 71 0 17.41 0 1 0 0 0 1 0 0 0 1 30157.dat',
-  '1 71 0 9.41 0 1 0 0 0 1 0 0 0 1 30157.dat', '1 4 200 35.41 0 0 0 -1 0 1 0 1 0 0 32062.dat', '1 4 300 25.41 0 1 0 0 0 1 0 0 0 1 3001.dat',
-  '1 4 300 1.41 0 1 0 0 0 1 0 0 0 1 3001.dat', '1 4 300 -22.59 0 1 0 0 0 1 0 0 0 1 3001.dat'].join('\n');
-const SHA = createHash('sha256').update(MODEL).digest('hex');
-type F = { id: string; partKey: string; colorCode: string; pose: number[] };
-const P = (id: string, partKey: string, colorCode: string, pose: number[]) => ({ id, partKey, colorCode, pose });
-/** The owner's assembly, as saved in his 31039 build (grey plates 2 LDU too high and half a stud off). */
-export const OWNER = [
-  P('f6', '3034.dat', '15', [70, 33.41, -10, 0, 0, -1, 0, 1, 0, 1, 0, 0]), P('f7', '99780.dat', '2', [70, 25.41, -80, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
-  P('f8', '99780.dat', '2', [70, 25.41, 60, -1, 0, 0, 0, 1, 0, 0, 0, -1]), P('f9', '3023.dat', '25', [70, 25.41, -60, -1, 0, 0, 0, 1, 0, 0, 0, -1]),
-  P('f10', '3023.dat', '25', [70, 25.41, 40, -1, 0, 0, 0, 1, 0, 0, 0, -1]), P('f11', '30157.dat', '71', [70, 15.41, -70, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
-  P('f12', '30157.dat', '71', [70, 15.41, 50, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
-];
 // long scenarios on software WebGL (many renders per step)
 test.setTimeout(150_000);
 const PROOF = (n: string) => fileURLToPath(new URL(`../../docs/implementation/preuves/libre/${n}`, import.meta.url));
-
-export const freePieces = (page: Page) => page.evaluate(() => window.__brickLabGame!.freePieces()) as Promise<F[]>;
-export const frame = (page: Page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-export const held = async (page: Page) => {
-  await frame(page);
-  return page.evaluate(() => window.__brickLabGame!.held()) as Promise<{ previewPose: number[]; orientation: number[]; bottom: number } | null>;
-};
-export async function point(page: Page, at: [number, number, number]) {
-  await frame(page);
-  const p = await page.evaluate((pt) => window.__brickLab!.project(pt), at);
-  await page.mouse.move(p.x, p.y, { steps: 4 });
-  await frame(page);
-  return p;
-}
-export async function clickAt(page: Page, at: [number, number, number], shift = false) {
-  const p = await point(page, at);
-  if (shift) await page.keyboard.down('Shift');
-  await page.mouse.click(p.x, p.y);
-  if (shift) await page.keyboard.up('Shift');
-}
-export async function dropHere(page: Page) {
-  const p = (await held(page))!.previewPose;
-  await clickAt(page, [p[12]!, p[13]!, p[14]!]);
-}
-/** Opens the synthetic model in free mode, optionally with a browser save of free pieces. */
-export async function open(page: Page, pieces: F[] = []) {
-  await page.goto('/atelier');
-  await page.evaluate(([k, v]) => { localStorage.clear(); if (v) localStorage.setItem(k, v); }, [`brick-lab:progress:${SHA}`,
-    pieces.length ? JSON.stringify({ schemaVersion: 3, modelContentHash: SHA, displayName: 'assemblage.ldr', buildMode: 'freeManual', placedOccurrenceIds: [], totalOccurrences: 11, freePieces: pieces, updatedAtIso: '2026-11-06T23:27:31.000Z' }) : ''] as const);
-  await page.reload();
-  await importModel(page);
-  if (!pieces.length) await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
-}
-export async function importModel(page: Page) {
-  await page.locator('input[type=file][accept=".ldr,.mpd"]').first().setInputFiles({ name: 'assemblage.ldr', mimeType: 'text/plain', buffer: Buffer.from(MODEL) });
-  await expect(page.getByTestId('render-status')).toContainText('Géométrie LDraw', { timeout: 60_000 });
-  await page.waitForFunction(() => Boolean(window.__brickLab && window.__brickLabGame));
-  await page.waitForTimeout(300);
-}
-const ground = (page: Page) => page.evaluate(() => window.__brickLabGame!.ground());
 
 test('A — the red axle put upright (X +90°), placed, restored with exactly that orientation; a placed piece turned in place, undone at once', async ({ page }) => {
   await open(page);
@@ -148,7 +93,9 @@ test('B — a placed piece dragged directly (no M), a click does not move it, em
   await page.getByRole('button', { name: 'Annuler' }).click();
   expect(await freePieces(page)).toEqual(before);
 
-  // Escape during the drag: nothing moves
+  // Escape during the drag: nothing moves (the selection cleared first: a gizmo arrow drawn over
+  // the middle brick would take the press, as in Blender)
+  await page.keyboard.press('Escape');
   await drag(page, [0, g - 24, 60], [0, g, -100], { escape: true });
   expect(await freePieces(page)).toEqual(before);
   expect(await camera(page)).toEqual(cam);

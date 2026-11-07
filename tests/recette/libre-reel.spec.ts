@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { RECETTE_LIBRE_DIR } from '../../playwright.recette-libre.config';
+import { dragHandle } from '../e2e/free-helpers';
 
 /**
  * True free building on the owner's REAL sets 31009 (Small Cottage) and 31039 (Blue Power Jet, 609
@@ -367,7 +368,9 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
 
     // saved in the (isolated) library with the real poses
     const hook = await game<Free[]>(page, 'freePieces');
-    await expect.poll(async () => ((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { progress: { freePieces?: unknown[] } }).progress.freePieces?.length ?? 0).toBe(hook.length);
+    // saved = what the screen shows (positions and rotations), not only the same number of pieces
+    const shownPoses = JSON.stringify(hook.map((f) => [f.id, ...[12, 13, 14, 0, 4, 8, 1, 5, 9, 2, 6, 10].map((k) => Math.round(f.pose[k]! * 100) / 100)]));
+    await expect.poll(async () => JSON.stringify((((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { progress: { freePieces?: { id: string; pose: number[] }[] } }).progress.freePieces ?? []).map((f) => [f.id, ...f.pose.map((v) => Math.round(v * 100) / 100)])), { timeout: 15_000 }).toBe(shownPoses);
     const rec = (await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number; progress: Record<string, unknown> };
     entry.saved = { revision: rec.revision, schemaVersion: rec.progress.schemaVersion, freePieces: hook.length, payloadSha256: sha(JSON.stringify(rec.progress.freePieces)) };
     entry.freePieces = hook;
@@ -474,6 +477,19 @@ test('part 3: 31039 with its 609 pieces placed — opening, connection graph, as
     await page.getByTestId('select-assembly').click();
     await expect(page.getByTestId('selection-info')).not.toHaveText('1 pièce(s) sélectionnée(s)', { timeout: 30_000 });
     perf.assembly = { ms: Date.now() - t1, pieces: (await page.evaluate(() => window.__brickLabGame!.selection())).length };
+    // the gizmo on that assembly: one plate up by the green arrow, frames measured during the drag
+    const beforeG = await game<Free[]>(page, 'freePieces');
+    const duringG = frames(page, 1500);
+    await dragHandle(page, 'translate', 'Y', 9);
+    perf.framesWhileGizmoDragAssembly = await duringG;
+    const afterG = await game<Free[]>(page, 'freePieces');
+    const movedIds = new Set(await page.evaluate(() => window.__brickLabGame!.selection().map((r) => (r as { id: string }).id)));
+    perf.gizmoAssembly = {
+      moved: afterG.filter((f) => movedIds.has(f.id)).every((f) => Math.abs(f.pose[13]! - (beforeG.find((b) => b.id === f.id)!.pose[13]! - 8)) < 0.011),
+      othersUnchanged: afterG.filter((f) => !movedIds.has(f.id)).every((f) => JSON.stringify(f.pose) === JSON.stringify(beforeG.find((b) => b.id === f.id)!.pose)),
+    };
+    expect(perf.gizmoAssembly).toEqual({ moved: true, othersUnchanged: true });
+    await page.getByRole('button', { name: 'Annuler' }).click();
     await page.getByTestId('clear-selection').click();
   }
   // a piece dragged over the jet for 1.5 s: the magnet is computed on every move
@@ -502,3 +518,93 @@ test('part 3: 31039 with its 609 pieces placed — opening, connection graph, as
   save();
   console.log('PERF', JSON.stringify(perf));
 });
+
+test('part 4: the owner’s own 31039 build (copied, read only) — the gizmo on their assembly, their axles and their wheel', async ({ page, request }) => {
+  const s = SETS.find((x) => x.number === '31039-1')!;
+  const buildId = log[s.number]!.buildId as string;
+  // the owner's current 31039 progress, read from their library (never written), put into the isolated build
+  const own = JSON.parse(readFileSync(path.join(SRC, 'library', 'builds', ownerBuildOf('31039-1')!, 'progress.json'), 'utf8')) as { payload: { freePieces: { id: string; pose: number[] }[] } };
+  const rec = (await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { revision: number | null };
+  const put = await request.put(`/api/library/builds/${buildId}/progress`, { data: { baseRevision: rec.revision, progress: own.payload }, headers: { origin: 'http://127.0.0.1:3210', 'x-brick-lab': '1' } });
+  expect(put.ok(), await put.text()).toBe(true);
+  await page.goto(`/atelier/${buildId}`);
+  await waitAtelier(page);
+  const n = own.payload.freePieces.length;
+  await expect(page.getByTestId('progress')).toHaveText(`${n}/609 pièces posées`);
+  const start = await game<Free[]>(page, 'freePieces');
+  const byId = (l: Free[], id: string) => l.find((f) => f.id === id)!;
+  const res: Record<string, unknown> = { pieces: n };
+  await page.waitForFunction(() => (window.__brickLabGame!.connectors('30157.dat') ?? []).length > 0, null, { timeout: 60_000 });
+
+  // a grey plate: the arrows on a click, one plate up (Y), exactly, nothing else moved
+  const grey = byId(start, 'f11');
+  const gp = await onCanvas(page, [grey.pose[12]!, grey.pose[13]!, grey.pose[14]!]);
+  await page.mouse.click(gp!.x, gp!.y);
+  await expect(page.getByTestId('gizmo-coords')).toBeVisible();
+  await dragHandle(page, 'translate', 'Y', 9);
+  let now = await game<Free[]>(page, 'freePieces');
+  expect(byId(now, 'f11').pose.slice(12, 15)).toEqual([grey.pose[12], Math.round((grey.pose[13]! - 8) * 100) / 100, grey.pose[14]]);
+  expect(now.filter((f) => f.id !== 'f11')).toEqual(start.filter((f) => f.id !== 'f11'));
+  await page.getByRole('button', { name: 'Annuler' }).click();
+  res.greyPlateUpOnePlate = true;
+
+  // their connected assembly (grey, orange, green on the white plate): moved and turned with the gizmo
+  await page.mouse.click(gp!.x, gp!.y);
+  await page.getByTestId('select-assembly').click();
+  const assembly = (await page.evaluate(() => window.__brickLabGame!.selection().map((r) => (r as { id: string }).id))).sort();
+  res.assembly = assembly;
+  expect(assembly.length).toBeGreaterThanOrEqual(7);
+  await page.screenshot({ path: path.join(PROOFS, 'libre-31039-1-gizmo-assemblage-proprietaire.png') });
+  await dragHandle(page, 'translate', 'X', 41);
+  await page.getByTestId('gizmo-rotate').click();
+  await dragHandle(page, 'rotate', 'Y', 100);
+  now = await game<Free[]>(page, 'freePieces');
+  const dist = (l: Free[], a: string, b: string) => Math.hypot(...[12, 13, 14].map((k) => byId(l, a).pose[k]! - byId(l, b).pose[k]!));
+  for (let i = 1; i < assembly.length; i++) expect(dist(now, assembly[0]!, assembly[i]!)).toBeCloseTo(dist(start, assembly[0]!, assembly[i]!), 6);
+  expect(now.filter((f) => !assembly.includes(f.id))).toEqual(start.filter((f) => !assembly.includes(f.id)));
+  res.assemblyMovedAndTurned = true;
+  await page.getByRole('button', { name: 'Annuler' }).click();
+  await page.getByRole('button', { name: 'Annuler' }).click();
+  expect(await game<Free[]>(page, 'freePieces')).toEqual(start);
+
+  // one of their upright red axles: local axes follow it
+  await page.getByTestId('gizmo-translate').click();
+  const axle = byId(start, 'f16');
+  const ap = await onCanvas(page, [axle.pose[12]!, axle.pose[13]!, axle.pose[14]!]);
+  if (ap) {
+    await page.mouse.click(ap.x, ap.y);
+    const sel = await page.evaluate(() => window.__brickLabGame!.selection().map((r) => (r as { id: string }).id));
+    res.axleSelected = sel;
+  }
+  // their wheel, placed by typed coordinates
+  await page.keyboard.press('Escape');
+  const wheel = byId(start, 'f20');
+  const wq = await onCanvas(page, [wheel.pose[12]!, wheel.pose[13]!, wheel.pose[14]!]);
+  if (wq) {
+    await page.mouse.click(wq.x, wq.y);
+    const sel = await page.evaluate(() => window.__brickLabGame!.selection().map((r) => (r as { id: string }).id));
+    if (sel.length === 1) {
+      await page.getByTestId('gizmo-x').fill('360');
+      await page.getByTestId('gizmo-apply').click();
+      now = await game<Free[]>(page, 'freePieces');
+      res.typedX = { piece: sel[0], x: byId(now, sel[0]!).pose[12] };
+      expect(byId(now, sel[0]!).pose[12]).toBe(360);
+    }
+  }
+  // reload: the same poses
+  const kept = await game<Free[]>(page, 'freePieces');
+  await page.reload();
+  await waitAtelier(page);
+  expect(await game<Free[]>(page, 'freePieces')).toEqual(kept);
+  res.reloadIdentical = true;
+  log[s.number]!.ownerGizmo = res;
+  save();
+  console.log('OWNER', JSON.stringify(res));
+});
+
+/** Build id of a set in the OWNER's library (read only). */
+function ownerBuildOf(setNumber: string): string | null {
+  const lib = JSON.parse(readFileSync(path.join(SRC, 'library', 'library.json'), 'utf8')) as { sets: { id: string; setNumber: string }[]; builds: { id: string; setId: string }[] };
+  const set = lib.sets.find((x) => x.setNumber === setNumber);
+  return set ? lib.builds.find((b) => b.setId === set.id)?.id ?? null : null;
+}

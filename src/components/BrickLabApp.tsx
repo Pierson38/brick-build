@@ -8,7 +8,7 @@ import {
 import {
   FINE_HEIGHT_STEP_LDU, FREE_TARGET_MAGNET, HEIGHT_STEP_LDU, freePiecesOf, groupPoses, isStockExhausted, liftedY, makeGroup, matchToModel, movePiece, moveGroup,
   occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece, removePieces, resolveFreeHover, sameRef, stockLeft, toStepped, usedCount, atModelCount,
-  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace,
+  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace, applyDelta, deltaTo, shownCoords,
   type Axis, type FreeResult, type GroupMember, type PieceRef,
 } from '@/domain/build/free';
 import {
@@ -37,7 +37,7 @@ import { Splitter, useSidePanel } from './layout/Splitter';
 import { PdfPanel } from './pdf/PdfPanel';
 import { useNotice } from './pdf/useNotice';
 import { SyncStepBanner } from './sync/SyncStepBanner';
-import { BuildCanvas, modelGroundY, type HeldBrick } from './three/BuildCanvas';
+import { BuildCanvas, modelGroundY, type GizmoSpec, type HeldBrick } from './three/BuildCanvas';
 
 const MAX_MODEL_BYTES = 8 * 1024 * 1024;
 
@@ -169,6 +169,13 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   const liftXZ = useRef<[number, number] | null>(null);
   // a drag (direct manipulation) is in progress
   const dragging = useRef(false);
+  // transform gizmo on the selection (free mode): arrows / rings, global / local axes, steps
+  const [gizmoMode, setGizmoMode] = useState<'translate' | 'rotate'>('translate');
+  const [gizmoSpace, setGizmoSpace] = useState<'world' | 'local'>('world');
+  const [gizmoStep, setGizmoStep] = useState<10 | 20 | 1>(10);
+  const [gizmoRotation, setGizmoRotation] = useState<90 | 15>(90);
+  const [gizmoLive, setGizmoLive] = useState<Matrix4Tuple | null>(null);
+  const [typed, setTyped] = useState<[string, string, string] | null>(null);
 
   useEffect(() => setRecent(library ? [] : listRecentSessions()), [loaded, library]);
   useEffect(() => store.onSaveState(setSaveState), [store]);
@@ -465,7 +472,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setMessage({
       kind: 'info',
       text: next.length === 0 ? 'Sélection vide.'
-        : `${next.length} pièce(s) sélectionnée(s) · M ou « Déplacer la sélection » · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`,
+        : `${next.length} pièce(s) sélectionnée(s) · flèches X / Y / Z (W) ou anneaux (E) du manipulateur, ou glisse la pièce · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`,
     });
   };
 
@@ -772,6 +779,9 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       if (!held) {
         // free mode, nothing in hand: the selection
         if (!free || selection.length === 0) return;
+        if (e.key === 'w' || e.key === 'W') return setGizmoMode('translate');
+        if (e.key === 'e' || e.key === 'E') return setGizmoMode('rotate');
+        if (e.key === 'q' || e.key === 'Q') return setGizmoSpace((v) => (v === 'world' ? 'local' : 'world'));
         if (e.key === 'm' || e.key === 'M') moveSelection(selection);
         else if (e.key === 'Escape') setSelection([]);
         else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -949,6 +959,47 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       .map((pose, i) => ({ partKey: held.group!.members[i]!.partKey, colorCode: held.group!.members[i]!.colorCode, pose }))
     : null;
   const heightAboveGround = preview ? Math.round((groundY - (preview.layerY + heldBottom)) * 100) / 100 : null;
+  // the transform gizmo: on the selection, in free mode, with nothing in hand
+  const gizmo: GizmoSpec | null = useMemo(() => {
+    if (!freeMode || editing || held || !ctx || !session || selection.length === 0) return null;
+    const members = selection.flatMap((ref) => {
+      const kind = pieceKind(ctx, session, ref);
+      const pose = poseOf(ctx, session, ref);
+      return kind && pose ? [{ ref, key: refKey(ref), ...kind, pose }] : [];
+    });
+    if (members.length !== selection.length) return null;
+    const pivot = members.length === 1 ? members[0]!.pose
+      : withTranslation(IDENTITY, makeGroup(members.map((m) => ({ ...m, bottom: bottomOf(m.partKey, m.colorCode, m.pose) }))).pivot);
+    const grid = snap.grid ? gizmoStep : null;
+    return {
+      members, pivot, mode: gizmoMode, space: gizmoSpace,
+      stepXZ: grid, stepY: grid === null ? null : grid === 1 ? 1 : 8,
+      rotationStep: (gizmoRotation * Math.PI) / 180,
+    };
+  }, [freeMode, editing, held, ctx, session, selection, snap.grid, gizmoStep, gizmoMode, gizmoSpace, gizmoRotation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** One transform of the whole selection (gizmo drag or typed coordinates): all or nothing, one undo. */
+  const transformSelection = (delta: Matrix4Tuple, what: string) => {
+    setGizmoLive(null);
+    setTyped(null);
+    if (!ctx || !session || !gizmo) return;
+    const identity = delta.every((v, i) => Math.abs(v - IDENTITY[i]!) < 1e-9);
+    if (identity) return;
+    const poses = applyDelta(delta, gizmo.members.map((m) => m.pose));
+    const r = moveGroup(ctx, session, gizmo.members.map((m, i) => ({ ref: refOf(m.key), pose: poses[i]! })));
+    if (!r.ok) return setMessage({ kind: 'error', text: `${what} impossible : ${FREE_FAILURE[r.reason]}` });
+    commitFree(r.session);
+    setSelection([...r.refs]);
+    setMessage({ kind: 'ok', text: `${gizmo.members.length > 1 ? `${gizmo.members.length} pièces` : 'Pièce'} : ${what} (« Annuler » revient en une fois).` });
+  };
+  const shown = gizmo ? shownCoords(gizmoLive ?? gizmo.pivot, groundY) : null;
+  const applyTyped = () => {
+    if (!gizmo || !typed) return;
+    const v = typed.map((t) => Number(t.replace(',', '.'))) as [number, number, number];
+    if (!v.every(Number.isFinite)) return setMessage({ kind: 'error', text: 'Coordonnées invalides.' });
+    transformSelection(deltaTo(gizmo.pivot, v, groundY), 'déplacée aux coordonnées saisies');
+  };
+
   // orientation in words: the piece in hand, or the only selected piece
   const shownRotation = held && !held.group ? heldRotation(held)
     : !held && selection.length === 1 && ctx && session ? poseOf(ctx, session, selection[0]!) : null;
@@ -1045,7 +1096,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               onHover={(ray, hit) => { liftXZ.current = null; updatePreview(ray, hit); }}
               onDrop={drop}
               {...(editing ? { onPick: pickInEditor } : {})}
-              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef) => selectAssembly([ref]), snapPoints: snapInfo?.points ?? null } : {})}
+              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef) => selectAssembly([ref]), snapPoints: snapInfo?.points ?? null,
+                gizmo, onGizmoLive: setGizmoLive, onGizmoCommit: (d: Matrix4Tuple) => transformSelection(d, gizmoMode === 'rotate' ? 'tournée' : 'déplacée') } : {})}
               groundY={groundY}
               {...(freeMode && held && preview ? { axesAt: [preview.previewPose[12], preview.previewPose[13], preview.previewPose[14]] as const } : {})}
               recenterToken={recenter}
@@ -1103,11 +1155,49 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
                   <div className="status">
                     <span className="small" data-testid="selection-info">{selection.length} pièce(s) sélectionnée(s)</span>
                     {orientationInfo}
+                    {shown && (
+                      <span className="small" data-testid="gizmo-coords">
+                        X {shown[0]} · Y {shown[1]} (hauteur) · Z {shown[2]} LDU
+                      </span>
+                    )}
                   </div>
-                  <button type="button" data-testid="move-selection" onClick={() => moveSelection(selection)}>Déplacer la sélection (M)</button>
+                  <span className="segmented" role="group" aria-label="Manipulateur">
+                    <button type="button" data-testid="gizmo-translate" aria-pressed={gizmoMode === 'translate'} onClick={() => setGizmoMode('translate')} title="Flèches : déplacer le long d’un axe (W)">Flèches</button>
+                    <button type="button" data-testid="gizmo-rotate" aria-pressed={gizmoMode === 'rotate'} onClick={() => setGizmoMode('rotate')} title="Anneaux : tourner autour d’un axe (E)">Anneaux</button>
+                  </span>
+                  <span className="segmented" role="group" aria-label="Axes">
+                    <button type="button" data-testid="gizmo-world" aria-pressed={gizmoSpace === 'world'} onClick={() => setGizmoSpace('world')} title="Axes de la scène (Q)">Globaux</button>
+                    <button type="button" data-testid="gizmo-local" aria-pressed={gizmoSpace === 'local'} onClick={() => setGizmoSpace('local')} title="Axes de la pièce tournée (Q)">Locaux</button>
+                  </span>
+                  <label className="small" title="Pas des flèches : à l’horizontale ½ tenon (10 LDU) ou un tenon (20 LDU), à la verticale une plaque (8 LDU) ; ou 1 LDU partout. ⌥ pendant le glisser : sans pas.">Pas{' '}
+                    <select data-testid="gizmo-step" value={gizmoStep} onChange={(e) => setGizmoStep(Number(e.target.value) as 10 | 20 | 1)}>
+                      <option value={10}>½ tenon</option>
+                      <option value={20}>tenon</option>
+                      <option value={1}>1 LDU</option>
+                    </select>
+                  </label>
+                  <label className="small" title="Pas des anneaux">Angle{' '}
+                    <select data-testid="gizmo-angle" value={gizmoRotation} onChange={(e) => setGizmoRotation(Number(e.target.value) as 90 | 15)}>
+                      <option value={90}>90°</option>
+                      <option value={15}>15°</option>
+                    </select>
+                  </label>
+                  {shown && (
+                    <span className="coords small" role="group" aria-label="Coordonnées">
+                      {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+                        <label key={axis}>{axis}{' '}
+                          <input type="number" step="any" data-testid={`gizmo-${axis.toLowerCase()}`} value={typed ? typed[i] : String(shown[i])}
+                            onChange={(e) => { const next = [...(typed ?? shown.map(String))] as [string, string, string]; next[i] = e.target.value; setTyped(next); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') applyTyped(); }} />
+                        </label>
+                      ))}
+                      <button type="button" data-testid="gizmo-apply" onClick={applyTyped} disabled={!typed}>Appliquer</button>
+                    </span>
+                  )}
+                  <button type="button" data-testid="move-selection" onClick={() => moveSelection(selection)} title="Prendre la sélection en main (M)">Déplacer (M)</button>
                   {rotationControls}
-                  <button type="button" data-testid="remove-selection" onClick={removeSelection}>Remettre dans le stock</button>
-                  <button type="button" data-testid="select-assembly" onClick={() => selectAssembly(selection)} title="Double-clic sur une pièce">Sélectionner l’assemblage</button>
+                  <button type="button" data-testid="remove-selection" onClick={removeSelection} title="Remettre dans le stock (Suppr)">Au stock</button>
+                  <button type="button" data-testid="select-assembly" onClick={() => selectAssembly(selection)} title="Toutes les pièces emboîtées (double-clic sur une pièce)">Assemblage</button>
                   <button type="button" data-testid="clear-selection" onClick={() => setSelection([])}>Désélectionner</button>
                 </>
               )}
