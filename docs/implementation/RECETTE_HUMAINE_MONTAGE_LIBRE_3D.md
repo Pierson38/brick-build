@@ -61,3 +61,7 @@ Dans **Safari** : refais **1.2, 2.1, 2.3, 3.1 et 4.1–4.2**.
 | Critère : tourner, aimanter, déplacer un assemblage comme un objet | | | |
 
 Dis-moi ce que tu laisses posé : je comparerai tes données avec l'inventaire d'avant cette recette et te dirai exactement ce qui a changé.
+
+## 8. Suite (07/11/2026)
+
+Aucun résultat de cette recette n'a été transmis : le propriétaire a demandé un manipulateur 3D avant la fusion. Données : seule sa construction 31039 a changé (21 pièces, révision 109 : plaques grises calées, axes redressés, roue et pneu posés), 31040 et 31009 inchangés. Suite : [MONTAGE_LIBRE_GIZMO.md](MONTAGE_LIBRE_GIZMO.md), [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md).
