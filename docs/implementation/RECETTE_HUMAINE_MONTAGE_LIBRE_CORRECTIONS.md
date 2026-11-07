@@ -54,3 +54,7 @@ Dans **Safari** : refais **1.2 à 1.4** et **2.2 à 2.6**.
 | Critère : assembler, déplacer ensemble, ajuster la hauteur avec précision | | | |
 
 Dis-moi ce que tu laisses posé : je comparerai tes données avec l'inventaire d'avant cette recette et te dirai exactement ce qui a changé.
+
+## 6. Résultat de la recette du propriétaire (07/11/2026)
+
+**NO-GO** pour fusionner la PR #7 en l'état ; **GO** pour compléter le moteur. Quatre nouveaux problèmes sur 31039 (deux captures annoncées, non reçues par Claude) : une pièce rouge impossible à mettre à la verticale (axe 32062) ; un assemblage gris, orange et vert mal aligné (plaques 30157 à 2 LDU au-dessus des tenons) ; obligation de passer par M pour déplacer ; pas de sélection d'un assemblage complet ni d'aimant entre pièces. Données : seule la construction 31039 a changé (14 pièces libres, révision 40), 31040 et 31009 inchangés. Suite : [MONTAGE_LIBRE_3D_RAPPORT.md](MONTAGE_LIBRE_3D_RAPPORT.md), recette [RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md).
