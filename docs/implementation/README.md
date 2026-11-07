@@ -30,7 +30,10 @@ Le dépôt contient deux familles de documents :
 - [Véritable montage libre : rapport, tests, mesures, verdict](MONTAGE_LIBRE_RAPPORT.md)
 - [Recette humaine du véritable montage libre (faite : NO-GO, deux limitations)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
 - [Corrections : hauteur libre et groupes (cause, tests, compatibilité)](MONTAGE_LIBRE_CORRECTIONS.md)
-- [Recette humaine ciblée des corrections (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md)
+- [Recette humaine ciblée des corrections (faite : NO-GO, quatre problèmes)](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md)
+- [Connexions, transformations et aimantation : note d'architecture](MONTAGE_LIBRE_CONNEXIONS.md)
+- [Rotations 3 axes, manipulation directe, assemblages, aimant : rapport](MONTAGE_LIBRE_3D_RAPPORT.md)
+- [Recette humaine des quatre problèmes (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md)
 
 ## Démarrage développeur
 
