@@ -80,6 +80,9 @@ async function dropHere(page: Page) {
 
 test('free height: a piece lowered by hand where the automatic placement cannot go, 8 then 1 LDU, kept while moving, restored after a reload', async ({ page }) => {
   await open(page, 'heights.ldr', HEIGHTS);
+  // the height alone: pieces magnet off (on, it rightly moves the orange plate half a stud, onto the
+  // studs of the white one — fix/free-building-connections: the magnet now works from the tray)
+  await page.getByTestId('snap-pieces').uncheck();
   const g = await ground(page);
   // a small assembly like the owner's: white plate on the ground, orange plate on it
   await page.getByTestId('tray-3034.dat-15').click();
