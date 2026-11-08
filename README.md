@@ -1,56 +1,139 @@
-# Brick Lab Local — dossier de démarrage Claude Code
+# Brick Lab Local
 
-**Version :** 1.0 — 03/11/2026  
-**Objectif :** application web exécutée localement sur Mac, pour assembler virtuellement des **sets LEGO existants**, à partir de fichiers de modèles LDraw et de notices PDF que l’utilisateur importe lui-même.
+Application web **locale** (Mac) pour reconstruire virtuellement, pièce par pièce, des sets de briques à partir de fichiers **LDraw** (`.mpd` / `.ldr`) et de la notice PDF que tu as toi-même téléchargée.
 
-> Ce dossier est une spécification de développement, pas une application déjà fonctionnelle.
+![Atelier en montage libre : manipulateur 3D, panneau du modèle et bac de pièces](docs/implementation/preuves/libre/gizmo-fleches.png)
 
-## Ce qu'on veut obtenir
+> **Projet personnel, non affilié au groupe LEGO.** LEGO® est une marque du groupe LEGO, qui ne parraine ni n'approuve ce projet. Le dépôt ne contient **aucune** notice, aucun modèle de set tiers ni aucune bibliothèque de pièces : tout est importé localement par l'utilisateur.
 
-1. Choisir/importer un modèle réel au format `.mpd` ou `.ldr`.
-2. Voir le modèle en 3D, naviguer dans les briques et commencer une partie.
-3. **Mode guidé** : lorsque le fichier contient des étapes LDraw exploitables, choisir les briques, les placer au bon endroit avec aimantation, et progresser.
-4. **Mode notice** : importer son propre PDF officiel de notice, l'afficher dans un panneau latéral, tourner les pages et construire virtuellement **même si le MPD n'a aucune étape** : choisir une brique disponible et la poser à une position finale compatible ; aucune synchronisation automatique PDF → coordonnées n'est présumée.
-5. Sauvegarder/reprendre localement la partie.
-6. Indiquer les limites des modèles importés plutôt que de prétendre qu'un import est jouable s'il ne l'est pas.
+## Fonctionnalités
 
-## Démarrage rapide avec Claude Code
+- **Ma collection** : bibliothèque personnelle de sets et de constructions, avec progression, miniatures, sauvegarde et restauration (stockée dans `~/Documents/brick-lab-data/`).
+- **Ajouter un set** : saisie d'un numéro (`31040` → `31040-1`), recherche dans tes fichiers locaux puis, sur clic uniquement, sur l'[OMR LDraw](https://library.ldraw.org/omr) ; lien vers la page officielle des notices ; métadonnées Rebrickable facultatives. Glisser-déposer de `.mpd`, `.ldr`, `.pdf` et `.brick-mapping.json` sans Internet.
+- **Diagnostic de compatibilité** avant import : étapes LDraw, sous-modèles, pièces absentes de la bibliothèque locale, licence et auteur lus dans le fichier, modes de jeu réellement disponibles et pourquoi.
+- **Mode guidé** : quand le fichier contient des étapes (`0 STEP`), les emplacements de l'étape s'affichent et chaque pièce s'aimante à sa cible.
+- **Montage libre** : construire dans l'ordre de son choix en suivant la notice, poser où l'on pointe, rotations X/Y/Z, manipulateur 3D (flèches et anneaux), sélection et déplacement d'assemblages connectés, aimantation tenon/réceptacle et goupille/trou entre pièces.
+- **Notice PDF** dans un panneau latéral redimensionnable (PDF.js), et **notice synchronisée** : éditeur de correspondances pages ↔ étapes 3D, exportable en `.brick-mapping.json`.
+- **Reprise** après rechargement ou redémarrage, annulation, abandon.
 
-1. Décompresser ce dossier dans un emplacement de travail.
-2. Ouvrir Claude Code dans le dossier de ton dépôt (ou lui fournir ce dossier si le dépôt n'existe pas encore).
-3. Donner à Claude le fichier `PROMPT_CLAUDE_CODE.md` et lui demander de lire d'abord `CLAUDE.md`, puis tous les documents du dossier `docs/`.
-4. Lui faire commencer **par le préflight + spike technique LDraw**, avant de développer l'interface complète.
-5. Demander le rapport de tests et les captures/preuves avant de valider le prochain lot.
+## Principes
 
-**Important :** Si un dépôt existe déjà, le travail doit partir de `origin/main` actualisé et se faire dans un **nouveau worktree et une branche dédiée**, jamais sur `main` ni sur un worktree protégé. Si le dépôt n'existe pas, Claude doit te présenter le plan de bootstrap git, puis travailler sur branche dédiée.
+- **Local uniquement** : le serveur écoute sur `127.0.0.1`, télémétrie Next.js désactivée, aucun compte, aucune analytics, aucun stockage cloud.
+- **Réseau minimal et explicite** : seules les actions « Chercher en ligne » et « Télécharger » contactent l'OMR (et Rebrickable si une clé est configurée), avec liste d'hôtes autorisés, tailles et délais bornés. `BRICK_LAB_ONLINE=0` coupe tout accès réseau. Les notices LEGO ne sont jamais téléchargées automatiquement.
+- **Fichiers non fiables** : parsing borné (taille, profondeur, cycles, chemins `../`, noms dupliqués, références absentes).
+- **Honnêteté sur les limites** : un modèle est signalé incomplet ou sans étapes plutôt que présenté comme jouable.
 
-## Table des documents
+## Prérequis
 
-| Fichier | Rôle |
+- macOS, **Node.js ≥ 20.9** (testé avec 24.5) et npm.
+- La **bibliothèque de pièces LDraw** (gratuite, CC BY 4.0), à télécharger une fois et à conserver hors du dépôt.
+
+## Installation
+
+```bash
+git clone https://github.com/Pierson38/brick-build.git
+```
+
+```bash
+cd brick-build && npm ci
+```
+
+1. Télécharge [`complete.zip`](https://library.ldraw.org/library/updates/complete.zip) depuis la bibliothèque LDraw et décompresse-le, par exemple dans `~/Documents/brick-lab-data/ldraw/`.
+2. Crée un fichier `.env.local` à la racine du projet :
+
+   ```dotenv
+   LDRAW_LIBRARY_DIR=/Users/<toi>/Documents/brick-lab-data/ldraw
+
+   # Facultatif
+   # BRICK_LAB_DATA_DIR=/chemin/vers/mes/donnees   # défaut : ~/Documents/brick-lab-data
+   # REBRICKABLE_API_KEY=<clé personnelle>          # nom, année et nombre de pièces annoncé
+   # BRICK_LAB_ONLINE=0                             # interdit tout accès Internet
+   ```
+
+3. Vérifie la bibliothèque :
+
+   ```bash
+   npm run check:ldraw
+   ```
+
+## Lancement
+
+```bash
+npm run dev
+```
+
+Puis ouvre <http://127.0.0.1:3000>. Pour un usage quotidien plus fluide, utilise le build de production :
+
+```bash
+npm run build && npm start
+```
+
+Pages principales : `/` (Ma collection), `/ajouter` (ajouter un set), `/atelier` (atelier sans collection, pour essayer un fichier).
+
+Pour un premier essai sans rien télécharger d'autre que la bibliothèque de pièces, ouvre `/atelier` et importe `fixtures/mini-4-pieces.mpd`.
+
+## Tests
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run recette
+```
+
+`recette` enchaîne le contrôle du manifeste de spécification, `tsc --noEmit`, Vitest et Playwright. Les suites E2E démarrent leur propre serveur sur un dossier temporaire : arrête `npm run dev` avant de les lancer.
+
+| Commande | Rôle |
 |---|---|
-| `CLAUDE.md` | Règles impératives pour Claude Code |
-| `PROMPT_CLAUDE_CODE.md` | Instruction initiale copiable |
-| `docs/01_PRODUIT_ET_PERIMETRE.md` | Cahier des charges MVP, non-objectifs |
-| `docs/02_ARCHITECTURE.md` | Stack, composants et persistance |
-| `docs/03_LDRAW_ET_ETAPES.md` | Parsing, sous-modèles, provenance, limites |
-| `docs/04_UX_ET_PARCOURS.md` | Écrans et comportements |
-| `docs/05_PLAN_DE_REALISATION.md` | Lots, portes GO/NO-GO et livrables |
-| `docs/06_TESTS_ET_ACCEPTATION.md` | Tests, sécurité et scénarios de recette |
-| `docs/07_DROITS_ET_SOURCES.md` | Cadre d'utilisation, licences et liens officiels |
-| `docs/08_SCHEMA_DONNEES.md` | Contrats de données proposés |
-| `docs/09_DECISIONS_ET_RISQUES.md` | Hypothèses, décisions non figées, risques |
-| `fixtures/` | Petits exemples LDraw synthétiques sans set tiers distribué |
+| `npm run typecheck` | TypeScript strict |
+| `npm test` | Tests unitaires (parseur, moteur, connexions, bibliothèque, import) |
+| `npm run test:e2e` | Parcours Playwright sur fixtures synthétiques |
+| `npm run perf` | Mesures sur build de production |
+| `npm run compat-report -- <fichier.mpd>` | Rapport de compatibilité d'un modèle |
 
-## Contraintes absolues
+Les tests sur sets réels (`*-omr.spec.ts`, `tests/recette/`) lisent des fichiers placés dans `~/Documents/brick-lab-data/` (ou `$BRICK_LAB_DATA`) et sont ignorés quand ils sont absents.
 
-- Pas de publication publique, compte cloud, authentification, analytics, scrapping ou téléchargement automatique de notices/sets.
-- Pas de redistribution de fichiers de modèles de sets tiers ni de notices PDF dans le dépôt.
-- Pas de promesse « fonctionne avec tous les sets ».
-- Pas de transformation automatique fiable d'un PDF de notice en données 3D dans le MVP.
-- Pas de licence LEGO présumée : l'usage privé réduit des risques, mais ne dispense pas de respecter les droits et licences applicables.
+## Stack
 
-## Définition de succès du premier MVP
+Next.js (App Router) · React · TypeScript strict · Three.js + `@react-three/fiber` / `drei` (`LDrawLoader`) · PDF.js · Vitest · Playwright.
 
-Un utilisateur ouvre `http://localhost:3000`, importe le modèle de test + la bibliothèque locale de pièces LDraw, voit une scène 3D correcte, progresse sur des étapes définies, peut placer plusieurs pièces avec snap, voit les pièces déjà posées, et reprend après rechargement. Il peut également importer **son** PDF et naviguer dans les pages, indépendamment des étapes 3D.
+```text
+src/
+  app/          pages et routes API locales
+  components/   atelier, collection, import, PDF, scène 3D
+  domain/       parseur LDraw, moteur de construction, connexions, import (sans Three.js)
+  infra/        accès à la bibliothèque LDraw, persistance, miniatures
+  server/       bibliothèque personnelle, accès réseau encadré, sources en ligne
+fixtures/       petits modèles LDraw originaux (CC0)
+tests/          unitaires, E2E, performance, recettes réelles
+docs/           spécification et notes d'implémentation
+```
 
-La prise en charge d'un **vrai modèle OMR** constitue un second test de validation, jamais un prérequis caché du premier scénario synthétique.
+## Documentation
+
+- [`docs/01` à `docs/09`](docs/) : spécification initiale v1.0 (produit, architecture, LDraw, UX, plan, tests, droits, schéma de données, risques), figée et contrôlée par `npm run check:spec`.
+- [`docs/implementation/`](docs/implementation/README.md) : notes de lots, journal des décisions, écarts, rapports de recette et captures.
+- [`CLAUDE.md`](CLAUDE.md) et [`PROMPT_CLAUDE_CODE.md`](PROMPT_CLAUDE_CODE.md) : consignes de développement (le projet est développé avec Claude Code).
+
+## Limites connues
+
+- Tous les sets ne sont pas jouables : cela dépend de la qualité du fichier LDraw (étapes, sous-modèles, pièces disponibles).
+- L'inventaire d'un fichier OMR n'est pas garanti identique à celui de la boîte.
+- Aucune conversion automatique d'une notice PDF en données 3D : la synchronisation notice ↔ 3D repose sur des correspondances saisies.
+- L'aimantation reconnaît tenons, réceptacles, goupilles et trous de goupille ; axes, clips, barres et charnières ne le sont pas encore.
+- Testé sur macOS avec Chromium et WebKit uniquement.
+
+## Contenus tiers et droits
+
+- La **bibliothèque de pièces LDraw** et les **modèles de l'OMR** sont des contributions communautaires sous leurs propres licences (CC BY 2.0/4.0 selon les fichiers) ; l'application lit et affiche la licence déclarée dans chaque fichier.
+- Les **notices** sont protégées par le droit d'auteur : télécharge-les toi-même sur le site officiel, pour ton usage personnel, et ne les redistribue pas.
+- Ne commite jamais de notice, de modèle de set tiers ou de bibliothèque de pièces dans ce dépôt (`.gitignore` exclut `local-models/`, `local-instructions/`, `local-ldraw-library/`).
+
+Détails : [`docs/07_DROITS_ET_SOURCES.md`](docs/07_DROITS_ET_SOURCES.md). Ce document n'est pas un avis juridique.
+
+## Licence
+
+Aucune licence n'est encore attachée au code : sauf mention contraire, tous droits réservés. Les fixtures de `fixtures/` et `tests/fixtures/` sont des créations originales sous CC0-1.0.
+
+La version d'origine de ce README (dossier de spécification v1.0) reste consultable dans le commit `b019989` (`git show b019989:README.md`).

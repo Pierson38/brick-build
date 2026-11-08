@@ -16,6 +16,7 @@ Le manifeste v1.0 lui-même n'est jamais modifié.
 |---|---|---|---|
 | `.gitignore` | Ajout de 2 lignes en fin de fichier | `next-env.d.ts` et `*.tsbuildinfo` sont régénérés par Next.js/TypeScript à chaque exécution ; les versionner créerait du bruit. Aucune exclusion de la spec n'est retirée. | `f78d6b8` (rebasé en `738db13`) |
 | `CLAUDE.md` | 1 ligne remplacée | La règle « Journal `docs/09` mis à jour » contredisait l'immuabilité de la spec v1.0. Décision du propriétaire (03/11/2026) : le journal vit dans `docs/implementation/JOURNAL_DECISIONS.md`. | lot P5 |
+| `README.md` | Réécrit | Publication du dépôt (demande du propriétaire, 08/11/2026) : le README présente l'application, l'installation, les tests, les droits et l'absence d'affiliation LEGO. Le README v1.0 (dossier de démarrage) reste dans `b019989` ; sa table des documents et ses contraintes sont couvertes par `docs/01…09` et `docs/implementation/README.md`. | `docs/public-readme` |
 
 ## Écarts corrigés
 
