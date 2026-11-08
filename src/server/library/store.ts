@@ -13,7 +13,7 @@ import {
   type BuildView, type FileKind, type FileLocation, type FileState, type FileView, type LibraryBuild, type LibraryFile, type LibraryIndex, type LibrarySet,
   type LibraryView, type MappingView, type ModelSnapshot, type ProgressView,
 } from '@/domain/library/types';
-import { Mutex, linkNewFile, readJson, tmpName, writeFileAtomic } from './fs-atomic';
+import { Mutex, linkNewFile, readJson, renameRetry, tmpName, writeFileAtomic } from './fs-atomic';
 import { LIBRARY_DIRNAME, resolveInside, safeSegments, UnsafePathError } from './paths';
 import { emptyIndex, MAX_INDEX_BYTES, parseIndex, parseProvenance, parseRecord, RECORD_FORMAT, type StoredRecord } from './schema';
 
@@ -514,7 +514,7 @@ export class LibraryStore {
       const dir = this.p('trash', `${stamp(new Date())}-${'buildId' in target ? target.buildId : target.setId}`);
       await fs.mkdir(dir, { recursive: true });
       await writeFileAtomic(path.join(dir, 'removed.json'), `${JSON.stringify({ set, builds, files: builds.flatMap((b) => [b.modelFileId, ...b.bookletFileIds]).map((id) => index.files[id]) }, null, 2)}\n`);
-      for (const b of builds) await fs.rename(this.p('builds', b.id), path.join(dir, b.id)).catch((e: NodeJS.ErrnoException) => { if (e.code !== 'ENOENT') throw e; });
+      for (const b of builds) await renameRetry(this.p('builds', b.id), path.join(dir, b.id)).catch((e: NodeJS.ErrnoException) => { if (e.code !== 'ENOENT') throw e; });
       const ids = new Set(builds.map((b) => b.id));
       await this.commit((idx) => ({
         ...idx,
@@ -616,7 +616,7 @@ export class LibraryStore {
       if (current.revision !== baseRevision) throw new LibraryError('CONFLICT', 'Cette partie a été enregistrée entre-temps : recharge la page.', { revision: current.revision });
       const history = this.p('builds', buildId, 'history');
       await fs.mkdir(history, { recursive: true });
-      await fs.rename(this.recordPath(buildId, 'progress'), path.join(history, `progress-${stamp(new Date())}-r${current.revision}-cleared.json`));
+      await renameRetry(this.recordPath(buildId, 'progress'), path.join(history, `progress-${stamp(new Date())}-r${current.revision}-cleared.json`));
     });
   }
 

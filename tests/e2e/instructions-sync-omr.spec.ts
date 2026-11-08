@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { parseMappingText } from '../../src/domain/instructions/mapping';
 import { importModel, newStats, placeOneByPointer, progressCount } from './scripted-player';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * P6 real trial on 31040-1 (OMR model + official booklet 6145903 + the owner's manual mapping).
@@ -13,7 +13,7 @@ import { importModel, newStats, placeOneByPointer, progressCount } from './scrip
  *   BRICK_LAB_DATA/mappings/31040-1.brick-mapping.json
  * Proofs go to BRICK_LAB_DATA/proofs/p6 (never committed).
  */
-const DATA = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const DATA = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const MODEL = path.join(DATA, 'models', '31040-1', '31040-1.mpd');
 const PDF = path.join(DATA, 'instructions', '31040-1', '31040-1_notice_6145903.pdf');
 const MAPPING = path.join(DATA, 'mappings', '31040-1.brick-mapping.json');

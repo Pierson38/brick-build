@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { importModel, newStats, placeOneByPointer } from './scripted-player';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * P5 validation on REAL LDraw OMR files. They are third-party files kept outside the
@@ -13,7 +13,7 @@ import { importModel, newStats, placeOneByPointer } from './scripted-player';
  * The main build is done ONLY with the pointer and the keyboard (R, O, PageUp/PageDown):
  * the "Poser à la position cible (aide)" button is never used.
  */
-const DATA = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const DATA = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const PROOFS = path.join(DATA, 'proofs', 'p5');
 const model = (set: string) => path.join(DATA, 'models', set, `${set}.mpd`);
 const pdf = (set: string, id: string) => path.join(DATA, 'instructions', set, `${set}_notice_${id}.pdf`);

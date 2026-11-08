@@ -19,7 +19,7 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: 'http://127.0.0.1:3220', viewport: { width: 1280, height: 800 }, launchOptions: { args: ['--enable-gpu', '--ignore-gpu-blocklist'] } },
   webServer: {
-    command: 'rm -rf .next/dev && NEXT_TELEMETRY_DISABLED=1 npx next dev -H 127.0.0.1 -p 3220',
+    command: 'node scripts/run-next.mjs dev --fresh-dev-cache -H 127.0.0.1 -p 3220',
     env: { BRICK_LAB_DATA_DIR: RECETTE_CONNEXIONS_DIR, BRICK_LAB_NET_FIXTURES: '', BRICK_LAB_ONLINE: '0' },
     url: 'http://127.0.0.1:3220/api/ldraw-status',
     reuseExistingServer: false,

@@ -1,9 +1,9 @@
 import { existsSync, promises as fs, writeFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { E2E_DATA_DIR } from '../../playwright.config';
 import { newStats, placeOneByPointer, progressCount } from './scripted-player';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * P7 real trial: 31040 (model + booklet + the owner's verified mapping) and 31009 (model + booklet
@@ -11,7 +11,7 @@ import { newStats, placeOneByPointer, progressCount } from './scripted-player';
  * The files are copied from BRICK_LAB_DATA into the isolated E2E folder (never into the repository);
  * the suite is SKIPPED, and reported as such, when one of them is absent.
  */
-const SRC = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const SRC = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const FILES = [
   'models/31040-1/31040-1.mpd',
   'instructions/31040-1/31040-1_notice_6145903.pdf',

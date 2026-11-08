@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { existsSync, promises as fs, readdirSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { RECETTE_DATA_DIR, RECETTE_SET } from '../../playwright.recette-p8.config';
 import { makeTestPdf } from '../e2e/make-test-pdf';
 import { newStats, placeOneByPointer, progressCount } from '../e2e/scripted-player';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * P8 real trial on a set that is NOT in the owner's collection (default 31045, OMR), in an isolated
@@ -14,7 +14,7 @@ import { newStats, placeOneByPointer, progressCount } from '../e2e/scripted-play
  * The booklet: the owner's own PDF when present in $BRICK_LAB_DATA/instructions/<set>-1/ (never
  * downloaded by the script); otherwise a SYNTHETIC stand-in, reported as such.
  */
-const SRC = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const SRC = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const PROOFS = path.join(SRC, 'proofs', 'p8');
 const CANON = `${RECETTE_SET}-1`;
 const PLACE = 12;

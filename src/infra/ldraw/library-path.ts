@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { isSafeOnPlatform } from '@/infra/portable-name';
 
 // Server-only: resolves files of the user's local LDraw library (LDRAW_LIBRARY_DIR).
 
@@ -15,7 +16,7 @@ export function libraryRoot(): string | null {
 /** Validates request segments; returns null when the path must be refused. */
 export function sanitizeSegments(segments: readonly string[]): string[] | null {
   if (segments.length === 0 || segments.length > 4) return null;
-  if (!segments.every((s) => SEGMENT_RE.test(s) && s !== '.' && s !== '..')) return null;
+  if (!segments.every((s) => SEGMENT_RE.test(s) && s !== '.' && s !== '..' && isSafeOnPlatform(s))) return null;
   if (!ALLOWED_EXT.test(segments.at(-1)!)) return null;
   return [...segments];
 }

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * Connections on the owner's REAL 31039 build (fix/free-building-connections): the model and the
@@ -13,7 +13,7 @@ import { expect, test, type Page } from '@playwright/test';
  * smoothness with a piece in hand. Captures and log in the owner's proofs folder only (a third-party
  * set: not in the repository). SKIPPED without the owner's files.
  */
-const SRC = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const SRC = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const PROOFS = path.join(SRC, 'proofs', 'connexions');
 
 function owner(): { model: Buffer; payload: Record<string, unknown> } | null {

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { newStats, placeOneByPointer, progressCount } from './scripted-player';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * UX batch on the owner's REAL sets 31040 and 31009 (standalone atelier: files read in the page,
@@ -10,7 +10,7 @@ import { newStats, placeOneByPointer, progressCount } from './scripted-player';
  * while they are drawn) and places pieces with the P5 scripted player after several resizes.
  * SKIPPED when the files are absent. Results: $BRICK_LAB_DATA/proofs/ux/.
  */
-const SRC = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const SRC = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const SETS = [
   { id: '31040-1', model: 'models/31040-1/31040-1.mpd', pdf: 'instructions/31040-1/31040-1_notice_6145903.pdf' },
   { id: '31009-1', model: 'models/31009-1/31009-1.mpd', pdf: 'instructions/31009-1/31009-1_notice_6038244.pdf' },
