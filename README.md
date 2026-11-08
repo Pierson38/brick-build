@@ -1,6 +1,6 @@
 # Brick Lab Local
 
-Application web **locale** (Mac) pour reconstruire virtuellement, pièce par pièce, des sets de briques à partir de fichiers **LDraw** (`.mpd` / `.ldr`) et de la notice PDF que tu as toi-même téléchargée.
+Application web **locale** (macOS, Windows en préversion) pour reconstruire virtuellement, pièce par pièce, des sets de briques à partir de fichiers **LDraw** (`.mpd` / `.ldr`) et de la notice PDF que tu as toi-même téléchargée.
 
 ![Atelier en montage libre : manipulateur 3D, panneau du modèle et bac de pièces](docs/implementation/preuves/libre/gizmo-fleches.png)
 
@@ -8,7 +8,7 @@ Application web **locale** (Mac) pour reconstruire virtuellement, pièce par pi�
 
 ## Fonctionnalités
 
-- **Ma collection** : bibliothèque personnelle de sets et de constructions, avec progression, miniatures, sauvegarde et restauration (stockée dans `~/Documents/brick-lab-data/`).
+- **Ma collection** : bibliothèque personnelle de sets et de constructions, avec progression, miniatures, sauvegarde et restauration (stockée dans `~/Documents/brick-lab-data/`, ou `%USERPROFILE%\brick-lab-data\` sous Windows).
 - **Ajouter un set** : saisie d'un numéro (`31040` → `31040-1`), recherche dans tes fichiers locaux puis, sur clic uniquement, sur l'[OMR LDraw](https://library.ldraw.org/omr) ; lien vers la page officielle des notices ; métadonnées Rebrickable facultatives. Glisser-déposer de `.mpd`, `.ldr`, `.pdf` et `.brick-mapping.json` sans Internet.
 - **Diagnostic de compatibilité** avant import : étapes LDraw, sous-modèles, pièces absentes de la bibliothèque locale, licence et auteur lus dans le fichier, modes de jeu réellement disponibles et pourquoi.
 - **Mode guidé** : quand le fichier contient des étapes (`0 STEP`), les emplacements de l'étape s'affichent et chaque pièce s'aimante à sa cible.
@@ -25,7 +25,7 @@ Application web **locale** (Mac) pour reconstruire virtuellement, pièce par pi�
 
 ## Prérequis
 
-- macOS, **Node.js ≥ 20.9** (testé avec 24.5) et npm.
+- macOS ou Windows 10/11, **Node.js ≥ 20.9** (testé avec 24.5) et npm.
 - La **bibliothèque de pièces LDraw** (gratuite, CC BY 4.0), à télécharger une fois et à conserver hors du dépôt.
 
 ## Installation
@@ -49,6 +49,8 @@ cd brick-build && npm ci
    # REBRICKABLE_API_KEY=<clé personnelle>          # nom, année et nombre de pièces annoncé
    # BRICK_LAB_ONLINE=0                             # interdit tout accès Internet
    ```
+
+   Sous Windows, écris le chemin avec des `/` : `LDRAW_LIBRARY_DIR=C:/Users/<toi>/brick-lab-data/ldraw`.
 
 3. Vérifie la bibliothèque :
 
@@ -122,7 +124,19 @@ docs/           spécification et notes d'implémentation
 - L'inventaire d'un fichier OMR n'est pas garanti identique à celui de la boîte.
 - Aucune conversion automatique d'une notice PDF en données 3D : la synchronisation notice ↔ 3D repose sur des correspondances saisies.
 - L'aimantation reconnaît tenons, réceptacles, goupilles et trous de goupille ; axes, clips, barres et charnières ne le sont pas encore.
-- Testé sur macOS avec Chromium et WebKit uniquement.
+- Testé sur macOS avec Chromium et WebKit. La prise en charge de Windows est une **préversion** : voir ci-dessous.
+
+## Windows (préversion)
+
+Les commandes sont les mêmes que sur Mac, dans PowerShell ou l'invite de commandes : les scripts npm et Playwright n'utilisent plus de syntaxe propre à macOS/Linux. Ce qui change sous Windows :
+
+- **Dossier de données par défaut** : `%USERPROFILE%\brick-lab-data` (et non `Documents`, souvent déplacé dans OneDrive, dont la synchronisation verrouille les fichiers). `BRICK_LAB_DATA_DIR` permet d'en choisir un autre ; évite un dossier synchronisé.
+- **Noms de fichiers** : les noms réservés par Windows (`con`, `nul`, `com1`…, même avec une extension) et ceux qui finissent par un point ou une espace sont refusés.
+- **Fins de ligne** : `.gitattributes` impose LF, quel que soit `core.autocrlf` ; sans cela, `npm run check:spec` échouerait.
+- **Écritures** : un renommage bloqué un instant par un antivirus, l'indexeur ou OneDrive est réessayé ; sur un disque sans liens physiques (FAT/exFAT), les fichiers sont copiés puis renommés.
+- **Droits** : les fichiers de la bibliothèque héritent des droits du dossier du profil (le mode `600` de macOS n'existe pas sous Windows).
+
+Ces adaptations sont testées sur macOS avec une plateforme simulée ; **aucune exécution sur une vraie machine Windows n'a encore été faite**. Les retours sont bienvenus.
 
 ## Contenus tiers et droits
 

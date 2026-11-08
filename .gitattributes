@@ -1,0 +1,5 @@
+# Fins de ligne Unix partout, quel que soit core.autocrlf (Git pour Windows convertit en CRLF par
+# défaut) : les empreintes SHA-256 de DOSSIER_MANIFEST.json et les fixtures LDraw en dépendent.
+* text=auto eol=lf
+*.png binary
+*.pdf binary

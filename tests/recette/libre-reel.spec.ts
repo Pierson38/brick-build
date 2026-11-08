@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { existsSync, promises as fs, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { RECETTE_LIBRE_DIR } from '../../playwright.recette-libre.config';
 import { dragHandle } from '../e2e/free-helpers';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 /**
  * True free building on the owner's REAL sets 31009 (Small Cottage) and 31039 (Blue Power Jet, 609
@@ -14,7 +14,7 @@ import { dragHandle } from '../e2e/free-helpers';
  * turn, remove, undo, smoothness, explicit mode switch. Part 2 (`-g "part 2"`, after restarting the
  * server by hand): the same assembly restored, guided mode still strict. SKIPPED without the files.
  */
-const SRC = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const SRC = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const PROOFS = path.join(SRC, 'proofs', 'libre');
 const LOG = path.join(PROOFS, 'recette-libre.json');
 

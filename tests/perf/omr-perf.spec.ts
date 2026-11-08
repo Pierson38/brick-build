@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { cpus, homedir, release, totalmem } from 'node:os';
+import { cpus, release, totalmem } from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { defaultDataRoot } from '../../src/server/library/paths';
 
 // Reproducible performance measurement on real OMR files (kept outside the repo).
-const DATA = process.env.BRICK_LAB_DATA ?? path.join(homedir(), 'Documents', 'brick-lab-data');
+const DATA = process.env.BRICK_LAB_DATA ?? defaultDataRoot();
 const SETS = ['31040-1', '31009-1'];
 const RUNS = 3;
 

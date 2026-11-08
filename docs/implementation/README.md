@@ -39,7 +39,7 @@ Le dépôt contient deux familles de documents :
 
 ## Démarrage développeur
 
-Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm.
+Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm. Windows : préversion, voir le README racine (§ Windows) et le [journal](JOURNAL_DECISIONS.md#journal--08112026-prise-en-charge-de-windows-branche-featwindows-support).
 
 1. Bibliothèque de pièces LDraw (une fois, hors dépôt) : télécharger `complete.zip` depuis https://library.ldraw.org/library/updates/complete.zip, le décompresser par exemple dans `~/Documents/brick-lab-data/` (dossier `ldraw/`), puis créer `.env.local` à la racine du projet :
    ```

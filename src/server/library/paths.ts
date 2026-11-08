@@ -1,14 +1,23 @@
 import { promises as fs } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { isSafeOnPlatform } from '@/infra/portable-name';
 
 // Server-only: where the library lives, and the only way a stored relative path becomes a real path.
 
-/** Default data folder; `BRICK_LAB_DATA_DIR` overrides it (tests use a temporary folder). */
+/**
+ * Default data folder: ~/Documents/brick-lab-data, and ~/brick-lab-data on Windows, where Documents
+ * is often moved into OneDrive (another place than the user expects, and its sync locks files).
+ */
+export function defaultDataRoot(platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? path.join(homedir(), 'brick-lab-data') : path.join(homedir(), 'Documents', 'brick-lab-data');
+}
+
+/** Data folder; `BRICK_LAB_DATA_DIR` overrides the default (tests use a temporary folder). */
 export function dataRoot(): string {
   const dir = process.env.BRICK_LAB_DATA_DIR?.trim();
   // runtime folder of the user, not part of the build output (no file tracing)
-  return path.resolve(/* turbopackIgnore: true */ dir || path.join(homedir(), 'Documents', 'brick-lab-data'));
+  return path.resolve(/* turbopackIgnore: true */ dir || defaultDataRoot());
 }
 
 /** Everything P7 writes goes under `<data>/library/`; files found elsewhere in `<data>` are only read. */
@@ -18,13 +27,14 @@ const SEGMENT_RE = /^[A-Za-z0-9 _()+.,'&-]{1,128}$/;
 
 /**
  * Validates a stored relative path (forward slashes, at most 6 segments, no `.`/`..`, no hidden
- * file, plain characters). Returns the segments, or null when the path must be refused.
+ * file, plain characters, no Windows device name or trailing dot/space on Windows). Returns the
+ * segments, or null when the path must be refused.
  */
 export function safeSegments(rel: string): string[] | null {
   if (typeof rel !== 'string' || rel.length === 0 || rel.length > 512 || rel.includes('\\') || rel.startsWith('/')) return null;
   const segments = rel.split('/');
   if (segments.length > 6) return null;
-  if (!segments.every((s) => SEGMENT_RE.test(s) && s !== '.' && s !== '..' && !s.startsWith('.'))) return null;
+  if (!segments.every((s) => SEGMENT_RE.test(s) && s !== '.' && s !== '..' && !s.startsWith('.') && isSafeOnPlatform(s))) return null;
   return segments;
 }
 
