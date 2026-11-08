@@ -113,6 +113,7 @@ details li.warning { color: #92400e; }
 button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; }
 button.danger { border-color: #fca5a5; color: var(--err); }
 .warn { color: #92400e; background: #fef3c7; padding: 4px 8px; border-radius: 6px; margin: 4px 0; }
+.snap-miss { color: #92400e; font-weight: 600; }
 .sync-banner { border: 1px solid #c7d6fe; background: #f0f4ff; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 .sync-banner.consulting { border-color: #fcd34d; background: #fffbeb; }
 .sync-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

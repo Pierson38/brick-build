@@ -67,6 +67,8 @@ interface Props {
   readonly onGizmoCommit?: (delta: Matrix4Tuple) => void;
   /** Free mode: connectors that the snapping proposal makes fit (markers of the preview). */
   readonly snapPoints?: readonly (readonly [number, number, number])[] | null;
+  /** Free mode, "Voir les connexions": the placed pieces outside the selection are seen through. */
+  readonly xray?: boolean;
   /** Free mode: the three rotation axes drawn through the piece in hand (X red, Y green, Z blue). */
   readonly axesAt?: readonly [number, number, number];
   /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
@@ -160,7 +162,7 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, xray, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround }: Props) {
   // pieces carried by the gizmo during its drag: drawn in the gizmo's moving group, hidden here
   const [gizmoHidden, setGizmoHidden] = useState<ReadonlySet<string>>(new Set());
   // the gizmo moves a proxy at the pivot INSIDE the LDraw root (LDraw coordinates); the pieces follow
@@ -299,7 +301,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
       }}
     >
       {occurrences.map((o) => {
-        const variant = highlightIds?.has(o.occurrenceId) ? 'selected' : solidIds.has(o.occurrenceId) ? 'solid' : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
+        const variant = highlightIds?.has(o.occurrenceId) ? 'selected' : solidIds.has(o.occurrenceId) ? (xray ? 'xray' : 'solid') : ghostIds.has(o.occurrenceId) ? 'ghost' : null;
         const template = templates.get(trayKey(o.partKey, o.colorCode));
         if (!variant || !template || gizmoHidden.has(`a:${o.occurrenceId}`)) return null;
         return <PlacedBrick key={`${o.occurrenceId}:${variant}`} template={template} matrix={o.targetMatrix} variant={variant} id={o.occurrenceId} />;
@@ -308,7 +310,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         const template = templates.get(trayKey(f.partKey, f.colorCode));
         const inHand = (held?.moving?.kind === 'free' && held.moving.id === f.id) || held?.group?.members.some((m) => m.ref.kind === 'free' && m.ref.id === f.id);
         if (!template || inHand || gizmoHidden.has(`f:${f.id}`)) return null;
-        const variant = selectedFree?.has(f.id) ? 'selected' : 'solid';
+        const variant = selectedFree?.has(f.id) ? 'selected' : xray ? 'xray' : 'solid';
         return <PlacedBrick key={`free:${f.id}:${variant}`} template={template} matrix={f.pose} variant={variant} id={`free:${f.id}`} pieceId={f.id} />;
       })}
       {held?.group
@@ -583,9 +585,11 @@ declare global {
     __brickLab?: {
       /** Screen position (client px) of an LDraw-space point. Dev/test only. */
       project: (ldraw: readonly [number, number, number]) => { x: number; y: number };
-      sceneSummary: () => { solid: number; ghost: number; held: number; selected: number; meshes: number };
+      sceneSummary: () => { solid: number; ghost: number; held: number; selected: number; xray: number; meshes: number };
       /** True when the renderer size used for picking matches the canvas on screen. */
       sizeInSync: () => boolean;
+      /** LDraw positions of the green snap markers drawn in the scene (empty when none). */
+      snapMarkers: () => number[][];
     };
   }
 }
@@ -608,13 +612,20 @@ function TestHooks() {
         return Math.abs(rect.width - sizeRef.current.width) < 1 && Math.abs(rect.height - sizeRef.current.height) < 1;
       },
       sceneSummary: () => {
-        const counts = { solid: 0, ghost: 0, held: 0, selected: 0, meshes: 0 };
+        const counts = { solid: 0, ghost: 0, held: 0, selected: 0, xray: 0, meshes: 0 };
         scene.traverse((o) => {
           const variant = o.userData.variant as Variant | undefined;
           if (variant) counts[variant] += 1;
           if ((o as { isMesh?: boolean }).isMesh && o.name !== 'ground-plane') counts.meshes += 1;
         });
         return counts;
+      },
+      snapMarkers: () => {
+        const o = scene.getObjectByName('snap-markers') as Points | undefined;
+        const a = o?.geometry.getAttribute('position');
+        if (!a) return [];
+        // drawn 0.5 LDU above the connector (see SnapMarkers)
+        return Array.from({ length: a.count }, (_, i) => [a.getX(i), Math.round((a.getY(i) + 0.5) * 100) / 100, a.getZ(i)].map((v) => Math.round(v * 100) / 100));
       },
     };
     return () => {
