@@ -14,6 +14,13 @@
       "currentSha256": "c4be3ac7040cb6af8145db6628a3876b7609e804af1a287e87e86c93a78ad8a3",
       "reason": "Règle « Journal docs/09 mis à jour » remplacée par docs/implementation/JOURNAL_DECISIONS.md, docs/09 restant la spec v1.0 figée (décision du propriétaire, 03/11/2026).",
       "introducedIn": "lot P5"
+    },
+    {
+      "path": "README.md",
+      "manifestSha256": "bd441a932dcdf1278161f99ad39efd3b0e670a17a5452f654a0908f11ed5ee13",
+      "currentSha256": "72fe8fb2250112f3fd2de3480c07225349711e0f0f21744c31e99a5e30a89233",
+      "reason": "README réécrit pour la publication du dépôt : présentation de l’application, installation, tests, droits. La version v1.0 reste dans b019989 ; son contenu est repris par docs/01…09 et docs/implementation/README.md.",
+      "introducedIn": "docs/public-readme"
     }
   ]
 }
