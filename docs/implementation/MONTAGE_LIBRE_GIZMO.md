@@ -62,3 +62,7 @@ recette réelle libre-reel.spec.ts           partie 1 1/1 ; redémarrage du serv
 - Partie 4 (ta construction 31039 copiée, 21 pièces) : plaque grise montée d'une plaque ; assemblage de 8 pièces (f1, f6–f12) déplacé et tourné ; axe f19 sélectionné (axes locaux) ; roue f20 placée à X = 360 par saisie ; identique après rechargement.
 - Données réelles : empreintes SHA-256 de `library.json` et des `progress.json` identiques avant et après la recette.
 - Un échec trouvé par la suite complète pendant ce lot (Maj + clic refusé dans `free-height-group`) venait de la barre de sélection agrandie qui couvrait la pièce ; corrigé (§ 1, « Barre de sélection »).
+
+## 6. Recette humaine (08/11/2026)
+
+Chrome et Safari, par le propriétaire : flèches X / Y / Z **OK** ; rotations et axes locaux **OK** ; précision et coordonnées **OK** ; assemblage connecté **OK** ; non-régression et Safari **OK**. Verdict : **GO FINAL** (fusion de la PR #7 autorisée). Détail et état des données : [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md) § 7.
