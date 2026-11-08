@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { connectedAssembly, connectionGraph, ConnectorIndex, jointsBetween, type PlacedPiece } from '@/domain/build/connections';
+import { connectedAssembly, connectionGraph, ConnectorIndex, engagedAt, heldConnectors, jointsBetween, proposeSnap, type PlacedPiece } from '@/domain/build/connections';
 import { rotateOrientation } from '@/domain/build/free';
 import { analyzeModel } from '@/domain/import/analyze';
 import { CONNECTOR_METADATA } from '@/domain/ldraw/connector-metadata';
@@ -160,5 +160,95 @@ describe.skipIf(!LIB)('hidden mechanism: a black axle through orange pieces (fix
       expect([...moved.keys()].sort()).toEqual([...base.keys()].sort());
       expect(connectedAssembly(moved, ['f:6536.dat@-40,0,0'])).toEqual(MECHANISM);
     }
+  });
+});
+
+/**
+ * Owner's 31039 (08/11/2026): the tan brick with a hole 6541 and the dark grey corner plate 2639 above
+ * it did not fit — 24 pieces of the fuselage stood 1.81 LDU too low. Cause: the curved inverted slope
+ * 41763 (= 42023) draws the hollow studs of its thin end LONGER than a stud (sunk into the part: base
+ * 9.2 and 1.41 LDU under the top, tip at the usual -4) and its tubes stop 0.4 LDU above its bottom rim;
+ * 4287 (Slope 33 3 x 1 Inverted, = 4287a) draws two of its three studs the same way. Original fixture
+ * tests/fixtures/pente-inversee-bloc.ldr: the same references stacked the same way.
+ */
+describe.skipIf(!LIB)('sunk studs and tubes short of the rim: the 31039 fuselage block (fixture pente-inversee-bloc.ldr, real parts)', () => {
+  const studs = (r: PartConnectors) => r.connectors.filter((c) => c.kind === 'stud').map((c) => c.pos);
+  const receptors = (r: PartConnectors) => r.connectors.filter((c) => c.kind === 'antistud').map((c) => c.pos);
+
+  it('a stud drawn longer than a stud stands on the face 4 LDU under its tip (41763 / 42023, 4287 / 4287a)', async () => {
+    expect(studs(await scan('41763.dat'))).toEqual([[0, 0, 10], [0, 0, -10], [0, 0, -30], [0, 0, -50], [0, 0, -70], [0, 0, -90]]);
+    expect(studs(await scan('42023.dat'))).toEqual(studs(await scan('41763.dat')));
+    expect(studs(await scan('4287.dat'))).toEqual([[0, 0, 0], [0, 0, -20], [0, 0, -40]]);
+  });
+
+  it('tubes that stop short of the bottom rim: the receptors on the rim (41763: tubes to 23.6, rim at 24)', async () => {
+    expect(receptors(await scan('41763.dat'))).toEqual([[0, 24, -10], [0, 24, 10]]);
+    // ordinary parts unchanged
+    expect(receptors(await scan('3005.dat'))).toEqual([[0, 24, 0]]);
+    expect(receptors(await scan('4287.dat'))).toEqual([[0, 24, 0]]);
+    // the same geometry elsewhere: a locking hinge brick whose tubes stop 0.4 LDU short too
+    expect(receptors(await scan('30388.dat'))).toEqual([[-30, 24, 0], [-10, 24, 0], [10, 24, 0], [30, 24, 0]]);
+    // the rim only changes the height of the receptors, and only when it is the lowest point of the
+    // part: a brick with train wheels under it keeps its receptors as they were
+    expect(receptors(await scan('4180c01.dat'))).toEqual([[-30, 24, -10], [-30, 24, 10], [-10, 24, -10], [-10, 24, 10], [10, 24, -10], [10, 24, 10], [30, 24, -10], [30, 24, 10]]);
+  });
+
+  it('a tall stud with no face under it keeps its drawn base (2680a Support Stanchion with Tall Studs)', async () => {
+    expect(studs(await scan('2680a.dat'))).toEqual([[-10, 0, -10], [10, 0, -10], [-10, 0, 10], [10, 0, 10]]);
+  });
+
+  it('studs standing in the same plane as a verified sunk stud: the same treatment (2653, top drawn with edges near its middle studs)', async () => {
+    expect(studs(await scan('2653.dat'))).toEqual([[-30, 0, 0], [-10, 0, 0], [10, 0, 0], [30, 0, 0]]);
+  });
+
+  const model = analyzeModel(readFileSync(path.join('tests', 'fixtures', 'pente-inversee-bloc.ldr'), 'utf8'), 'pente-inversee-bloc.ldr');
+  const at = (part: string) => model.model.occurrences.find((o) => o.partKey === part)!.targetMatrix;
+  /** A piece taken from the tray, shown `off` LDU from its place: the pose where the pieces magnet puts it. */
+  const fromTray = async (placed: PlacedPiece[], partKey: string, off: readonly [number, number, number]) => {
+    for (const p of [...placed.map((q) => q.partKey), partKey]) await scan(p);
+    const idx = new ConnectorIndex(placed, (k) => parts.get(k));
+    const target = at(partKey);
+    const shown = withTranslation(target, [target[12] + off[0], target[13] + off[1], target[14] + off[2]]);
+    const snap = proposeSnap(heldConnectors([{ partKey, pose: shown }], (k) => parts.get(k)), idx);
+    const pose = snap ? withTranslation(shown, [shown[12] + snap.delta[0], shown[13] + snap.delta[1], shown[14] + snap.delta[2]]) : shown;
+    return { snap, pose, piece: { key: `f:${partKey}`, partKey, pose } as PlacedPiece, idx };
+  };
+  const exactly = (pose: Matrix4Tuple, part: string) => expect(pose.slice(12, 15)).toEqual(at(part).slice(12, 15));
+  const BASE: PlacedPiece[] = [{ key: 'f:3001.dat', partKey: '3001.dat', pose: at('3001.dat') }, { key: 'f:3005.dat', partKey: '3005.dat', pose: at('3005.dat') }];
+
+  for (const off of [[3, 0, 4], [-4, -3, 2], [2, 5, -3]] as const) {
+    it(`from the tray, shown ${off.join(' / ')} LDU away: 41763 → 4287 → 2639 → the tan block 6541 fits exactly under the grey plate`, async () => {
+      const curve = await fromTray(BASE, '41763.dat', off);
+      exactly(curve.pose, '41763.dat');
+      expect(curve.snap?.targets).toEqual(['f:3001.dat']);
+      const slope = await fromTray([...BASE, curve.piece], '4287.dat', off);
+      exactly(slope.pose, '4287.dat'); // flush on the top of the curve, not 9.2 LDU into it
+      expect(slope.snap).toMatchObject({ pairs: 1, targets: ['f:41763.dat'] });
+      const plate = await fromTray([...BASE, curve.piece, slope.piece], '2639.dat', off);
+      exactly(plate.pose, '2639.dat');
+      const block = await fromTray([...BASE, curve.piece, slope.piece, plate.piece], '6541.dat', off);
+      exactly(block.pose, '6541.dat');
+      // the block takes the brick under it and the grey plate over it: two studs, two pieces
+      expect(block.snap).toMatchObject({ pairs: 2, targets: ['f:2639.dat', 'f:3005.dat'], kinds: ['stud'] });
+      // placed: the connections recognised at that exact pose, and one assembly
+      const all = [...BASE, curve.piece, slope.piece, plate.piece, block.piece];
+      const idx = new ConnectorIndex(all, (k) => parts.get(k));
+      expect(jointsBetween(idx, 'f:6541.dat', 'f:2639.dat')).toEqual(['stud']);
+      expect(jointsBetween(idx, 'f:4287.dat', 'f:2639.dat')).toEqual(['stud']);
+      expect(connectedAssembly(connectionGraph(idx), ['f:6541.dat'])).toEqual(all.map((p) => p.key).sort());
+    });
+  }
+
+  it('the user’s order (the block first, the grey plate last): the plate takes the slope AND the block', async () => {
+    const curve = await fromTray(BASE, '41763.dat', [3, 0, 4]);
+    const slope = await fromTray([...BASE, curve.piece], '4287.dat', [3, 0, 4]);
+    const block = await fromTray([...BASE, curve.piece, slope.piece], '6541.dat', [3, 0, 4]);
+    exactly(block.pose, '6541.dat');
+    const plate = await fromTray([...BASE, curve.piece, slope.piece, block.piece], '2639.dat', [3, 0, 4]);
+    exactly(plate.pose, '2639.dat');
+    expect(plate.snap).toMatchObject({ pairs: 2, targets: ['f:4287.dat', 'f:6541.dat'] });
+    // the markers of the preview = the connections checked at the pose shown
+    const shown = heldConnectors([{ partKey: '2639.dat', pose: plate.pose }], (k) => parts.get(k));
+    expect(engagedAt(shown, plate.idx).points).toEqual(plate.snap!.points);
   });
 });

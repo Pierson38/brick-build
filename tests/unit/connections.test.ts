@@ -116,6 +116,14 @@ describe('snapping between pieces', () => {
     expect(s.points).toHaveLength(4);
   });
 
+  it('the markers of the receptors in hand are rounded like every connector (31039: -14.4, not -14.400000000000002)', async () => {
+    brick = await scan('brick22.dat');
+    const index = new ConnectorIndex([{ key: 'f:1', partKey: 'brick22', pose: at(0, -14.4, 0) }], lib);
+    const s = proposeSnap(heldConnectors([{ partKey: 'brick22', pose: at(2, -15.3, 1) }], lib), index)!;
+    expect(s.delta).toEqual([-2, -23.1, -1]);
+    expect(s.points.map((p) => p[1])).toEqual([-14.4, -14.4, -14.4, -14.4]);
+  });
+
   it('deterministic among candidates: more fitting studs first, then the smallest move, whatever the order', async () => {
     const index = await base();
     // over the edge of f:1, too far from its other studs: the local fit (2 studs, one row overhanging)
