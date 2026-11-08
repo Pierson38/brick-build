@@ -1,5 +1,7 @@
 # Recette humaine — aimantation depuis le bac, connexions et assemblages cachés (31039)
 
+> **Résultat (08/11/2026) : GO.** Recette faite par le propriétaire sur le serveur de production de la branche (commit `7836b3d`), avec sa bibliothèque réelle sauvegardée juste avant (`backups-p8/library-2026-11-08T20-10-32-avant-recette-connexions.tar.gz`, inventaire `donnees-2026-11-08T20-10-32.sha256`). Retour : « ok tout est good ». Aucune anomalie signalée.
+
 > Critères :
 > 1. Je prends une pièce **dans le bac**, je l'approche de mon assemblage, l'aimant propose immédiatement une connexion compatible, je vois les **repères verts**, puis la pièce s'emboîte **exactement** à cet endroit. Je n'ai plus à poser puis reprendre la pièce.
 > 2. Je sélectionne une pièce d'un mécanisme, « **Assemblage** », et Brick Build sélectionne tout ce qui est relié — y compris par un **axe intérieur** et des pièces invisibles depuis ma caméra.
