@@ -18,7 +18,7 @@
     {
       "path": "README.md",
       "manifestSha256": "bd441a932dcdf1278161f99ad39efd3b0e670a17a5452f654a0908f11ed5ee13",
-      "currentSha256": "72fe8fb2250112f3fd2de3480c07225349711e0f0f21744c31e99a5e30a89233",
+      "currentSha256": "61ed4420b518643102729212c0f59e54accc033ea53e9039c3870beb40733eeb",
       "reason": "README réécrit pour la publication du dépôt : présentation de l’application, installation, tests, droits. La version v1.0 reste dans b019989 ; son contenu est repris par docs/01…09 et docs/implementation/README.md.",
       "introducedIn": "docs/public-readme"
     }
