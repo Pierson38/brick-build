@@ -134,6 +134,8 @@ Détails : [`docs/07_DROITS_ET_SOURCES.md`](docs/07_DROITS_ET_SOURCES.md). Ce do
 
 ## Licence
 
-Aucune licence n'est encore attachée au code : sauf mention contraire, tous droits réservés. Les fixtures de `fixtures/` et `tests/fixtures/` sont des créations originales sous CC0-1.0.
+Code sous licence [MIT](LICENSE). Les fixtures de `fixtures/` et `tests/fixtures/` sont des créations originales sous CC0-1.0.
+
+La licence MIT couvre uniquement le code et la documentation de ce dépôt. Elle ne s'étend ni à la bibliothèque de pièces LDraw, ni aux modèles de l'OMR, ni aux notices ou marques LEGO, qui restent soumis à leurs propres conditions.
 
 La version d'origine de ce README (dossier de spécification v1.0) reste consultable dans le commit `b019989` (`git show b019989:README.md`).
