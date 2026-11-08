@@ -1,5 +1,7 @@
 # Montage libre — connexions, transformations, aimantation (note d'architecture)
 
+> **Mise à jour 08/11/2026** : axes et trous d'axe Technic reconnus, réceptacles garantis par un tenon ou un tube, aimant « près d'abord » stable, un seul index des connecteurs (bug de la pièce prise dans le bac) — voir [CONNEXIONS_FIABILISEES.md](CONNEXIONS_FIABILISEES.md). Ce qui suit décrit l'état du 07/11/2026.
+
 **Date :** 07/11/2026. Branche `feat/true-free-building` (PR #7). Demande du propriétaire après sa recette sur 31039 : rotations sur 3 axes, manipulation directe, sélection d'un assemblage connecté, aimantation entre pièces. Les deux captures annoncées n'ont pas été reçues ; analyse faite sur sa construction réelle 31039 (lue sans modification).
 
 ## 1. Ce que la bibliothèque LDraw permet de savoir — et ce qu'elle ne dit pas

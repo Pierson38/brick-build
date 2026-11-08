@@ -36,6 +36,8 @@ Le dépôt contient deux familles de documents :
 - [Recette humaine des quatre problèmes (sans résultat transmis ; suite : manipulateur 3D)](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md)
 - [Manipulateur 3D (gizmo) : conception et rapport](MONTAGE_LIBRE_GIZMO.md)
 - [Recette humaine du manipulateur 3D (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md)
+- [Connexions fiabilisées : aimant depuis le bac, axes Technic, assemblages cachés — diagnostic, règles, inventaire 31039, performances](CONNEXIONS_FIABILISEES.md)
+- [Recette humaine des connexions (à faire par le propriétaire)](RECETTE_HUMAINE_CONNEXIONS.md)
 
 ## Démarrage développeur
 
