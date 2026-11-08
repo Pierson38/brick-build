@@ -130,6 +130,20 @@ export async function loadModelGeometry(
 }
 
 const ghostMaterial = new MeshBasicMaterial({ color: '#3b82f6', transparent: true, opacity: 0.28, depthWrite: false });
+const xrayMaterials = new WeakMap<Material, Material>();
+
+/** Same colour, almost transparent: the pieces around a selection, to see the connections inside. */
+function xrayMaterial(m: Material): Material {
+  let out = xrayMaterials.get(m);
+  if (!out) {
+    out = m.clone();
+    out.transparent = true;
+    out.opacity = 0.12;
+    out.depthWrite = false;
+    xrayMaterials.set(m, out);
+  }
+  return out;
+}
 const selectedMaterials = new WeakMap<Material, Material>();
 
 /** Same material with an amber glow: bricks of the step being edited or consulted. */
@@ -147,7 +161,8 @@ function selectedMaterial(m: Material): Material {
   return out;
 }
 
-export type BrickVariant = 'solid' | 'ghost' | 'held' | 'selected';
+/** `xray`: a placed piece seen through ("Voir les connexions"), not picked by the pointer. */
+export type BrickVariant = 'solid' | 'ghost' | 'held' | 'selected' | 'xray';
 
 /** Clone sharing geometry; `ghost` swaps materials for a translucent silhouette without edges. */
 export function cloneTemplate(template: Group, variant: BrickVariant): Object3D {
@@ -157,9 +172,11 @@ export function cloneTemplate(template: Group, variant: BrickVariant): Object3D 
       const mesh = child as Mesh;
       if (variant === 'ghost') mesh.material = ghostMaterial;
       if (variant === 'selected') mesh.material = Array.isArray(mesh.material) ? mesh.material.map(selectedMaterial) : selectedMaterial(mesh.material);
-      // the held brick must not hide what is under the pointer; ghosts stay pickable (magnet)
-      if (variant === 'held') mesh.raycast = () => {};
-    } else if ('isLineSegments' in child && child.isLineSegments && variant === 'ghost') {
+      if (variant === 'xray') mesh.material = Array.isArray(mesh.material) ? mesh.material.map(xrayMaterial) : xrayMaterial(mesh.material);
+      // the held brick must not hide what is under the pointer; ghosts stay pickable (magnet); pieces
+      // seen through let the pointer reach the selection inside
+      if (variant === 'held' || variant === 'xray') mesh.raycast = () => {};
+    } else if ('isLineSegments' in child && child.isLineSegments && (variant === 'ghost' || variant === 'xray')) {
       child.visible = false;
     }
   });

@@ -14,6 +14,8 @@ export class ConnectorCatalog {
   private readonly files = new Map<string, Promise<string | null>>();
   private readonly scanned = new Map<string, Promise<unknown>>();
   private readonly ready = new Map<string, PartConnectors>();
+  /** Grows each time the connectors of one more part are known (an index built before is stale). */
+  version = 0;
 
   constructor(private readonly basePath = '/api/ldraw/') {}
 
@@ -48,6 +50,7 @@ export class ConnectorCatalog {
         .catch(() => ({ connectors: [], axleUnrecognised: false }))
         .then((r) => {
           this.ready.set(key, r);
+          this.version += 1;
           return r;
         });
       this.parts.set(key, p);

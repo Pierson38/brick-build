@@ -1,0 +1,23 @@
+0 Mecanisme axe traversant (fixture originale, CC0-1.0)
+0 Name: mecanisme-axe.ldr
+0 Author: Brick Lab tests
+0 // Un axe Technic 6 noir traverse trois blocs croises orange et deux demi-bagues ; deux goupilles
+0 // relient les blocs a des briques orange a trou ; une plaque sur une brique. Pieges : un bloc
+0 // aligne au-dela du bout de l'axe, une brique a trou alignee sans goupille, un axe qui traverse
+0 // une brique sans trou, une plaque qui cache le mecanisme sans y etre emboitee.
+1 0 0 0 0 1 0 0 0 1 0 0 0 1 3706.dat
+1 25 -40 0 0 1 0 0 0 1 0 0 0 1 6536.dat
+1 25 0 0 0 1 0 0 0 1 0 0 0 1 6536.dat
+1 25 40 0 0 1 0 0 0 1 0 0 0 1 6536.dat
+1 71 -20 0 0 0 0 1 0 1 0 -1 0 0 32123a.dat
+1 71 20 0 0 0 0 1 0 1 0 -1 0 0 32123a.dat
+1 0 -40 20 10 0 0 -1 0 1 0 1 0 0 2780.dat
+1 0 40 20 10 0 0 -1 0 1 0 1 0 0 2780.dat
+1 25 -40 10 20 1 0 0 0 1 0 0 0 1 6541.dat
+1 25 40 10 20 1 0 0 0 1 0 0 0 1 6541.dat
+1 25 -30 2 20 1 0 0 0 1 0 0 0 1 3023.dat
+1 25 90 0 0 1 0 0 0 1 0 0 0 1 6536.dat
+1 25 0 10 20 1 0 0 0 1 0 0 0 1 6541.dat
+1 0 0 0 120 1 0 0 0 1 0 0 0 1 4519.dat
+1 4 0 -12 120 1 0 0 0 1 0 0 0 1 3001.dat
+1 15 0 -32 10 1 0 0 0 1 0 0 0 1 3958.dat

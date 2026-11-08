@@ -12,9 +12,10 @@ import {
   type Axis, type FreeResult, type GroupMember, type PieceRef,
 } from '@/domain/build/free';
 import {
-  connectedAssembly, connectionGraph, ConnectorIndex, heldConnectors, proposeSnap,
-  type PlacedPiece, type SnapProposal,
+  connectedAssembly, connectionGraph, ConnectorIndex, heldConnectors,
+  type Engagement, type PlacedPiece, type SnapMiss, type SnapProposal,
 } from '@/domain/build/connections';
+import { snapHover } from '@/domain/build/snap';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import { IDENTITY, multiply, rotationY, withTranslation } from '@/domain/ldraw/matrix';
 import type { Matrix4Tuple } from '@/domain/ldraw/types';
@@ -54,6 +55,9 @@ declare global {
       selection: () => PieceRef[];
       /** Free mode: the snapping proposal shown, and the connection interfaces read for a part. */
       snap: () => SnapProposal | null;
+      /** Free mode: the connections verified at the exact pose shown (the green markers), or why there is no proposal. */
+      engaged: () => Engagement | null;
+      snapMiss: () => SnapMiss | null;
       connectors: (partKey: string) => { kind: string; pos: readonly number[] }[] | null;
       /** Free mode: the connection graph of the placed pieces (piece key → connected piece keys). */
       graph: () => Record<string, string[]>;
@@ -112,6 +116,19 @@ const FREE_FAILURE: Record<Exclude<FreeResult, { ok: true }>['reason'], string> 
   UNKNOWN_PIECE: 'Cette pièce n’est plus dans la construction.',
   INVALID_POSE: 'Position impossible à enregistrer.',
 };
+
+/** Why the pieces magnet proposes nothing (NONE_NEAR: nothing to say). */
+const SNAP_MISS: Record<Exclude<SnapMiss, 'NONE_NEAR'>, string> = {
+  NO_CONNECTOR: 'aimant : aucune connexion reconnue sur cette pièce (pose libre, Maj + clic pour l’assembler)',
+  AXES: 'aimant : connexion compatible tout près, mais axes non alignés — tourne la pièce (X / Y / Z)',
+  OCCUPIED: 'aimant : les connecteurs alignés tout près sont déjà occupés',
+};
+
+/** "4 tenon(s) emboîté(s)", "2 goupille(s) emboîtée(s)"… from the kinds of the connections. */
+function connectionsLabel(e: Engagement): string {
+  const only = e.kinds.length === 1 ? e.kinds[0] : null;
+  return `${e.pairs} ${only === 'stud' ? 'tenon(s) emboîté(s)' : only === 'pin' ? 'goupille(s) emboîtée(s)' : only === 'axle' ? 'axe(s) engagé(s)' : 'connexion(s) emboîtée(s)'}`;
+}
 
 /** Free mode, stock used up: says what is true — the build is not compared with the official model. */
 function freeEndText(atModel: number, total: number): string {
@@ -221,8 +238,16 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   }, [ctx, session, freeMode, held?.moving, match]);
   const groundY = useMemo(() => (loaded?.geometry && ctx ? modelGroundY(ctx.occurrences, loaded.geometry.templates) : 0), [loaded, ctx]);
   const [snapPieces, setSnapPieces] = useState(true);
-  const [snapInfo, setSnapInfo] = useState<SnapProposal | null>(null);
+  // "Voir les connexions": the pieces outside the selection seen through (display only)
+  const [xray, setXray] = useState(false);
+  // what the connections tell about the pose shown: the proposal of the pieces magnet, the connections
+  // verified at that exact pose (the green markers), or why nothing snaps
+  const [snapInfo, setSnapInfo] = useState<{ proposal: SnapProposal | null; engaged: Engagement; miss: SnapMiss | null } | null>(null);
   const snapRef = useRef<SnapProposal | null>(null);
+  const snapInfoKey = useRef('');
+  const engagedRef = useRef<{ engaged: Engagement; miss: SnapMiss | null } | null>(null);
+  // where the previous proposal put the piece(s) in hand, for the same hand: kept on small moves
+  const stickRef = useRef<{ hand: string; at: readonly [number, number, number] } | null>(null);
   // Option (⌥) held: the snapping between pieces is bypassed while moving
   const altDown = useRef(false);
   useEffect(() => {
@@ -482,14 +507,14 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
    */
   const selectAssembly = (start: readonly PieceRef[] = selection) => {
     if (!session || session.mode !== 'freeManual' || start.length === 0) return;
-    const graph = connectionGraph(new ConnectorIndex(placedPieces(), peekConnectors));
+    const graph = connectionGraph(connectorIndex() ?? new ConnectorIndex(placedPieces(), peekConnectors));
     const keys = connectedAssembly(graph, start.map(refKey));
     setSelection(keys.map(refOf));
     setMessage({
       kind: 'info',
       text: keys.length > start.length
-        ? `Assemblage sélectionné : ${keys.length} pièces reliées par des connexions reconnues (tenons, goupilles). Glisse-le ou « Déplacer la sélection ».`
-        : 'Aucune autre pièce reliée par une connexion reconnue : ajoute-les avec Maj + clic (axes, clips, charnières… ne sont pas reconnus).',
+        ? `Assemblage sélectionné : ${keys.length} pièces reliées par des connexions reconnues (tenons, goupilles, axes), visibles ou cachées. Glisse-le ou « Déplacer la sélection ».`
+        : 'Aucune autre pièce reliée par une connexion reconnue : ajoute-les avec Maj + clic (clips, barres, charnières… ne sont pas reconnus).',
     });
   };
 
@@ -684,13 +709,25 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     return bottomExtent(v, heldRotation(held));
   }, [held, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // what the piece(s) in hand can snap to: the other placed pieces, their connectors and boxes
-  const snapTargets = useMemo(() => {
-    if (!freeMode || !held) return null;
-    const inHand = new Set([held.moving, ...(held.group?.members.map((m) => m.ref) ?? [])].flatMap((r) => (r ? [refKey(r)] : [])));
-    const pieces = placedPieces(inHand);
-    return { index: new ConnectorIndex(pieces, peekConnectors) };
-  }, [freeMode, held?.moving, held?.group, placedPieces, peekConnectors, connectorsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ONE index of the connectors of the placed pieces per state of the build (snapping, assemblies,
+  // graph), rebuilt when the build changes or when the connectors of one more part become known (a
+  // slow browser may be hovering before every part is read). It never depends on the hand: the
+  // piece(s) in hand are excluded at query time. (A memo keyed on the hand used to stay null for a
+  // piece taken from the tray: no snap until it was placed and taken again — owner's bug on 31039,
+  // 08/11/2026.)
+  const indexCache = useRef<{ pieces: unknown; version: number; index: ConnectorIndex } | null>(null);
+  const connectorIndex = useCallback((): ConnectorIndex | null => {
+    if (!freeMode) return null;
+    const c = indexCache.current;
+    if (c && c.pieces === placedPieces && c.version === connectorCatalog.version) return c.index;
+    const index = new ConnectorIndex(placedPieces(), peekConnectors);
+    indexCache.current = { pieces: placedPieces, version: connectorCatalog.version, index };
+    return index;
+  }, [freeMode, placedPieces, peekConnectors, connectorCatalog]);
+  const piecesInHand = useMemo(
+    () => new Set([held?.moving, ...(held?.group?.members.map((m) => m.ref) ?? [])].flatMap((r) => (r ? [refKey(r)] : []))),
+    [held?.moving, held?.group], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const updatePreview = useCallback((ray: Ray, hit: HoverHit | null) => {
     lastHover.current = { ray, hit };
@@ -699,30 +736,47 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       ? resolveFreeHover(ctx, held, ray, hit, heldBottom, { groundY, grid: snap.grid, magnet: snap.magnet && !held.group, occupied, fixedXZ: liftXZ.current })
       : resolveHover(ctx, session, held, ray, hit, heldBottom);
     if (!r) return;
-    let proposal: SnapProposal | null = null;
-    // the model magnet (when on) found the official spot: it stays; elsewhere the pieces' magnet applies
-    if (session.mode === 'freeManual' && snapPieces && !altDown.current && snapTargets && !r.targetId) {
-      // snapping between pieces: the connectors of the piece(s) in hand, where they are shown
+    let info: { proposal: SnapProposal | null; engaged: Engagement; miss: SnapMiss | null } | null = null;
+    const index = session.mode === 'freeManual' ? connectorIndex() : null;
+    if (index) {
+      // the connectors of the piece(s) in hand where they are shown — same path for a piece from the
+      // tray, a piece taken again and a group (the model magnet, when it found the official spot, wins)
+      const anchorOf = (res: HoverResolution) => (held.group ? res.pose : res.previewPose);
       const shown = held.group
         ? groupPoses(held.group, heldRotation(held), [r.pose[12], r.pose[13], r.pose[14]]).map((pose, i) => ({ partKey: held.group!.members[i]!.partKey, pose }))
         : [{ partKey: held.partKey, pose: r.previewPose }];
-      // impossible proposals (a stud already taken, two pieces in the same place) are excluded by
-      // proposeSnap from the connectors; boxes are not used: protruding parts (wheel holders) make them wrong
-      proposal = proposeSnap(heldConnectors(shown, peekConnectors), snapTargets.index, { keepHeight: held.layerMode === 'manual' });
-      if (proposal && Math.hypot(...proposal.delta) > 0.01) {
-        const d = proposal.delta;
+      const hand = `${held.partKey}|${held.moving ? refKey(held.moving) : ''}|${held.group ? 'g' : ''}|${heldRotation(held).slice(0, 12).join(',')}`;
+      const a = anchorOf(r);
+      const prev = stickRef.current?.hand === hand ? stickRef.current.at : null;
+      const result = snapHover(heldConnectors(shown, peekConnectors), index, {
+        pieces: snapPieces && !altDown.current && !r.targetId,
+        keepHeight: held.layerMode === 'manual',
+        exclude: piecesInHand,
+        stick: prev ? [prev[0] - a[12], prev[1] - a[13], prev[2] - a[14]] : null,
+      });
+      const d = result.proposal?.delta;
+      if (d && Math.hypot(...d) > 0.01) {
         const shift = (m: Matrix4Tuple) => withTranslation(m, [m[12] + d[0], m[13] + d[1], m[14] + d[2]]);
         const moved = shift(r.previewPose);
         // still at its place in the model after the snap? (information only)
         const place = !held.group && occupied ? tryPlace(ctx, occupied, held, moved, FREE_TARGET_MAGNET) : null;
         r = { ...r, pose: shift(r.pose), previewPose: moved, layerY: r.layerY + d[1], source: 'snap', targetId: place?.ok ? place.occurrenceId : null };
       }
+      const b = anchorOf(r);
+      stickRef.current = result.proposal ? { hand, at: [b[12], b[13], b[14]] } : null;
+      info = result;
     }
-    snapRef.current = proposal;
-    setSnapInfo(proposal);
+    snapRef.current = info?.proposal ?? null;
+    engagedRef.current = info ? { engaged: info.engaged, miss: info.miss } : null;
+    // a new state only when something changed: a pointer move must not re-render the atelier for nothing
+    const infoKey = info ? JSON.stringify([info.proposal?.delta, info.proposal?.targets, info.engaged.points, info.miss]) : '';
+    if (infoKey !== snapInfoKey.current) {
+      snapInfoKey.current = infoKey;
+      setSnapInfo(info);
+    }
     previewRef.current = r;
     setPreview(r);
-  }, [ctx, session, held, heldBottom, occupied, groundY, snap, snapPieces, snapTargets, peekConnectors]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ctx, session, held, heldBottom, occupied, groundY, snap, snapPieces, connectorIndex, piecesInHand, peekConnectors, connectorsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rotation, orientation, layer or session changes: recompute the preview at the same pointer position.
   useEffect(() => {
@@ -730,6 +784,9 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       previewRef.current = null;
       setPreview(null);
       snapRef.current = null;
+      engagedRef.current = null;
+      stickRef.current = null;
+      snapInfoKey.current = '';
       setSnapInfo(null);
       return;
     }
@@ -830,8 +887,10 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       ground: () => groundY,
       selection: () => [...selection],
       snap: () => snapRef.current,
+      engaged: () => engagedRef.current?.engaged ?? null,
+      snapMiss: () => engagedRef.current?.miss ?? null,
       connectors: (partKey: string) => peekConnectors(partKey)?.connectors.map((c) => ({ kind: c.kind, pos: [...c.pos] })) ?? null,
-      graph: () => Object.fromEntries([...connectionGraph(new ConnectorIndex(placedPieces(), peekConnectors))].map(([k, v]) => [k, [...v].sort()])),
+      graph: () => Object.fromEntries([...connectionGraph(connectorIndex() ?? new ConnectorIndex(placedPieces(), peekConnectors))].map(([k, v]) => [k, [...v].sort()])),
       held: () => (held
         ? {
           ...held, orientation: [...held.orientation], orientationIndex: orientationIdx, orientationCount: heldOrientations.length, layerIndex: layers.indexOf(held.layerY),
@@ -844,7 +903,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     return () => {
       delete window.__brickLabGame;
     };
-  }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers, occupied, match, groundY, selection]);
+  }, [ctx, session, held, preview, heldBottom, orientationIdx, heldOrientations, layers, occupied, match, groundY, selection, connectorIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // pieces of the selection that no longer exist (undo, removal) leave it
   useEffect(() => {
@@ -1037,11 +1096,12 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       {held.moving ? 'Pièce reprise · ' : held.group ? `Groupe de ${held.group.members.length} pièces · ` : ''}
       {held.layerMode === 'auto' ? 'Niveau auto (surface)' : freeMode ? 'Hauteur manuelle (A : auto)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
       {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}
-      {snapInfo
-        ? <strong className="ok" data-testid="snap-info"> · aimant : {snapInfo.pairs} {snapInfo.kinds.includes('pin') && !snapInfo.kinds.includes('stud') ? 'goupille(s)' : snapInfo.kinds.includes('pin') ? 'connexion(s)' : 'tenon(s)'} emboîté(s) sur {snapInfo.targets.length} pièce(s) (⌥ : ignorer)</strong>
+      {snapInfo?.proposal
+        ? <strong className="ok" data-testid="snap-info"> · aimant : {connectionsLabel(snapInfo.proposal)} sur {snapInfo.proposal.targets.length} pièce(s) (⌥ : ignorer)</strong>
         : preview?.targetId
-          ? <strong className="ok" data-testid="target-found"> · {freeMode ? 'à sa place dans le modèle' : 'emplacement trouvé'}, clic pour poser</strong>
-          : freeMode && preview ? <span data-testid="free-pose"> · pose libre, clic pour poser</span> : null}
+          ? <strong className="ok" data-testid="target-found"> · {freeMode ? 'à sa place dans le modèle' : 'emplacement trouvé'}{snapInfo && snapInfo.engaged.pairs > 0 ? ` · ${connectionsLabel(snapInfo.engaged)} vérifié(s)` : ''}, clic pour poser</strong>
+          : freeMode && preview ? <span data-testid="free-pose"> · pose libre{snapInfo && snapInfo.engaged.pairs > 0 ? ` · ${connectionsLabel(snapInfo.engaged)} vérifié(s)` : ''}, clic pour poser</span> : null}
+      {snapInfo?.miss && snapInfo.miss !== 'NONE_NEAR' && <span className="snap-miss" data-testid="snap-miss"> · {SNAP_MISS[snapInfo.miss]}</span>}
     </span>
   ) : null;
 
@@ -1096,7 +1156,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               onHover={(ray, hit) => { liftXZ.current = null; updatePreview(ray, hit); }}
               onDrop={drop}
               {...(editing ? { onPick: pickInEditor } : {})}
-              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef) => selectAssembly([ref]), snapPoints: snapInfo?.points ?? null,
+              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef) => selectAssembly([ref]), snapPoints: snapInfo?.engaged.points ?? null, xray: xray && selection.length > 0 && !held,
                 gizmo, onGizmoLive: setGizmoLive, onGizmoCommit: (d: Matrix4Tuple) => transformSelection(d, gizmoMode === 'rotate' ? 'tournée' : 'déplacée') } : {})}
               groundY={groundY}
               {...(freeMode && held && preview ? { axesAt: [preview.previewPose[12], preview.previewPose[13], preview.previewPose[14]] as const } : {})}
@@ -1197,7 +1257,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
                   <button type="button" data-testid="move-selection" onClick={() => moveSelection(selection)} title="Prendre la sélection en main (M)">Déplacer (M)</button>
                   {rotationControls}
                   <button type="button" data-testid="remove-selection" onClick={removeSelection} title="Remettre dans le stock (Suppr)">Au stock</button>
-                  <button type="button" data-testid="select-assembly" onClick={() => selectAssembly(selection)} title="Toutes les pièces emboîtées (double-clic sur une pièce)">Assemblage</button>
+                  <button type="button" data-testid="select-assembly" onClick={() => selectAssembly(selection)} title="Toutes les pièces emboîtées, visibles ou cachées (double-clic sur une pièce)">Assemblage</button>
+                  <button type="button" data-testid="xray" aria-pressed={xray} onClick={() => setXray(!xray)} title="Les autres pièces deviennent transparentes pour voir les connexions intérieures (affichage seulement)">Voir les connexions</button>
                   <button type="button" data-testid="clear-selection" onClick={() => setSelection([])}>Désélectionner</button>
                 </>
               )}
