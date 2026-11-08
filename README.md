@@ -25,38 +25,68 @@ Application web **locale** (macOS, Windows en préversion) pour reconstruire vir
 
 ## Prérequis
 
-- macOS ou Windows 10/11, **Node.js ≥ 20.9** (testé avec 24.5) et npm.
+- macOS, ou Windows 10/11 (préversion, voir [Windows](#windows-préversion)).
+- **Node.js ≥ 20.9** (testé avec 24.5) et npm ; **Git** (sous Windows : Git pour Windows).
 - La **bibliothèque de pièces LDraw** (gratuite, CC BY 4.0), à télécharger une fois et à conserver hors du dépôt.
 
 ## Installation
+
+### 1. Code et dépendances
 
 ```bash
 git clone https://github.com/Pierson38/brick-build.git
 ```
 
 ```bash
-cd brick-build && npm ci
+cd brick-build
 ```
 
-1. Télécharge [`complete.zip`](https://library.ldraw.org/library/updates/complete.zip) depuis la bibliothèque LDraw et décompresse-le, par exemple dans `~/Documents/brick-lab-data/ldraw/`.
-2. Crée un fichier `.env.local` à la racine du projet :
+```bash
+npm ci
+```
 
-   ```dotenv
-   LDRAW_LIBRARY_DIR=/Users/<toi>/Documents/brick-lab-data/ldraw
+### 2. Bibliothèque de pièces LDraw
 
-   # Facultatif
-   # BRICK_LAB_DATA_DIR=/chemin/vers/mes/donnees   # défaut : ~/Documents/brick-lab-data
-   # REBRICKABLE_API_KEY=<clé personnelle>          # nom, année et nombre de pièces annoncé
-   # BRICK_LAB_ONLINE=0                             # interdit tout accès Internet
-   ```
+Télécharge [`complete.zip`](https://library.ldraw.org/library/updates/complete.zip) et décompresse-le dans ton dossier de données ; il contient un dossier `ldraw/`.
 
-   Sous Windows, écris le chemin avec des `/` : `LDRAW_LIBRARY_DIR=C:/Users/<toi>/brick-lab-data/ldraw`.
+| | Dossier de données par défaut | Bibliothèque LDraw |
+|---|---|---|
+| macOS | `~/Documents/brick-lab-data` | `~/Documents/brick-lab-data/ldraw` |
+| Windows | `%USERPROFILE%\brick-lab-data` | `%USERPROFILE%\brick-lab-data\ldraw` |
 
-3. Vérifie la bibliothèque :
+Sous Windows, dans PowerShell :
 
-   ```bash
-   npm run check:ldraw
-   ```
+```powershell
+Expand-Archive "$HOME\Downloads\complete.zip" -DestinationPath "$HOME\brick-lab-data"
+```
+
+### 3. Fichier `.env.local`
+
+À la racine du projet, il indique où se trouve la bibliothèque LDraw. macOS :
+
+```bash
+printf 'LDRAW_LIBRARY_DIR=%s/Documents/brick-lab-data/ldraw\n' "$HOME" > .env.local
+```
+
+Windows (PowerShell ; écrit le chemin avec des `/` et en UTF-8 sans BOM) :
+
+```powershell
+[IO.File]::WriteAllText("$PWD\.env.local", "LDRAW_LIBRARY_DIR=$($HOME -replace '\\', '/')/brick-lab-data/ldraw`n")
+```
+
+Si tu l'écris à la main, enregistre-le en **UTF-8 sans BOM** sous le nom exact `.env.local` (le Bloc-notes peut ajouter `.txt`). Options facultatives :
+
+```dotenv
+# BRICK_LAB_DATA_DIR=/chemin/vers/mes/donnees   # autre dossier de données (évite un dossier synchronisé par OneDrive/iCloud)
+# REBRICKABLE_API_KEY=<clé personnelle>          # nom, année et nombre de pièces annoncé
+# BRICK_LAB_ONLINE=0                             # interdit tout accès Internet
+```
+
+### 4. Vérification
+
+```bash
+npm run check:ldraw
+```
 
 ## Lancement
 
@@ -64,10 +94,14 @@ cd brick-build && npm ci
 npm run dev
 ```
 
-Puis ouvre <http://127.0.0.1:3000>. Pour un usage quotidien plus fluide, utilise le build de production :
+Puis ouvre <http://127.0.0.1:3000>. Pour un usage quotidien plus fluide, utilise le build de production, en deux commandes (Windows PowerShell 5.1 ne connaît pas `&&`) :
 
 ```bash
-npm run build && npm start
+npm run build
+```
+
+```bash
+npm start
 ```
 
 Pages principales : `/` (Ma collection), `/ajouter` (ajouter un set), `/atelier` (atelier sans collection, pour essayer un fichier).
@@ -84,17 +118,17 @@ npx playwright install chromium
 npm run recette
 ```
 
-`recette` enchaîne le contrôle du manifeste de spécification, `tsc --noEmit`, Vitest et Playwright. Les suites E2E démarrent leur propre serveur sur un dossier temporaire : arrête `npm run dev` avant de les lancer.
+`recette` enchaîne le contrôle du manifeste de spécification, `tsc --noEmit`, Vitest et Playwright. Les suites E2E démarrent leur propre serveur sur un dossier temporaire et sur le port 3000 : arrête `npm run dev` (et tout autre serveur sur ce port) avant de les lancer, sinon elles le réutiliseraient.
 
 | Commande | Rôle |
 |---|---|
 | `npm run typecheck` | TypeScript strict |
-| `npm test` | Tests unitaires (parseur, moteur, connexions, bibliothèque, import) |
+| `npm test` | Tests unitaires (parseur, moteur, connexions, bibliothèque, import, portabilité Windows) |
 | `npm run test:e2e` | Parcours Playwright sur fixtures synthétiques |
 | `npm run perf` | Mesures sur build de production |
 | `npm run compat-report -- <fichier.mpd>` | Rapport de compatibilité d'un modèle |
 
-Les tests sur sets réels (`*-omr.spec.ts`, `tests/recette/`) lisent des fichiers placés dans `~/Documents/brick-lab-data/` (ou `$BRICK_LAB_DATA`) et sont ignorés quand ils sont absents.
+Les tests sur sets réels (`*-omr.spec.ts`, `tests/recette/`) lisent des fichiers placés dans le dossier de données par défaut (ou dans la variable d'environnement `BRICK_LAB_DATA`) et sont ignorés quand ils sont absents.
 
 ## Stack
 
@@ -128,9 +162,9 @@ docs/           spécification et notes d'implémentation
 
 ## Windows (préversion)
 
-Les commandes sont les mêmes que sur Mac, dans PowerShell ou l'invite de commandes : les scripts npm et Playwright n'utilisent plus de syntaxe propre à macOS/Linux. Ce qui change sous Windows :
+Les commandes npm sont les mêmes que sur Mac, dans PowerShell ou l'invite de commandes : les scripts npm et Playwright passent par `scripts/run-next.mjs` et n'utilisent plus de syntaxe propre à macOS/Linux. Ce qui change sous Windows :
 
-- **Dossier de données par défaut** : `%USERPROFILE%\brick-lab-data` (et non `Documents`, souvent déplacé dans OneDrive, dont la synchronisation verrouille les fichiers). `BRICK_LAB_DATA_DIR` permet d'en choisir un autre ; évite un dossier synchronisé.
+- **Dossier de données** : `%USERPROFILE%\brick-lab-data` par défaut, et non `Documents`, souvent déplacé dans OneDrive, dont la synchronisation verrouille les fichiers. Évite aussi un dossier synchronisé pour `BRICK_LAB_DATA_DIR`.
 - **Noms de fichiers** : les noms réservés par Windows (`con`, `nul`, `com1`…, même avec une extension) et ceux qui finissent par un point ou une espace sont refusés.
 - **Fins de ligne** : `.gitattributes` impose LF, quel que soit `core.autocrlf` ; sans cela, `npm run check:spec` échouerait.
 - **Écritures** : un renommage bloqué un instant par un antivirus, l'indexeur ou OneDrive est réessayé ; sur un disque sans liens physiques (FAT/exFAT), les fichiers sont copiés puis renommés.
