@@ -43,15 +43,17 @@ Durée estimée : 20 min, sur le MacBook (trackpad), puis Safari.
 
 Dans **Safari** : refais **1.1–1.3, 2.2 et 4.2**.
 
-## 7. Résultats (à remplir par le propriétaire)
+## 7. Résultats (propriétaire, 08/11/2026)
+
+Résultats transmis par le propriétaire sous forme de verdicts par thème (aucune mesure chiffrée transmise) ; « Safari OK » couvre les points du § 6.
 
 | Point | Chrome | Safari | Remarques |
 |---|---|---|---|
-| 1. Flèches à la sélection, un axe à la fois, pas, 1 LDU, ⌥, Échap | | | |
-| 2. Anneaux, vertical / horizontal, axes locaux | | | |
-| 3. Coordonnées en direct et saisies | | — | |
-| 4. Assemblage déplacé et tourné d'un bloc, une annulation | | | |
-| 5. Glisser direct, aimant, boutons, 31040 inchangés | | — | |
-| Critère : sélectionner, voir les flèches, placer exactement à la souris | | | |
+| 1. Flèches à la sélection, un axe à la fois, pas, 1 LDU, ⌥, Échap | OK | OK (§ 6) | « Flèches X / Y / Z : OK » |
+| 2. Anneaux, vertical / horizontal, axes locaux | OK | OK (§ 6) | « Rotations et axes locaux : OK » |
+| 3. Coordonnées en direct et saisies | OK | — | « Précision et coordonnées : OK » |
+| 4. Assemblage déplacé et tourné d'un bloc, une annulation | OK | OK (§ 6) | « Assemblage connecté : OK » |
+| 5. Glisser direct, aimant, boutons, 31040 inchangés | OK | — | « Non-régression et Safari : OK » |
+| Critère : sélectionner, voir les flèches, placer exactement à la souris | OK | OK | « Toutes les conditions fonctionnelles sont levées. » Verdict : **GO FINAL** |
 
-Dis-moi ce que tu laisses posé : je comparerai tes données avec l'inventaire d'avant cette recette.
+Données après la recette (comparées à l'inventaire `donnees-2026-11-07T23-44-37.sha256`) : seule la construction 31039 a changé — révision 254, **50 pièces posées librement** (21 avant), modifications du 08/11 entre 15 h 45 et 16 h 01 ; 4 plus anciens instantanés d'historique (r1, r4, r9, r16) retirés par la rotation normale (30 au plus, `MAX_HISTORY`, depuis P7), conservés dans les sauvegardes précédentes. 31040 (25/65, synchronisé) et le reste : inchangés.
