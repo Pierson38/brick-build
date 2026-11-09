@@ -50,6 +50,47 @@ test('A — the red axle put upright (X +90°), placed, restored with exactly th
   expect((await freePieces(page)).at(-1)!.pose.slice(0, 11)).toEqual(axle.pose.slice(0, 11));
 });
 
+test('A2 — rotation to the degree: a 1° step on the piece in hand, kept when placed and after a reload; a 15° step on the selection', async ({ page }) => {
+  await open(page);
+  const g = await ground(page);
+  await page.getByTestId('tray-32062.dat-4').click();
+  await point(page, [-120, g, 80]);
+  await expect(page.getByTestId('rot-step-90')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('rot-step-1').click();
+  await expect(page.getByTestId('rot-step-1')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('rot-y-plus')).toHaveAttribute('aria-label', '+1° autour de Y');
+  await page.getByTestId('rot-y-plus').click();
+  let h = (await held(page))!;
+  const sin = (deg: number) => Math.sin((deg * Math.PI) / 180);
+  // the lying axle (length along Z) turned 1° around Y: its length gains sin 1° along X
+  expect(h.orientation[0]!).toBeCloseTo(sin(1), 9);
+  expect(h.orientation[2]!).toBeCloseTo(Math.cos((1 * Math.PI) / 180), 9);
+  // keyboard: four more degrees, then one back
+  await page.mouse.move(0, 0);
+  for (let i = 0; i < 5; i++) await page.keyboard.press('y');
+  await page.keyboard.press('Shift+Y');
+  h = (await held(page))!;
+  expect(h.orientation[0]!).toBeCloseTo(sin(5), 9);
+  await point(page, [-120, g, 80]);
+  await dropHere(page);
+  const axle = (await freePieces(page)).at(-1)!;
+  expect(axle.pose[0]!).toBeCloseTo(sin(5), 6);
+  await page.reload();
+  await importModel(page);
+  expect((await freePieces(page)).at(-1)).toEqual(axle);
+
+  // the selection turned 15° in place, in one action (click on the axis of the lying axle)
+  await clickAt(page, [axle.pose[12]!, axle.pose[13]!, axle.pose[14]!]);
+  await expect(page.getByTestId('selection-info')).toHaveText('1 pièce(s) sélectionnée(s)');
+  await page.getByTestId('rot-step-15').click();
+  await page.getByTestId('rot-y-minus').click();
+  await expect(page.getByTestId('message')).toContainText('Pièce tournée sur place (Y −15°)');
+  const turned = (await freePieces(page)).at(-1)!;
+  expect(turned.pose[0]!).toBeCloseTo(sin(-10), 6);
+  await page.getByRole('button', { name: 'Annuler' }).click();
+  expect((await freePieces(page)).at(-1)).toEqual(axle);
+});
+
 /** Presses on `from`, drags through `to` in small steps, optionally presses Escape before releasing. */
 async function drag(page: Page, from: [number, number, number], to: [number, number, number], { escape = false } = {}) {
   const a = await point(page, from);

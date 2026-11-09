@@ -9,8 +9,8 @@ import {
 import {
   FINE_HEIGHT_STEP_LDU, FREE_TARGET_MAGNET, HEIGHT_STEP_LDU, freePiecesOf, groupPoses, isStockExhausted, liftedY, makeGroup, matchToModel, movePiece, moveGroup,
   occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece, removePieces, resolveFreeHover, sameRef, stockLeft, toStepped, usedCount, atModelCount,
-  groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace, applyDelta, deltaTo, shownCoords,
-  type Axis, type FreeResult, type GroupMember, type PieceRef,
+  groupBottom, orientationLabel, axisTurn, isRotationStep, rotateOrientation, rotatedInPlace, applyDelta, deltaTo, shownCoords,
+  type Axis, type FreeResult, type GroupMember, type PieceRef, type RotationStepDeg,
 } from '@/domain/build/free';
 import {
   connectedAssembly, connectionGraph, ConnectorIndex, heldConnectors,
@@ -227,7 +227,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const [gizmoMode, setGizmoMode] = useState<'translate' | 'rotate'>('translate');
   const [gizmoSpace, setGizmoSpace] = useState<'world' | 'local'>('world');
   const [gizmoStep, setGizmoStep] = useState<10 | 20 | 1>(10);
-  const [gizmoRotation, setGizmoRotation] = useState<90 | 15>(90);
+  /** Free mode: one rotation step for the ± buttons, the X / Y / Z keys and the gizmo rings. */
+  const [rotationStep, setRotationStep] = useState<RotationStepDeg>(90);
   const [gizmoLive, setGizmoLive] = useState<Matrix4Tuple | null>(null);
   const [typed, setTyped] = useState<[string, string, string] | null>(null);
   const [manipSettings, setManipSettings] = useState(false);
@@ -620,11 +621,11 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const heldRotation = (h: HeldBrick) => withTranslation(multiply(rotationY(h.quarterTurns), h.orientation), [0, 0, 0]);
   const memberBottom = (m: GroupMember, rotation: Matrix4Tuple) => bottomOf(m.partKey, m.colorCode, rotation);
 
-  /** Free mode: ±90° around X, Y or Z — the piece or group in hand, else the selection turned in place. */
+  /** Free mode: ± one rotation step around X, Y or Z — the piece or group in hand, else the selection turned in place. */
   const rotate = (axis: Axis, steps: number) => {
     if (!session || session.mode !== 'freeManual' || !ctx) return;
     if (held) {
-      setHeld({ ...held, orientation: rotateOrientation(heldRotation(held), axis, steps), quarterTurns: 0 });
+      setHeld({ ...held, orientation: rotateOrientation(heldRotation(held), axis, steps, rotationStep), quarterTurns: 0 });
       return;
     }
     if (selection.length === 0) return;
@@ -635,13 +636,15 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     });
     if (members.length !== selection.length) return;
     const group = makeGroup(members);
-    const poses = rotatedInPlace(group, quarterTurn(axis, steps), memberBottom);
+    const poses = rotatedInPlace(group, axisTurn(axis, steps * rotationStep), memberBottom);
     const r = moveGroup(ctx, session, group.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
     if (!r.ok) return setMessage({ kind: 'error', text: `Rotation impossible : ${FREE_FAILURE[r.reason]}` });
     commitFree(r.session);
     setSelection([...r.refs]);
-    setMessage({ kind: 'ok', text: `${members.length > 1 ? `${members.length} pièces tournées` : 'Pièce tournée'} sur place (${axis.toUpperCase()} ${steps > 0 ? '+' : '−'}90°).` });
+    setMessage({ kind: 'ok', text: `${members.length > 1 ? `${members.length} pièces tournées` : 'Pièce tournée'} sur place (${axis.toUpperCase()} ${steps > 0 ? '+' : '−'}${Math.abs(steps) * rotationStep}°).` });
   };
+
+  const onRotationStep = (deg: number) => { if (isRotationStep(deg)) setRotationStep(deg); };
 
   const cancelHeld = () => {
     if (!held) return;
@@ -863,7 +866,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       }
       const free = session?.mode === 'freeManual';
       if ((e.key === 'g' || e.key === 'G') && free) return setSnap((v) => ({ ...v, grid: !v.grid }));
-      // free mode: ±90° around X / Y / Z (Shift: −90°); R = Y as in the other modes
+      // free mode: ± one rotation step around X / Y / Z (Shift: the other way); R = Y as in the other modes
       const axisKey = free && !e.metaKey && !e.ctrlKey && !e.altKey ? ({ x: 'x', y: 'y', z: 'z' } as Record<string, Axis>)[e.key.toLowerCase()] : undefined;
       if (axisKey && (held || selection.length > 0)) return rotate(axisKey, e.shiftKey ? -1 : 1);
       // R: a quarter turn around Y, as in the other modes (the piece in hand), or the selection in place
@@ -1080,9 +1083,9 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     return {
       members, pivot, mode: gizmoMode, space: gizmoSpace,
       stepXZ: grid, stepY: grid === null ? null : grid === 1 ? 1 : 8,
-      rotationStep: (gizmoRotation * Math.PI) / 180,
+      rotationStep: (rotationStep * Math.PI) / 180,
     };
-  }, [freeMode, editing, held, ctx, session, selection, snap.grid, gizmoStep, gizmoMode, gizmoSpace, gizmoRotation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [freeMode, editing, held, ctx, session, selection, snap.grid, gizmoStep, gizmoMode, gizmoSpace, rotationStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** One transform of the whole selection (gizmo drag or typed coordinates): all or nothing, one undo. */
   const transformSelection = (delta: Matrix4Tuple, what: string) => {
@@ -1291,10 +1294,11 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
           <div className="scene-top">
             {freeMode && !editing && held && (
               <HeldBar moving={Boolean(held.moving || held.group)} autoHeight={held.layerMode === 'auto'} heightStep={heightStep} steps={[HEIGHT_STEP_LDU, FINE_HEIGHT_STEP_LDU]}
-                onLift={lift} onStep={setHeightStep} onAuto={autoHeight} onRotate={rotate} onRemove={removeHeld} onCancel={cancelHeld} />
+                onLift={lift} onStep={setHeightStep} onAuto={autoHeight} onRotate={rotate} rotationStep={rotationStep} onRotationStep={onRotationStep} onRemove={removeHeld} onCancel={cancelHeld} />
             )}
             {freeMode && !editing && !held && selection.length > 0 && (
               <SelectionBar gizmoMode={gizmoMode} gizmoSpace={gizmoSpace} onGizmoMode={setGizmoMode} onGizmoSpace={setGizmoSpace} onRotate={rotate}
+                rotationStep={rotationStep} onRotationStep={onRotationStep}
                 onMove={() => moveSelection(selection)} onAssembly={() => selectAssembly(selection)} onRemove={removeSelection} onClear={() => setSelection([])}
                 settingsOpen={manipSettings} onSettings={() => setManipSettings((o) => !o)}
                 settings={(
@@ -1305,13 +1309,6 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                         <option value={10}>½ tenon</option>
                         <option value={20}>tenon</option>
                         <option value={1}>1 LDU</option>
-                      </select>
-                    </label>
-                    <label className="field-row" title="⌥ pendant le glisser : sans pas.">
-                      <span>Pas des anneaux</span>
-                      <select data-testid="gizmo-angle" value={gizmoRotation} onChange={(e) => setGizmoRotation(Number(e.target.value) as 90 | 15)}>
-                        <option value={90}>90°</option>
-                        <option value={15}>15°</option>
                       </select>
                     </label>
                       {shown && (

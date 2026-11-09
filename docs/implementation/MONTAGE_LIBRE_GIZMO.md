@@ -10,14 +10,14 @@
 |---|---|
 | **Apparition** | Clic sur une pièce posée (montage libre) : trois flèches sur la pièce, **X rouge, Y verte (vers le haut), Z bleue** ; aucune touche nécessaire. Sur une sélection multiple ou un assemblage, au pivot du groupe (centre des pièces, point le plus bas). |
 | **Flèches (W)** | Cliquer-glisser une flèche : la pièce (ou le groupe) ne bouge **que** le long de cet axe. |
-| **Anneaux (E)** | Trois anneaux X / Y / Z : cliquer-glisser pour tourner autour de cet axe, par pas de 90° (ou 15°) ; vertical / horizontal à la souris, sans limite aux orientations du modèle. |
+| **Anneaux (E)** | Trois anneaux X / Y / Z : cliquer-glisser pour tourner autour de cet axe, par le **pas de rotation** choisi dans la barre (90°, 45°, 15°, 5° ou 1°) ; vertical / horizontal à la souris, sans limite aux orientations du modèle. |
 | **Axes globaux / locaux (Q)** | Locaux : les flèches et anneaux suivent la rotation de la pièce (ex. un axe redressé : sa flèche rouge est verticale). |
 | **Pas** | « ½ tenon » (10 LDU à l'horizontale, une plaque de 8 LDU à la verticale), « tenon » (20 / 8), « 1 LDU » ; case « Grille » décochée ou **⌥ maintenu pendant le glisser** : déplacement libre. |
 | **Coordonnées** | En temps réel : **X**, **Y = hauteur au-dessus du sol du modèle**, **Z** (même sens que les flèches) ; saisie numérique + « Appliquer » (ou Entrée). |
 | **Échap** pendant un glisser | Annule ce glisser (retour à la position de départ, sélection gardée). |
 | **Annuler** | Chaque glisser ou chaque saisie = une action, annulée d'un coup (même pour 432 pièces). |
 | **Barre de sélection** | Compacte (libellés courts, raccourcis dans les infobulles) : avec les commandes du manipulateur elle passait à 174 px et couvrait le haut de la vue 3D — un Maj + clic sur une pièce cachée par elle n'arrivait pas à la scène (trouvé par `free-height-group`) ; 138 px à 1280 × 800. |
-| Conservé | Glisser direct de la pièce (avec l'aimant entre pièces), boutons et touches X / Y / Z ±90°, R, M, hauteur, assemblage, Maj + clic. |
+| Conservé | Glisser direct de la pièce (avec l'aimant entre pièces), boutons et touches X / Y / Z ± un pas de rotation (90° par défaut), R, M, hauteur, assemblage, Maj + clic. |
 
 ## 2. Implémentation (réutilisation de `TransformControls`)
 
@@ -41,7 +41,7 @@
 ## 4. Limites
 
 - Une flèche dessinée par-dessus une pièce voisine prend l'appui (comme dans Blender) : glisser ailleurs sur la pièce voisine, ou Échap pour désélectionner d'abord.
-- Rotations à la souris par pas de 90° ou 15° (⌥ : libre) ; une pièce tournée hors des quarts de tour n'est plus emboîtable par l'aimant (axes non alignés).
+- Rotations par pas de 90°, 45°, 15°, 5° ou 1° (⌥ pendant le glisser d'un anneau : libre) ; une pièce tournée hors des quarts de tour n'est plus emboîtable par l'aimant (axes non alignés).
 - Le pivot d'un groupe est son centre au ras du point le plus bas ; pas de choix de pivot.
 - La barre de sélection couvre le haut de la vue 3D (≈ 140 px sur un écran de 1280 px de large) : une pièce cachée derrière elle se sélectionne après avoir tourné ou déplacé la caméra.
 - Pas de mise à l'échelle (le manipulateur n'a que déplacement et rotation).
@@ -66,3 +66,10 @@ recette réelle libre-reel.spec.ts           partie 1 1/1 ; redémarrage du serv
 ## 6. Recette humaine (08/11/2026)
 
 Chrome et Safari, par le propriétaire : flèches X / Y / Z **OK** ; rotations et axes locaux **OK** ; précision et coordonnées **OK** ; assemblage connecté **OK** ; non-régression et Safari **OK**. Verdict : **GO FINAL** (fusion de la PR #7 autorisée). Détail et état des données : [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md) § 7.
+
+## 6. Rotation au degré près (10/11/2026, branche `feat/rotation-degree`)
+
+- Demande du propriétaire : pouvoir tourner une pièce au degré près.
+- **Un seul pas de rotation** pour les boutons ±, les touches X / Y / Z (Maj : sens inverse) et les anneaux : **90° (défaut), 45°, 15°, 5°, 1°**. Il se choisit dans la barre, à côté des boutons de rotation (`rot-step-<deg>`), aussi bien pour la pièce en main que pour la sélection. Le réglage « Pas des anneaux » (90° / 15°) des réglages de manipulation est remplacé par ce choix.
+- Domaine : `axisTurn(axis, degrés)` donne le quart de tour exact pour les multiples de 90° et une rotation cos / sin sinon. `rotateOrientation(…, stepDeg)` prend le pas. `cleanPose` ré-orthonormalise (Gram-Schmidt, un miroir reste un miroir, une matrice non rigide reste intacte) avant d'arrondir les coefficients ±1 / 0. Résultat : 3 600 rotations d'un degré ne dérivent pas, et une pose stockée (arrondie à 1e-6) reste rigide.
+- Limite inchangée : hors des quarts de tour, l'aimant n'emboîte plus (axes non alignés) ; la pièce est posée librement.
