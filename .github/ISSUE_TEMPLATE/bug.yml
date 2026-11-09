@@ -1,0 +1,77 @@
+name: Bug
+description: Quelque chose ne fonctionne pas comme prévu.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler un problème !
+        **Ne joins jamais** de notice LEGO, de fichier de set tiers (`.mpd`, `.ldr`, y compris de l'OMR) ni de bibliothèque de pièces : donne plutôt le numéro du set et le lien vers sa page.
+        Une faille de sécurité se signale en privé : voir [SECURITY.md](https://github.com/Pierson38/brick-build/blob/main/SECURITY.md).
+  - type: textarea
+    id: description
+    attributes:
+      label: Que se passe-t-il ?
+      description: Décris le problème et ce que tu attendais à la place.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Étapes pour reproduire
+      placeholder: |
+        1. Ouvrir /atelier
+        2. Importer fixtures/mini-4-pieces.mpd
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: set
+    attributes:
+      label: Set ou fichier concerné
+      description: Numéro du set et source du fichier (lien vers la page OMR, fixture du dépôt, fichier écrit par toi…).
+      placeholder: 31040-1, https://library.ldraw.org/omr/sets/…
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système
+      options:
+        - macOS
+        - Windows (préversion)
+        - Autre (non pris en charge)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Navigateur et version
+      placeholder: Chrome 142, Safari 26…
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Version de Node.js et commit
+      description: Résultats de `node --version` et `git rev-parse --short HEAD`.
+      placeholder: v24.5.0, 31fe635
+    validations:
+      required: true
+  - type: textarea
+    id: check-ldraw
+    attributes:
+      label: Sortie de `npm run check:ldraw`
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Captures, messages d'erreur, console du navigateur
+      description: Une capture de l'application est utile ; veille à ce qu'aucune page de notice n'y soit visible.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications
+      options:
+        - label: J'ai cherché parmi les issues existantes.
+          required: true
+        - label: Je n'ai joint ni notice, ni fichier de set tiers, ni bibliothèque de pièces, ni clé d'API.
+          required: true

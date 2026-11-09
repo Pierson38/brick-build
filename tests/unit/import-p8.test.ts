@@ -99,7 +99,7 @@ describe('P8 preparation (read-only measurements)', () => {
     expect(p.mappingMatches[0]).toMatchObject({ structuralOk: true, assigned: 8, total: 8 });
     expect(p.mappings[0]).toMatchObject({ verified: 2, steps: 2, bookletSha256s: [sha(PDF_A)] });
     expect(await exists(path.join(dir, 'library', 'library.json'))).toBe(false); // nothing added before confirmation
-  });
+  }, 30_000); // first PDF read of the file loads PDF.js: ~1 s on macOS, 6.5 s measured on a GitHub Windows runner
 
   it('several models of a set: separate files and a second unused model of the same MPD (possible alternative)', async () => {
     const p = await prepareImport(store, { files: [await stage('model', '90008-1.mpd', TRIO), await stage('model', '90008-1_Mini.mpd', MINI)] });
@@ -303,7 +303,8 @@ describe('P8 import (one index write, retry-safe)', () => {
     expect((await libraryJson()).sets).toHaveLength(1);
   });
 
-  it('read-only library folder: clear storage error, nothing changed', async () => {
+  // Windows ignores the mode of a folder (chmod only toggles the read-only attribute of files): no read-only folder to simulate without ACLs.
+  it.skipIf(process.platform === 'win32')('read-only library folder: clear storage error, nothing changed', async () => {
     const f = await prepared();
     await store.importSet({ target: { type: 'new', setNumber: '90002', name: 'Premier' }, builds: [{ label: 'M', model: (await stage('model', 'mini.mpd', MINI)).ref, rootName: 'mini-4-pieces.mpd', booklets: [], mapping: null }] });
     const before = await fs.readFile(path.join(dir, 'library', 'library.json'), 'utf8');

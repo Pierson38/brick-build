@@ -18,9 +18,9 @@
     {
       "path": "README.md",
       "manifestSha256": "bd441a932dcdf1278161f99ad39efd3b0e670a17a5452f654a0908f11ed5ee13",
-      "currentSha256": "b9e4b17ee31f5ed45b42d85eaf6874da388f9efdcb8bda488f4bd9576718fe65",
-      "reason": "README réécrit pour la publication du dépôt : présentation de l’application, installation, tests, droits. La version v1.0 reste dans b019989 ; son contenu est repris par docs/01…09 et docs/implementation/README.md. Section Windows (préversion) ajoutée le 08/11/2026.",
-      "introducedIn": "docs/public-readme"
+      "currentSha256": "4a5b1bc0d10e19b34cfda5e7eeb7989a2f2cbb94052950a7e1389b96b98de126",
+      "reason": "README réécrit pour la publication du dépôt : présentation de l’application, installation, tests, droits. La version v1.0 reste dans b019989 ; son contenu est repris par docs/01…09 et docs/implementation/README.md. Section Windows (préversion) ajoutée le 08/11/2026. Section « Contribuer » ajoutée le 09/11/2026.",
+      "introducedIn": "docs/public-readme, chore/community-files"
     }
   ]
 }

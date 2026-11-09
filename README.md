@@ -180,6 +180,10 @@ Ces adaptations sont testées sur macOS avec une plateforme simulée ; **aucune 
 
 Détails : [`docs/07_DROITS_ET_SOURCES.md`](docs/07_DROITS_ET_SOURCES.md). Ce document n'est pas un avis juridique.
 
+## Contribuer
+
+Les issues et les pull requests sont les bienvenues : lis d'abord [`CONTRIBUTING.md`](CONTRIBUTING.md) (règle d'or : aucun contenu tiers dans le dépôt, les issues ou les PR). Une faille de sécurité se signale en privé, voir [`SECURITY.md`](SECURITY.md). Les échanges suivent le [code de conduite](CODE_OF_CONDUCT.md).
+
 ## Licence
 
 Code sous licence [MIT](LICENSE). Les fixtures de `fixtures/` et `tests/fixtures/` sont des créations originales sous CC0-1.0.

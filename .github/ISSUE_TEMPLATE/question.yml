@@ -1,0 +1,20 @@
+name: Question
+description: Une question sur l'installation, l'utilisation ou le code.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        As-tu parcouru le [README](https://github.com/Pierson38/brick-build/blob/main/README.md) (installation, limites connues) ?
+        Ne joins ni notice, ni fichier de set tiers, ni clé d'API.
+  - type: textarea
+    id: question
+    attributes:
+      label: Ta question
+    validations:
+      required: true
+  - type: textarea
+    id: contexte
+    attributes:
+      label: Contexte
+      description: Système, navigateur, version de Node.js, ce que tu as déjà essayé.
