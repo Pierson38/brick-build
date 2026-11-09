@@ -172,15 +172,15 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| I1 | Page pilotée par l'étape | `PdfPanel` + effet `showStepPage` | Changement d'étape | La page du livret de l'étape s'affiche | Légende « page pilotée par l'étape de notice en cours » | sync | Atelier › panneau Notice | ☐ |
-| I2 | Bannière d'étape | `SyncStepBanner` (`sync-banner`) : `sync-step`, livret, `sync-page`, position sur la page (« 1re étape imprimée sur 2 »), pièces de l'étape | Auto | Contexte de l'étape au-dessus du PDF | État « consultation » (ambre) | sync | Atelier › panneau Notice, carte d'étape au-dessus de la page | ☐ |
-| I3 | Livret non ouvert | `sync-missing-booklet` | Livret attendu absent | « Livret non ouvert : importe « x » (n p.)… Un autre PDF ne sera pas utilisé à sa place. » | — | sync | Atelier › carte d'étape, alerte « Livret non ouvert » | ☐ |
-| I4 | Page hors étape | `sync-off-page` + « Revenir à la p. N » | Navigation manuelle | Avertit et propose de revenir | — | sync | Atelier › carte d'étape, alerte + « Revenir à la p. N » | ☐ |
-| I5 | Consulter une étape passée | « ◀ Étape précédente », « Étape suivante ▶ », « Revenir à l'étape en cours » | Clic | Surligne les pièces de l'étape consultée | Pièce en main relâchée | sync | Atelier › carte d'étape, navigation ◀ ▶ + « Revenir à l'étape en cours » | ☐ |
-| I6 | Reprendre depuis une étape | `sync-rewind` | Clic | Retire les pièces des étapes suivantes ; toast explicatif | **Destructif sans confirmation** (réversible par Annuler ? non vérifié) | sync | Atelier › carte d'étape, « Reprendre depuis cette étape » → confirmation (A5) | ☐ |
-| I7 | Seules les pièces de l'étape | Bac | Auto | Le bac ne propose que l'étape | — | sync | Atelier › bac | ☐ |
-| I8 | Avance automatique | Auto | Étape terminée | Toast « Étape 1 terminée ! Suivante : Étape 2 (×2), p. 2. » | — | sync | Atelier › toast + barre d'app | ☐ |
-| I9 | Repli si correspondances invalides | Auto | Mapping effacé/invalide, ou reprise sans mapping valide | Passe en montage libre, pièces conservées, toast d'erreur explicite | — | sync | Atelier › toast d'erreur + sélecteur de mode | ☐ |
+| I1 | Page pilotée par l'étape | `PdfPanel` + effet `showStepPage` | Changement d'étape | La page du livret de l'étape s'affiche | Légende « page pilotée par l'étape de notice en cours » | sync | Atelier › panneau Notice | ☑ |
+| I2 | Bannière d'étape | `SyncStepBanner` (`sync-banner`) : `sync-step`, livret, `sync-page`, position sur la page (« 1re étape imprimée sur 2 »), pièces de l'étape | Auto | Contexte de l'étape au-dessus du PDF | État « consultation » (ambre) | sync | Atelier › panneau Notice, carte d'étape au-dessus de la page | ☑ |
+| I3 | Livret non ouvert | `sync-missing-booklet` | Livret attendu absent | « Livret non ouvert : importe « x » (n p.)… Un autre PDF ne sera pas utilisé à sa place. » | — | sync | Atelier › carte d'étape, alerte « Livret non ouvert » | ☑ |
+| I4 | Page hors étape | `sync-off-page` + « Revenir à la p. N » | Navigation manuelle | Avertit et propose de revenir | — | sync | Atelier › carte d'étape, alerte + « Revenir à la p. N » | ☑ |
+| I5 | Consulter une étape passée | « ◀ Étape précédente », « Étape suivante ▶ », « Revenir à l'étape en cours » | Clic | Surligne les pièces de l'étape consultée | Pièce en main relâchée | sync | Atelier › carte d'étape, navigation ◀ ▶ + « Revenir à l'étape en cours » | ☑ |
+| I6 | Reprendre depuis une étape | `sync-rewind` | Clic | Retire les pièces des étapes suivantes ; toast explicatif | **Destructif sans confirmation** (réversible par Annuler ? non vérifié) | sync | Atelier › carte d'étape, « Reprendre depuis cette étape » → confirmation (A5) | ☑ |
+| I7 | Seules les pièces de l'étape | Bac | Auto | Le bac ne propose que l'étape | — | sync | Atelier › bac | ☑ |
+| I8 | Avance automatique | Auto | Étape terminée | Toast « Étape 1 terminée ! Suivante : Étape 2 (×2), p. 2. » | — | sync | Atelier › toast + barre d'app | ☑ |
+| I9 | Repli si correspondances invalides | Auto | Mapping effacé/invalide, ou reprise sans mapping valide | Passe en montage libre, pièces conservées, toast d'erreur explicite | — | sync | Atelier › toast d'erreur + sélecteur de mode | ☑ |
 
 ## J. Montage libre
 
@@ -237,42 +237,42 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| L1 | Importer une notice | `pdf-input` (« Importer une notice PDF » / « Ajouter / changer de livret ») | Choix de fichier | Lecture locale (File API), SHA-256, pas d'envoi | > 300 Mo, protégé, invalide → erreur role=alert ; 6 livrets max en mémoire | brick, sync | Atelier › panneau Notice, état vide (bouton d'import) puis icône « Ajouter un livret » | ☐ |
-| L2 | Plusieurs livrets | Select `pdf-booklet` | Choix | Change de livret (page 1) | Visible si > 1 livret | sync | Atelier › panneau Notice, select de livret dans la barre | ☐ |
-| L3 | Navigation | « ◀ » / « ▶ » (Page précédente/suivante), `pdf-page` « PDF p. i / n » | Clic | Page indépendante des étapes 3D (hors synchro) | Bornes désactivées | brick | Atelier › panneau Notice, barre : ◀ « p. i / n » ▶ | ☐ |
-| L4 | Zoom | « − » / « + », `pdf-zoom` (« Largeur » ou « N % »), « ↔ » Ajuster à la largeur | Clic | Ajusté à la largeur par défaut ; zooms fixes 50–300 % | — | ux, brick | Atelier › panneau Notice, barre : − Largeur + ↔ | ☐ |
-| L5 | Ajustement au panneau | ResizeObserver | Redimensionnement | Re-rendu net après 120 ms | Rendu sérialisé (pas de rendu concurrent) | ux | Inchangé | ☐ |
-| L6 | Légende contextuelle | `p.muted` | — | « page PDF indépendante des étapes 3D » / « pilotée par l'étape » / « page de l'étape éditée » | — | — | Atelier › panneau Notice, légende sous la page | ☐ |
-| L7 | Rassurance confidentialité | Texte sans PDF | — | « Ta notice reste sur ce Mac… n'est pas sauvegardée. » | Atelier autonome ; en bibliothèque les livrets viennent de la bibliothèque | — | Atelier › panneau Notice, état vide | ☐ |
-| L8 | Lecture en cours | « Lecture du PDF… » | Ouverture | — | — | — | Atelier › panneau Notice, squelette de page | ☐ |
-| L9 | Erreur de rendu | role=alert « Erreur de rendu de la page N. » | Échec | — | — | — | Atelier › panneau Notice, alerte | ☐ |
-| L10 | Panneau redimensionnable | Voir F10 | — | — | — | ux | Atelier › séparateur + repli du panneau | ☐ |
-| L11 | Lien LEGO.com | Accueil atelier autonome | Clic | Ouvre la page officielle (aucun téléchargement automatique) | — | — | Atelier › écran d'accueil de l'atelier autonome + Ajouter › Étape 1 (sources) | ☐ |
+| L1 | Importer une notice | `pdf-input` (« Importer une notice PDF » / « Ajouter / changer de livret ») | Choix de fichier | Lecture locale (File API), SHA-256, pas d'envoi | > 300 Mo, protégé, invalide → erreur role=alert ; 6 livrets max en mémoire | brick, sync | Atelier › panneau Notice, état vide (bouton d'import) puis icône « Ajouter un livret » | ☑ |
+| L2 | Plusieurs livrets | Select `pdf-booklet` | Choix | Change de livret (page 1) | Visible si > 1 livret | sync | Atelier › panneau Notice, select de livret dans la barre | ☑ |
+| L3 | Navigation | « ◀ » / « ▶ » (Page précédente/suivante), `pdf-page` « PDF p. i / n » | Clic | Page indépendante des étapes 3D (hors synchro) | Bornes désactivées | brick | Atelier › panneau Notice, barre : ‹ « PDF p. i / n » › (icônes, noms « Page précédente » / « Page suivante ») | ☑ |
+| L4 | Zoom | « − » / « + », `pdf-zoom` (« Largeur » ou « N % »), « ↔ » Ajuster à la largeur | Clic | Ajusté à la largeur par défaut ; zooms fixes 50–300 % | — | ux, brick | Atelier › panneau Notice, barre : zoom − « Largeur » + et ↔ (icônes) | ☑ |
+| L5 | Ajustement au panneau | ResizeObserver | Redimensionnement | Re-rendu net après 120 ms | Rendu sérialisé (pas de rendu concurrent) | ux | Inchangé | ☑ |
+| L6 | Légende contextuelle | `p.muted` | — | « page PDF indépendante des étapes 3D » / « pilotée par l'étape » / « page de l'étape éditée » | — | — | Atelier › panneau Notice, légende sur une ligne au-dessus de la page (fichier — contexte) | ☑ |
+| L7 | Rassurance confidentialité | Texte sans PDF | — | « Ta notice reste sur ce Mac… n'est pas sauvegardée. » | Atelier autonome ; en bibliothèque les livrets viennent de la bibliothèque | — | Atelier › panneau Notice, état vide | ☑ |
+| L8 | Lecture en cours | « Lecture du PDF… » | Ouverture | — | — | — | Atelier › panneau Notice, indicateur « Lecture du PDF… » (role=status) | ☑ |
+| L9 | Erreur de rendu | role=alert « Erreur de rendu de la page N. » | Échec | — | — | — | Atelier › panneau Notice, alerte | ☑ |
+| L10 | Panneau redimensionnable | Voir F10 | — | — | — | ux | Atelier › séparateur + repli du panneau | ☑ |
+| L11 | Lien LEGO.com | Accueil atelier autonome | Clic | Ouvre la page officielle (aucun téléchargement automatique) | — | — | Atelier › écran d'accueil de l'atelier autonome + Ajouter › Étape 1 (sources) | ☑ |
 
 ## M. Éditeur de correspondances (pages ↔ étapes)
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| M1 | Ouvrir l'éditeur | Onglet « Correspondances » ou bouton « Créer / Modifier les correspondances » | Clic | Crée un mapping vide si besoin ; panneau élargi (contexte « editor », 520 px) ; PDF compact | Pièce en main relâchée ; bac masqué | sync | Atelier › onglet Correspondances (panneau élargi) ; lien depuis la carte « Notice synchronisée » de l'onglet Démarrer | ☐ |
-| M2 | Statut et couverture | `mapping-status` (Valide / Brouillon : n bloquant(s)), `mapping-coverage` | — | — | — | sync | Atelier › éditeur, en-tête | ☐ |
-| M3 | Terminer l'édition | Bouton « Terminer l'édition » | Clic | Retour à l'onglet Notice (synchro) ou Modèle | — | sync | Atelier › éditeur, en-tête (bouton « Terminer l'édition ») | ☐ |
-| M4 | Livrets | `<details>` « Livrets (n) » : renommer, état (ouvert / à réimporter), « Lier au PDF affiché », « Retirer », `add-booklet` « Ajouter le PDF affiché comme livret » | Clic | Gestion des livrets liés par empreinte | Retrait refusé si utilisé par des étapes | sync | Atelier › éditeur, section repliable Livrets | ☐ |
-| M5 | Navigation entre étapes | « ◀ » / select `mapping-step-select` / « ▶ » | Clic/choix | Change l'étape éditée ; le PDF suit sa page | Option : « i. Étape — livret p. N (k) ✓ » | sync | Atelier › éditeur, barre de navigation d'étapes | ☐ |
-| M6 | Nouvelle étape | `mapping-new-step` « + Nouvelle étape » | Clic | Insère après l'étape courante, au livret/page affichés | Sans livret → message | sync | Atelier › éditeur, barre de navigation (« + Nouvelle étape ») | ☐ |
-| M7 | Champs de l'étape | Livret, `mapping-page`, « = page affichée (N) », `mapping-printed` (N° imprimé), `mapping-callout` (encadré), `mapping-repeat` (×), `mapping-verified`, note | Édition | Mise à jour immédiate + sauvegarde | — | sync | Atelier › éditeur, formulaire de l'étape en grille à libellés alignés | ☐ |
-| M8 | Monter / descendre / supprimer l'étape | Boutons « ↑ Monter », « ↓ Descendre », « Supprimer l'étape » | Clic | Réordonne / supprime (pièces redeviennent non affectées) | Suppression sans confirmation | filet | Atelier › éditeur, menu ⋯ de l'étape (Monter, Descendre, Supprimer → confirmation légère) | ☐ |
-| M9 | Affecter en 3D | Clic sur pièce fantôme (affecter) ou surlignée (retirer) ; ⌥-clic : déplacer depuis une autre étape | Souris | Toast « ajoutée à / retirée de / déplacée dans » ; « déjà dans … : ⌥-clic pour la déplacer ici » | Aperçu 3D : construit jusqu'à l'étape, étape surlignée, non affectées en fantôme | sync | Atelier › scène ; légende contextuelle de l'éditeur | ☐ |
-| M10 | Pièces de l'étape | Chips + « −1 » (`step-remove-<clé>`) | Clic | Retire une pièce | — | sync | Atelier › éditeur, puces « Pièces de cette étape » | ☐ |
-| M11 | Pièces non affectées | Chips + « +1 » (`unassigned-add-<clé>`), « +N » | Clic | Ajoute la 1re pièce libre (ordre du fichier) ou toutes | — | sync | Atelier › éditeur, puces « Non affectées » | ☐ |
-| M12 | Aide étapes LDraw | Select « Étape LDraw » + `assign-ldraw-step` | Clic | Ajoute les pièces libres d'une étape LDraw | Avertit que le découpage diffère de la notice | sync | Atelier › éditeur, encadré « Aide : étapes LDraw » | ☐ |
-| M13 | Doublons | `mapping-duplicates` + « Garder la première étape » | Clic | Résout les doublons | — | sync | Atelier › éditeur, alerte Doublons | ☐ |
-| M14 | Validation | `<details>` « Validation (n remarque(s)) » `mapping-issues` + liens « voir » | — | Bloquant / attention / info | Ouvert par défaut si brouillon | sync | Atelier › éditeur, section repliable Validation | ☐ |
-| M15 | Fantômes des étapes suivantes | Case « Montrer en fantôme les pièces des étapes suivantes » | Bascule | Aperçu 3D | — | sync | Atelier › éditeur, case dans la section Affichage | ☐ |
-| M16 | Exporter | `mapping-export` « Exporter (.json) » | Clic | Télécharge `.brick-mapping.json` (identifiants, pages, empreintes uniquement) | — | sync | Atelier › éditeur, section Import / Export | ☐ |
-| M17 | Importer | `mapping-import` « Importer un fichier de correspondances » | Choix | Refus si autre modèle ; sinon remplace (ancienne restaurable) | — | sync | Atelier › éditeur, section Import / Export | ☐ |
-| M18 | Tout effacer | « Tout effacer » → « Confirmer l'effacement » | Deux clics | Vide les correspondances (restaurables) | — | filet | Atelier › éditeur, section Import / Export → « Tout effacer » avec confirmation | ☐ |
-| M19 | Restaurer les précédentes | « Correspondances précédentes remplacées. Les restaurer » | Clic | Annule un import ou un effacement | — | filet | Atelier › éditeur, bannière « Correspondances précédentes remplacées » | ☐ |
-| M20 | Mention de confidentialité | Texte bas de l'éditeur | — | « Sauvegarde locale automatique… aucun contenu de la notice. » | — | — | Atelier › éditeur, pied de section | ☐ |
+| M1 | Ouvrir l'éditeur | Onglet « Correspondances » ou bouton « Créer / Modifier les correspondances » | Clic | Crée un mapping vide si besoin ; panneau élargi (contexte « editor », 520 px) ; PDF compact | Pièce en main relâchée ; bac masqué | sync | Atelier › onglet Correspondances (panneau élargi) ; lien depuis la carte « Notice synchronisée » de l'onglet Démarrer | ☑ |
+| M2 | Statut et couverture | `mapping-status` (Valide / Brouillon : n bloquant(s)), `mapping-coverage` | — | — | — | sync | Atelier › éditeur, en-tête | ☑ |
+| M3 | Terminer l'édition | Bouton « Terminer l'édition » | Clic | Retour à l'onglet Notice (synchro) ou Modèle | — | sync | Atelier › éditeur, en-tête (bouton « Terminer l'édition ») | ☑ |
+| M4 | Livrets | `<details>` « Livrets (n) » : renommer, état (ouvert / à réimporter), « Lier au PDF affiché », « Retirer », `add-booklet` « Ajouter le PDF affiché comme livret » | Clic | Gestion des livrets liés par empreinte | Retrait refusé si utilisé par des étapes | sync | Atelier › éditeur, section repliable Livrets | ☑ |
+| M5 | Navigation entre étapes | « ◀ » / select `mapping-step-select` / « ▶ » | Clic/choix | Change l'étape éditée ; le PDF suit sa page | Option : « i. Étape — livret p. N (k) ✓ » | sync | Atelier › éditeur, barre de navigation d'étapes | ☑ |
+| M6 | Nouvelle étape | `mapping-new-step` « + Nouvelle étape » | Clic | Insère après l'étape courante, au livret/page affichés | Sans livret → message | sync | Atelier › éditeur, barre de navigation (« + Nouvelle étape ») | ☑ |
+| M7 | Champs de l'étape | Livret, `mapping-page`, « = page affichée (N) », `mapping-printed` (N° imprimé), `mapping-callout` (encadré), `mapping-repeat` (×), `mapping-verified`, note | Édition | Mise à jour immédiate + sauvegarde | — | sync | Atelier › éditeur, formulaire de l'étape en grille à libellés alignés | ☑ |
+| M8 | Monter / descendre / supprimer l'étape | Boutons « ↑ Monter », « ↓ Descendre », « Supprimer l'étape » | Clic | Réordonne / supprime (pièces redeviennent non affectées) | Suppression sans confirmation | filet | Atelier › éditeur, sous le formulaire : « ↑ Monter », « ↓ Descendre », « Supprimer l’étape » (rouge, sans confirmation : inchangé, à arbitrer) | ☑ |
+| M9 | Affecter en 3D | Clic sur pièce fantôme (affecter) ou surlignée (retirer) ; ⌥-clic : déplacer depuis une autre étape | Souris | Toast « ajoutée à / retirée de / déplacée dans » ; « déjà dans … : ⌥-clic pour la déplacer ici » | Aperçu 3D : construit jusqu'à l'étape, étape surlignée, non affectées en fantôme | sync | Atelier › scène ; consigne (icône clic) au-dessus des pièces de l’étape | ☑ |
+| M10 | Pièces de l'étape | Chips + « −1 » (`step-remove-<clé>`) | Clic | Retire une pièce | — | sync | Atelier › éditeur, puces « Pièces de cette étape » | ☑ |
+| M11 | Pièces non affectées | Chips + « +1 » (`unassigned-add-<clé>`), « +N » | Clic | Ajoute la 1re pièce libre (ordre du fichier) ou toutes | — | sync | Atelier › éditeur, puces « Non affectées » | ☑ |
+| M12 | Aide étapes LDraw | Select « Étape LDraw » + `assign-ldraw-step` | Clic | Ajoute les pièces libres d'une étape LDraw | Avertit que le découpage diffère de la notice | sync | Atelier › éditeur, encadré « Aide : étapes LDraw » | ☑ |
+| M13 | Doublons | `mapping-duplicates` + « Garder la première étape » | Clic | Résout les doublons | — | sync | Atelier › éditeur, alerte Doublons | ☑ |
+| M14 | Validation | `<details>` « Validation (n remarque(s)) » `mapping-issues` + liens « voir » | — | Bloquant / attention / info | Ouvert par défaut si brouillon | sync | Atelier › éditeur, section repliable Validation | ☑ |
+| M15 | Fantômes des étapes suivantes | Case « Montrer en fantôme les pièces des étapes suivantes » | Bascule | Aperçu 3D | — | sync | Atelier › éditeur, case sous la section Validation | ☑ |
+| M16 | Exporter | `mapping-export` « Exporter (.json) » | Clic | Télécharge `.brick-mapping.json` (identifiants, pages, empreintes uniquement) | — | sync | Atelier › éditeur, pied : « Exporter (.json) » | ☑ |
+| M17 | Importer | `mapping-import` « Importer un fichier de correspondances » | Choix | Refus si autre modèle ; sinon remplace (ancienne restaurable) | — | sync | Atelier › éditeur, pied : « Importer un fichier de correspondances » | ☑ |
+| M18 | Tout effacer | « Tout effacer » → « Confirmer l'effacement » | Deux clics | Vide les correspondances (restaurables) | — | filet | Atelier › éditeur, pied : « Tout effacer » → modale de confirmation (« Confirmer l’effacement ») | ☑ |
+| M19 | Restaurer les précédentes | « Correspondances précédentes remplacées. Les restaurer » | Clic | Annule un import ou un effacement | — | filet | Atelier › éditeur, avis « Correspondances précédentes remplacées » + lien « Les restaurer » | ☑ |
+| M20 | Mention de confidentialité | Texte bas de l'éditeur | — | « Sauvegarde locale automatique… aucun contenu de la notice. » | — | — | Atelier › éditeur, pied de section | ☑ |
 
 ## N. Atelier sans collection — import manuel et reprise
 
@@ -351,7 +351,7 @@ Aucune aide intégrée ne liste ces raccourcis : ils n'apparaissent que dans les
 | Q13 | Source en ligne indisponible | `/ajouter` | `omr-status` (ex. 503) | add | Ajouter › Étape 1, source OMR (statut d'erreur) | ☑ |
 | Q14 | Sauvegarde en cours / enregistrée / erreur / conflit | Atelier bibliothèque | F7, F8 | lib | Atelier › Barre d'app (état de sauvegarde) + bannière de conflit | ☑ |
 | Q15 | Stockage navigateur plein | Atelier autonome | Toast « Sauvegarde locale des correspondances impossible… » | — | Toast d'erreur | ☑ |
-| Q16 | PDF trop gros / protégé / invalide | Panneau Notice | Erreur role=alert | — | Atelier › panneau Notice, alerte | ☐ |
+| Q16 | PDF trop gros / protégé / invalide | Panneau Notice | Erreur role=alert | — | Atelier › panneau Notice, alerte | ☑ |
 | Q17 | Partie terminée | Atelier | H6 / J29 | brick, fb | Atelier › bloc de fin dans la zone du bac | ☑ |
 | Q18 | Set inexistant | `/sets/…` | Texte + lien retour | — | Détail › état vide (« Ce set n'est pas (ou plus) dans ta collection ») | ☐ |
 

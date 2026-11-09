@@ -213,7 +213,7 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   await expect(page.getByTestId('pdf-page')).toHaveText('PDF p. 3 / 3'); // auto page turn
 
   // consult a past step: its page and bricks, nothing removed
-  await page.getByRole('button', { name: '◀ Étape précédente' }).click();
+  await page.getByRole('button', { name: 'Étape précédente' }).click();
   await expect(page.getByTestId('sync-step')).toHaveText('Étape 2 (×2)');
   await expect(page.getByTestId('pdf-page')).toHaveText('PDF p. 2 / 3');
   expect((await scene(page)).selected).toBe(2);
@@ -223,8 +223,10 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   expect((await scene(page)).selected).toBe(0);
 
   // rewind: start again from step 2 (its bricks and the later ones are removed)
-  await page.getByRole('button', { name: '◀ Étape précédente' }).click();
+  await page.getByRole('button', { name: 'Étape précédente' }).click();
   await page.getByTestId('sync-rewind').click();
+  await expect(page.getByTestId('confirm-rewind')).toContainText('2 pièce(s) posée(s) à cette étape et aux suivantes seront retirées');
+  await page.getByTestId('confirm-rewind').getByRole('button', { name: 'Reprendre depuis cette étape' }).click();
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 2 / 4');
   await dropAt(page, 2);

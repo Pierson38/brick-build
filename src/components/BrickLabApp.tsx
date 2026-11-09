@@ -1449,10 +1449,10 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               />
             )}
             {editing && replacedMapping && (
-              <p className="small">
+              <Note tone="info">
                 Correspondances précédentes remplacées.{' '}
-                <button type="button" className="small" onClick={() => { changeMapping(replacedMapping, 'Correspondances précédentes restaurées.'); setEditStepId(replacedMapping.steps[0]?.id ?? null); setReplacedMapping(null); }}>Les restaurer</button>
-              </p>
+                <button type="button" className="link" onClick={() => { changeMapping(replacedMapping, 'Correspondances précédentes restaurées.'); setEditStepId(replacedMapping.steps[0]?.id ?? null); setReplacedMapping(null); }}>Les restaurer</button>
+              </Note>
             )}
           </div>
         </aside>

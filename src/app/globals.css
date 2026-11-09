@@ -334,7 +334,18 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 
 /* notice PDF */
 .pdf-panel { display: flex; flex-direction: column; gap: var(--space-2); }
-.pdf-toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pdf-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pdf-toolbar select { min-height: var(--control-h-sm); max-width: 180px; }
+.pdf-group { display: inline-flex; align-items: center; gap: 2px; padding: 1px; border: 1px solid var(--color-border); border-radius: calc(var(--radius-control) + 2px); background: var(--color-surface); }
+.pdf-group > span { padding: 0 4px; font-size: var(--text-sm); white-space: nowrap; }
+.pdf-group .pdf-zoom { min-width: 52px; text-align: center; }
+.pdf-caption { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-caption:hover { white-space: normal; }
+.pdf-file { color: var(--color-ink-2); font-weight: var(--weight-medium); }
+.pdf-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-5) var(--space-4); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-panel); background: var(--color-surface); }
+.pdf-empty .empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-card); background: var(--color-accent-soft); color: var(--color-accent); }
+.pdf-empty-title { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+.pdf-empty p { margin: 0; }
 .pdf-scroll { overflow: auto; max-height: calc(100vh - 220px); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-2); scrollbar-gutter: stable; }
 .pdf-scroll canvas { display: block; }
 /* fit to width: the page follows the panel at once, the sharp re-render comes right after */
@@ -344,13 +355,49 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 .pdf-panel.compact .pdf-scroll { max-height: 38vh; }
 .mapping-editor { display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
 .mapping-editor h4 { margin: 6px 0 2px; font-size: var(--text-sm); }
+.editor-head { justify-content: space-between; align-items: flex-start; }
+.editor-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); min-width: 0; flex: 1; }
+.editor-title > strong { font-size: var(--text-md); }
+.editor-title > [data-testid=mapping-coverage] { flex-basis: 100%; }
+.editor-section { border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-2) var(--space-3); background: var(--color-surface); }
+.editor-section > summary { cursor: pointer; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.editor-section[open] > summary { margin-bottom: var(--space-2); }
+.booklet-row { display: grid; grid-template-columns: minmax(0, 140px) minmax(0, 1fr); gap: 4px var(--space-2); align-items: center; padding: 4px 0; }
+.booklet-row input { min-height: var(--control-h-sm); }
+.booklet-actions { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; }
+.booklet-actions:empty { display: none; }
+.editor-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px var(--space-3); align-items: center; font-size: var(--text-sm); }
+.editor-form > label:not(.check) { color: var(--color-ink-2); }
+.editor-form select, .editor-form input:not([type=checkbox]) { min-height: var(--control-h-sm); max-width: 100%; }
+.editor-form input[type=number] { width: 72px; }
+.editor-form input[size] { width: 72px; }
+.editor-inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+label.check { display: inline-flex; align-items: center; gap: 6px; }
+.editor-hint { display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+.editor-hint > svg { flex: none; margin-top: 2px; }
+.editor-aid { display: flex; flex-direction: column; gap: 4px; padding: var(--space-2); border-radius: var(--radius-control); background: var(--color-surface); border: 1px dashed var(--color-border-strong); }
+.editor-aid .aid-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.editor-aid select { min-height: var(--control-h-sm); }
+.issue-tag { display: inline-block; padding: 0 6px; border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: .03em; }
+.issue-tag.error { background: var(--color-danger-soft); color: var(--color-danger); }
+.issue-tag.warning { background: var(--color-warn-soft); color: var(--color-warn); }
+.issue-tag.info { background: var(--color-surface-2); color: var(--color-ink-2); }
+.editor-tools { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .editor-head, .editor-nav, .editor-actions, .editor-fields, .sync-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.editor-nav select { flex: 1; min-width: 0; }
+.editor-nav select { flex: 1; min-width: 0; min-height: var(--control-h-sm); }
 .editor-step { display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3); }
-.editor-fields input[type=number] { width: 64px; }
-.editor-fields input:not([type]) { min-width: 0; }
 .sync-banner { border: 1px solid var(--color-accent-line); background: var(--color-accent-soft); border-radius: var(--radius-card); padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: 6px; }
 .sync-banner.consulting { border-color: color-mix(in srgb, var(--color-warn) 45%, var(--color-border)); background: var(--color-warn-soft); }
+.sync-banner p { margin: 0; }
+.sync-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-2xs); font-weight: var(--weight-semibold); letter-spacing: .04em; text-transform: uppercase; color: var(--color-warn); }
+.sync-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); }
+.sync-label { font-size: var(--text-lg); }
+.sync-where { color: var(--color-ink-2); font-size: var(--text-sm); }
+.sync-banner .progressbar { flex: none; height: 4px; }
+.sync-warn { display: flex; gap: 6px; align-items: flex-start; color: var(--color-warn); }
+.sync-warn > svg { flex: none; margin-top: 2px; }
+.sync-warn > span { color: var(--color-ink); }
+.sync-actions { margin-top: 2px; }
 .sync-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 /* Atelier: separator between the 3D view and the side panel (UX batch) */

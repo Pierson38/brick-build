@@ -13,10 +13,10 @@ export function StatusBadge({ status }: { status: BuildStatus }) {
   return <span className={`status status-${status}`} data-testid="status">{STATUS_LABEL[status]}</span>;
 }
 
-export function ProgressBar({ placed, total }: { placed: number; total: number }) {
+export function ProgressBar({ placed, total, label = 'Pièces posées' }: { placed: number; total: number; label?: string }) {
   const pct = total > 0 ? Math.round((100 * placed) / total) : 0;
   return (
-    <div className="progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={placed} aria-label="Pièces posées">
+    <div className="progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={placed} aria-label={label}>
       <div style={{ width: `${pct}%` }} />
     </div>
   );
