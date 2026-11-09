@@ -1,0 +1,36 @@
+name: Amélioration
+description: Proposer une fonctionnalité ou une évolution.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Avant de proposer, jette un œil au [périmètre du produit](https://github.com/Pierson38/brick-build/blob/main/docs/01_PRODUIT_ET_PERIMETRE.md) et aux [principes du projet](https://github.com/Pierson38/brick-build/blob/main/CONTRIBUTING.md#proposer-une-amélioration).
+  - type: textarea
+    id: probleme
+    attributes:
+      label: Quel besoin ou quel problème ?
+      description: Ce que tu cherches à faire et ce qui t'en empêche aujourd'hui.
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: Proposition
+      description: Ce que tu imagines (parcours, maquette, comportement attendu).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+  - type: checkboxes
+    id: principes
+    attributes:
+      label: Principes du projet
+      options:
+        - label: La proposition fonctionne en local, sans compte, sans télémétrie ni stockage cloud.
+          required: true
+        - label: Elle n'implique ni téléchargement automatique de notices, ni scraping de sites tiers.
+          required: true
+        - label: Je suis prêt·e à proposer une PR.
