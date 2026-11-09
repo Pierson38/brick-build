@@ -9,6 +9,7 @@ import { snapAlong, type PieceGroup, type PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
+import { useTokenValues } from '../ui/theme';
 
 export interface HeldBrick {
   readonly partKey: string;
@@ -151,7 +152,7 @@ export function BuildCanvas(props: Props) {
       camera={{ fov: 45, near: 1, far: 20000, position: [bounds.center[0] + bounds.radius * 1.6, bounds.center[1] + bounds.radius * 1.4, bounds.center[2] + bounds.radius * 2] }}
       gl={{ preserveDrawingBuffer: true, antialias: true }}
     >
-      <color attach="background" args={['#eef1f5']} />
+      {/* no background: the canvas is transparent, the container shows the theme's --scene-bg */}
       <hemisphereLight args={['#ffffff', '#8a8f99', 1.6]} />
       <directionalLight position={[300, 600, 400]} intensity={1.8} />
       <directionalLight position={[-400, 200, -300]} intensity={0.6} />
@@ -329,7 +330,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         {/* double-sided: after the LDraw -Y flip the plane faces away from the camera */}
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
       </mesh>
-      <gridHelper args={[2000, 100, '#c3c9d4', '#dde2ea']} position={[0, groundY, 0]} />
+      <ThemedGrid y={groundY} />
       {gizmo && !held && (
         <>
           <primitive object={gizmoProxy} />
@@ -511,6 +512,14 @@ function SelectionGizmo({ spec, proxy, carried, onLive, onCommit, onHidden, onPr
         }}
       />
   );
+}
+
+const GRID_TOKENS = ['--scene-grid-center', '--scene-grid'] as const;
+
+/** Ground grid in the theme's colours: re-created only when the theme changes. */
+function ThemedGrid({ y }: { y: number }) {
+  const [centre, lines] = useTokenValues(GRID_TOKENS, ['#bfb8ac', '#d3cec5']);
+  return <gridHelper key={`${centre}${lines}`} args={[2000, 100, centre, lines]} position={[0, y, 0]} />;
 }
 
 /** Green dots on the connectors the snapping makes fit; drawn over everything, never picked. */
