@@ -38,6 +38,8 @@ Le dépôt contient deux familles de documents :
 - [Recette humaine du manipulateur 3D (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md)
 - [Connexions fiabilisées : aimant depuis le bac, axes Technic, assemblages cachés — diagnostic, règles, inventaire 31039, performances](CONNEXIONS_FIABILISEES.md)
 - [Recette humaine des connexions (faite par le propriétaire : GO, 08/11/2026)](RECETTE_HUMAINE_CONNEXIONS.md)
+- [Emboîtement du bloc beige à trou sur le 31039 : identification, cause (tenons étirés, tubes en retrait), correction, preuves](CORRECTION_BLOC_31039.md)
+- [Recette humaine du bloc beige (à faire par le propriétaire)](RECETTE_HUMAINE_BLOC_31039.md)
 
 ## Démarrage développeur
 

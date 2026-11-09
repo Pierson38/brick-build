@@ -43,6 +43,8 @@ Le test D existant (`free-3d.spec.ts`) **reprenait** une pièce déjà posée : 
 | **Trou d'axe** | `axlehole`, `axl2hole`, `axl3hole`, `axl4hole`, `axlehol4`, `axlehol5` « Technic Axle Hole … » (y 0…1 × échelle), segments colinéaires fusionnés | **nouveau** |
 | Non reconnu, signalé | `axlehol8` « Axle Perimeter » et bords d'axe seuls (communs à l'axe et au trou), extrémité d'axe sans vis-à-vis (axes à butée), clips, barres, charnières, rotules, roues, pneus | `axleUnrecognised` = incertain |
 
+**Depuis le 08/11/2026 ([CORRECTION_BLOC_31039.md](CORRECTION_BLOC_31039.md))** : un tenon dessiné plus long qu'un tenon (enfoncé dans la matière) se tient sur la face 4 LDU sous sa pointe ; quand les tubes s'arrêtent avant le bord inférieur, les réceptacles sont à la hauteur du bord.
+
 **Vérifications sur la bibliothèque réelle** (tests `tests/unit/connectors-real.test.ts`, ignorés sans bibliothèque) : 77 pièces « Technic Axle… / Technic Bush… » scannées → **aucun axe mâle vu comme trou, aucune bague vue comme axe** ; 13 axes signalés incertains (axes à butée 87083, 24316, 15462, 55013, 8168 ; axe à tenon 6587 ; flexibles ; adaptateurs), aucun inventé.
 
 **Métadonnées contrôlées** (`domain/ldraw/connector-metadata.ts`) : seulement quand les primitives ne disent rien et que la pièce a été vérifiée. 11477 (pente courbe 2 × 1 : **un** réceptacle sous sa partie plate — la première version en mettait deux ; le modèle 31039 l'a contredite : une plaque 3021 occupe le tenon sous la courbe) et 54200 (pente 1 × 1). Test : chaque réceptacle sur la face la plus basse réelle, dans le contour de **cette face**, et aucune primitive ne le donnait déjà.

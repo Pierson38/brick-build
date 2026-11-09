@@ -277,7 +277,8 @@ function evaluate(held: readonly Connector[], index: ConnectorIndex, delta: Vec3
   const kinds = new Set<SnapKind>();
   let pairs = 0;
   for (const h of held) {
-    const moved: Connector = { ...h, pos: [h.pos[0] + delta[0], h.pos[1] + delta[1], h.pos[2] + delta[2]] };
+    // rounded like the placed connectors: the marker of a receptor in hand is this point, shown and saved as is
+    const moved: Connector = { ...h, pos: [round2(h.pos[0] + delta[0]), round2(h.pos[1] + delta[1]), round2(h.pos[2] + delta[2])] };
     const around = index.around(moved, 1, exclude);
     if (around.some((t) => clash(moved, t))) return null;
     if (moved.kind === 'antistud' && around.some((t) => twin(moved, t))) continue;

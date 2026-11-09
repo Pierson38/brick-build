@@ -1,0 +1,14 @@
+0 Pente inversee et brique a trou (fixture originale, CC0-1.0)
+0 Name: pente-inversee-bloc.ldr
+0 Author: Brick Lab tests
+0 // Une pente courbe inversee 6 x 1 (41763) sur une brique 2 x 4 ; une pente inversee 3 x 1 (4287)
+0 // posee sur un des tenons creux du bout de la courbe ; une plaque d'angle 4 x 4 grise (2639) a cheval
+0 // sur le tenon de la 4287 et sur une brique beige a trou (6541), elle-meme sur une brique 1 x 1.
+0 // Les tenons du bout de 41763 et deux tenons de 4287 sont dessines plus longs qu'un tenon (enfonces
+0 // dans la piece) et les tubes de 41763 s'arretent 0,4 LDU au-dessus de son bord inferieur.
+1 1 0 0 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 15 10 -24 0 1 0 0 0 1 0 0 0 1 41763.dat
+1 15 10 -48 -70 1 0 0 0 1 0 0 0 1 4287.dat
+1 1 -30 -24 -10 1 0 0 0 1 0 0 0 1 3005.dat
+1 19 -30 -48 -10 1 0 0 0 1 0 0 0 1 6541.dat
+1 72 -20 -56 -60 1 0 0 0 1 0 0 0 1 2639.dat

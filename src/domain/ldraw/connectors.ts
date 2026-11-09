@@ -9,11 +9,14 @@ import type { Matrix4Tuple } from './types';
  * CONNEXIONS_FIABILISEES.md):
  *
  * - `stud`: a male stud primitive (stud.dat, stud2.dat "Open", logo variants…): its base centre and
- *   its axis (part-local -Y of the primitive = the direction the stud points to).
+ *   its axis (part-local -Y of the primitive = the direction the stud points to). A stud primitive
+ *   spans 4 LDU; some parts draw a hollow stud longer, sunk into a thin top (4287a, 42023): such a
+ *   stud stands on the face of the part 4 LDU under its tip, when that face is there.
  * - `antistud`: a place under the part where a stud fits. LDraw has no primitive for it: deduced for
  *   parts whose underside has stud tubes (stud3* / stud4*) or, without tubes, studs on top (1×1
  *   parts): grid points (20 LDU, aligned on the tubes or on the studs) inside the footprint of the
- *   bottom face (the tube base plane), axis pointing up into the part — and only where something
+ *   bottom face (the tube base plane — at the height of the bottom rim when the tubes stop up to
+ *   1 LDU short of it, 42023), axis pointing up into the part — and only where something
  *   real vouches for it: a stud right above, or a tube right beside (a corner cut off a wedge plate
  *   has neither, it gets no receptor). Tiles have neither tubes nor studs in their files: for them
  *   only, the standard title "Tile W x L" gives the receptor grid.
@@ -78,6 +81,11 @@ const GEOMETRY = /^(\d+-\d+[a-z]+\d*|box\w*|rect\w*|tri\w*|edge\w*|cyl\w*|con\d\
 const GRID = 20;
 const MAX_DEPTH = 16;
 const EPS = 0.6;
+/** Height of a stud primitive (local y 0 → -4) and its radius. */
+const STUD_HEIGHT = 4;
+const STUD_RADIUS = 6;
+/** The bottom rim below the tube ends: at most this far (42023: 0.4 LDU). */
+const RIM_GAP = 1.05;
 /** An axle end and its opposite end: at most this far apart (the longest axle, 32, is 640 LDU). */
 const MAX_AXLE_LDU = 660;
 
@@ -176,6 +184,60 @@ async function collect(name: string, read: ReadFile, cache: Map<string, Promise<
   return p;
 }
 
+/**
+ * Base centres of the stud primitives. A stud primitive spans STUD_HEIGHT LDU; drawn longer (a hollow
+ * stud sunk into a thin top: 4287a, 42023 draw it 5.4 to 16 LDU long, the tip at the usual height), the
+ * stud stands on the face of the part STUD_HEIGHT under its tip — only when the part has a face in
+ * that plane, around the stud and within its grid cell, or around another stud standing in the same
+ * plane (2653: a top drawn with edges near some studs only). A tall stud on a post (2680a) has no face
+ * under it: it keeps its drawn base.
+ */
+function studBases(list: readonly Matrix4Tuple[], vertices: readonly number[]): Vec3[] {
+  const studs = list.map((m) => {
+    const base = apply(m, [0, 0, 0]), tip = apply(m, [0, -STUD_HEIGHT, 0]);
+    const length = Math.hypot(...sub(tip, base));
+    if (length <= STUD_HEIGHT + 0.05) return { base: r3(base), seat: null };
+    const axis: Vec3 = [(tip[0] - base[0]) / length, (tip[1] - base[1]) / length, (tip[2] - base[2]) / length];
+    const seat: Vec3 = [tip[0] - axis[0] * STUD_HEIGHT, tip[1] - axis[1] * STUD_HEIGHT, tip[2] - axis[2] * STUD_HEIGHT];
+    return { base: r3(base), seat: { at: seat, axis } };
+  });
+  const verified = studs.map(({ seat }) => {
+    if (!seat) return false;
+    for (let i = 0; i + 2 < vertices.length; i += 3) {
+      const d = sub([vertices[i]!, vertices[i + 1]!, vertices[i + 2]!], seat.at);
+      const radial = offLine(d, seat.axis);
+      // a vertex of a face in the seat plane, outside the stud, inside its 20 × 20 cell (corner: 14.1)
+      if (Math.abs(dot(d, seat.axis)) <= 0.05 && radial > STUD_RADIUS + 0.5 && radial <= GRID * Math.SQRT1_2 + 1) return true;
+    }
+    return false;
+  });
+  const samePlane = (a: { at: Vec3; axis: Vec3 }, b: { at: Vec3; axis: Vec3 }) => dot(a.axis, b.axis) > 0.999 && Math.abs(dot(sub(a.at, b.at), a.axis)) <= 0.05;
+  return studs.map(({ base, seat }, i) => (seat && (verified[i] || studs.some((o, j) => verified[j] && samePlane(o.seat!, seat))) ? r3(seat.at) : base));
+}
+
+/** On the plate grid: a whole number of plates (8 LDU) from the part's origin. */
+const onPlateGrid = (y: number) => Math.abs(y / 8 - Math.round(y / 8)) * 8 <= 0.05;
+
+/**
+ * The plane the part rests on when its tubes stop short of it (42023: tubes to 23.6, rim at 24): the
+ * bottom rim, the lowest point of the whole part, at most RIM_GAP under the tube ends, around every
+ * tube, on the plate grid while the tube ends are not. Otherwise null (the tube ends are the plane).
+ */
+function rimUnder(vertices: readonly number[], tubeBottom: number, tubes: readonly { x: number; z: number }[]): number | null {
+  if (onPlateGrid(tubeBottom)) return null;
+  let rim = -Infinity;
+  for (let i = 1; i < vertices.length; i += 3) rim = Math.max(rim, vertices[i]!);
+  if (!(rim > tubeBottom + 0.05 && rim <= tubeBottom + RIM_GAP) || !onPlateGrid(rim)) return null;
+  let [minX, maxX, minZ, maxZ] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (let i = 0; i + 2 < vertices.length; i += 3) {
+    if (Math.abs(vertices[i + 1]! - rim) > 0.05) continue;
+    minX = Math.min(minX, vertices[i]!); maxX = Math.max(maxX, vertices[i]!);
+    minZ = Math.min(minZ, vertices[i + 2]!); maxZ = Math.max(maxZ, vertices[i + 2]!);
+  }
+  const around = (v: number, lo: number, hi: number) => v - lo >= STUD_HEIGHT && hi - v >= STUD_HEIGHT;
+  return tubes.every((t) => around(t.x, minX, maxX) && around(t.z, minZ, maxZ)) ? round2(rim) : null;
+}
+
 /** Receptors under an upright part (see the header): grid points vouched for by a stud above or a tube beside. */
 function antistuds(raw: RawPrimitives, upStuds: readonly { pos: Vec3 }[], title: string): Connector[] {
   const tubes = [...raw.tubesSmall.map((m) => ({ m, open: false })), ...raw.tubesOpen.map((m) => ({ m, open: true }))]
@@ -186,8 +248,12 @@ function antistuds(raw: RawPrimitives, upStuds: readonly { pos: Vec3 }[], title:
   });
   const tile = /^~?Tile\s+\d+(\.\d+)?\s*x\s*\d+/i.test(title);
   let bottom: number | null = null;
-  if (tubeEnds.length > 0) bottom = Math.max(...tubeEnds.map((t) => t.bottom));
-  else if ((upStuds.length > 0 || tile) && raw.vertices.length > 0) {
+  let rim: number | null = null;
+  if (tubeEnds.length > 0) {
+    bottom = Math.max(...tubeEnds.map((t) => t.bottom));
+    // the receptors found under the tube ends, at the height of the rim the part rests on
+    rim = rimUnder(raw.vertices, bottom, tubeEnds);
+  } else if ((upStuds.length > 0 || tile) && raw.vertices.length > 0) {
     // no tube (1 × 1 parts, tiles): the lowest face
     let max = -Infinity;
     for (let i = 1; i < raw.vertices.length; i += 3) max = Math.max(max, raw.vertices[i]!);
@@ -241,7 +307,7 @@ function antistuds(raw: RawPrimitives, upStuds: readonly { pos: Vec3 }[], title:
       const k = `${round2(x)},${round2(z)}`;
       if (seen.has(k) || !vouched(x, z)) continue;
       seen.add(k);
-      out.push({ kind: 'antistud', pos: [round2(x), bottom, round2(z)], axis: [0, -1, 0] });
+      out.push({ kind: 'antistud', pos: [round2(x), rim ?? bottom, round2(z)], axis: [0, -1, 0] });
     }
   }
   return out;
@@ -276,7 +342,8 @@ function mergeSegments(list: Connector[]): Connector[] {
 /** Turns the collected primitives into connectors (part-local LDraw coordinates). */
 export function connectorsOf(raw: RawPrimitives, title = ''): PartConnectors {
   const out: Connector[] = [];
-  const studs = raw.studs.map((m) => ({ pos: r3(apply(m, [0, 0, 0])), axis: dir(m, [0, -1, 0]) }));
+  const bases = studBases(raw.studs, raw.vertices);
+  const studs = raw.studs.map((m, i) => ({ pos: bases[i]!, axis: dir(m, [0, -1, 0]) }));
   for (const s of studs) out.push({ kind: 'stud', pos: s.pos, axis: s.axis });
 
   // receptors under the part: only for parts standing upright in their own frame (tubes along -Y)

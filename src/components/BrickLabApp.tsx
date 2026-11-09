@@ -756,7 +756,9 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       });
       const d = result.proposal?.delta;
       if (d && Math.hypot(...d) > 0.01) {
-        const shift = (m: Matrix4Tuple) => withTranslation(m, [m[12] + d[0], m[13] + d[1], m[14] + d[2]]);
+        // to the hundredth, as saved (poseToLDraw): the pose shown is the pose saved, digit for digit
+        const at = (v: number) => Math.round(v * 100) / 100;
+        const shift = (m: Matrix4Tuple) => withTranslation(m, [at(m[12] + d[0]), at(m[13] + d[1]), at(m[14] + d[2])]);
         const moved = shift(r.previewPose);
         // still at its place in the model after the snap? (information only)
         const place = !held.group && occupied ? tryPlace(ctx, occupied, held, moved, FREE_TARGET_MAGNET) : null;

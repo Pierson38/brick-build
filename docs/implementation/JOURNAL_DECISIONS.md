@@ -145,3 +145,16 @@ La spécification v1.0 vise macOS. Demande du propriétaire : rendre l'applicati
 | Tout nom accepté par `SEGMENT_RE` est un fichier ordinaire | Pas sous Windows : `con`, `nul.ldr`, `com1.dat`… ouvrent un périphérique, un point ou une espace final est supprimé (deux noms → un fichier). → Refusés dans les chemins de données et de la bibliothèque LDraw, **sous Windows seulement**, pour ne pas rendre illisible une bibliothèque macOS existante. | unitaires « file names on Windows » |
 | `~/Documents/brick-lab-data` convient partout | Pas sous Windows : Documents est souvent déplacé dans OneDrive (autre emplacement que celui attendu, fichiers verrouillés par la synchronisation). → `~/brick-lab-data` par défaut sous Windows ; macOS inchangé ; `BRICK_LAB_DATA_DIR` prime toujours. Les tests sur sets réels lisent le même défaut. | unitaire « default data folder » |
 | Les fichiers de la bibliothèque sont privés (`0o600`) | Sous Windows le mode est ignoré : les fichiers héritent des droits du dossier du profil. Accepté, documenté. | — |
+
+## Journal — 08/11/2026, emboîtement du bloc beige à trou sur le 31039 (`fix/31039-block-snapping`)
+
+Détail : [CORRECTION_BLOC_31039.md](CORRECTION_BLOC_31039.md).
+
+| Hypothèse | Constat / décision | Preuve |
+|---|---|---|
+| La base d'un tenon est l'origine de sa primitive | Fausse pour les tenons creux **étirés** dans la matière (42023 = 41763, 4287a = 4287 ; 67 pièces de la bibliothèque) : leur pointe est à la hauteur habituelle, leur base dessinée 1,4 à 12 LDU plus bas. → Base = pointe − 4 LDU, seulement si la pièce a une face dans ce plan (ou un autre tenon vérifié dans le même plan) ; sinon base dessinée (tenons hauts sur poteau, 2680a). | `connectors-real.test.ts`, 26 pièces du 31039 du propriétaire 1,81 LDU trop bas |
+| Le plan des réceptacles est le bout des tubes | Faux quand les tubes s'arrêtent avant le bord (42023 : 23,6 contre 24 ; 69 pièces). → Hauteur du bord, seulement si c'est le point le plus bas de la pièce, à ≤ 1 LDU, autour des tubes, sur la grille des plaques alors que le bout des tubes ne l'est pas ; nombre et positions des réceptacles inchangés. | idem ; 4180c01 (roues dessous) inchangée |
+| Le décalage vient de la translation ou de la priorité de l'aimant | Non : à connecteurs faux, translation juste. La 4287 prise dans le bac sur la 41763 du propriétaire tombe à −4,78, exactement la pose de sa sauvegarde. | recette `bloc-31039.spec.ts` |
+| La pose montrée et la pose enregistrée sont identiques | À 1e-14 près seulement : l'aperçu ajoutait le déplacement de l'aimant sans arrondi, la sauvegarde arrondit au centième. → Aperçu arrondi au centième ; repère d'un réceptacle en main arrondi comme les autres connecteurs. | E2E `free-sunk-studs`, unitaire « markers … rounded » |
+| Corriger le moteur réaligne les constructions | Non, et non voulu : les poses enregistrées ne changent pas. Les pièces décalées ne sont simplement plus comptées comme emboîtées. | rapport 31039 sur la copie (252 → 226) |
+

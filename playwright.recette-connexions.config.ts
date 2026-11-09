@@ -7,13 +7,13 @@ import { defineConfig } from '@playwright/test';
  * the progress of the build are READ from the owner's library store and given to the standalone
  * atelier of a fresh browser context (its own browser save); nothing is written to the library, the
  * server runs on an isolated data folder. Development server: the scripted player needs the test hooks.
- * Run: npx playwright test -c playwright.recette-connexions.config.ts
+ * Run: npx playwright test -c playwright.recette-connexions.config.ts [tests/recette/bloc-31039.spec.ts]
  */
 export const RECETTE_CONNEXIONS_DIR = path.join(tmpdir(), 'brick-lab-recette-connexions');
 
 export default defineConfig({
   testDir: 'tests/recette',
-  testMatch: 'connexions-31039.spec.ts',
+  testMatch: /(connexions|bloc)-31039\.spec\.ts/,
   timeout: 10 * 60_000,
   workers: 1,
   reporter: [['list']],
