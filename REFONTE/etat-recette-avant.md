@@ -26,7 +26,10 @@ Moyenne sur 3 passes, ANGLE Metal (M2 Pro). Détail complet : `REFONTE/perf-avan
 
 **Seuil de non-régression retenu pour la phase 5** : import → 1re image ≤ ~1,2 s (± 10 %) et 60 FPS au repos et en orbite sur les deux sets.
 
-## Couverture E2E manquante sur des parcours de l'inventaire (à traiter en phase 3)
+## Couverture E2E manquante sur des parcours de l'inventaire
+
+Phase 3 : couverte par `tests/e2e/filet-refonte.spec.ts` (6 tests, verts sur l'UI d'avant), sauf le panoramique et le zoom de la caméra (P2, P3), vérifiés à la main en phase 5 (le geste de molette n'a pas d'effet observable stable sans instrumenter la caméra).
+
 
 - Mode hors ligne `BRICK_LAB_ONLINE=0` dans l'UI (Q11) : testé seulement en unitaire.
 - Bibliothèque LDraw absente (Q10) : aucun E2E.

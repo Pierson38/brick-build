@@ -179,3 +179,21 @@ Onglet *Notice* → importer un PDF → *Correspondances* (le panneau s'élargit
 1. **Phase 3, filet** (avant toute UI) : E2E pour le hors-ligne dans `/ajouter` (Q11), la bibliothèque LDraw absente (Q10), l'abandon autonome et en bibliothèque (K10), retirer une construction ou un set (C19), vérifier les empreintes (C11), raccourcis G et Q (O14, O16), éditeur monter/descendre/supprimer et tout effacer/restaurer (M8, M18, M19). Ils doivent passer sur la version actuelle.
 2. **Phase 4, fondations** : `tokens.css`, thème et bascule, `:focus-visible`, composants `Button`, `IconButton`, `Segmented`, `Field`, `Badge`/`QualityBadge`, `Card`, `Section` (repliable), `Dialog`, `Toast`, `Tooltip`, `Menu`, `EmptyState`, `Skeleton`, `Kbd`, `ProgressBar`, `AppBar`.
 3. Puis les écrans dans l'ordre : collection → ajouter → atelier (démarrage, guidé, libre) → notice et éditeur. Un commit par écran, avec `npm test`, `test:e2e` et `perf` à chaque fois.
+
+## 9. Décisions validées (09/11/2026)
+
+Le propriétaire a validé la proposition telle quelle (« Approve A as proposed ») :
+
+| # | Décision |
+|---|---|
+| A1 | Direction **A « Établi »** ; tokens de `proposition/tokens.css` |
+| A2 | `lucide-react@1.61.0`, aucune autre bibliothèque d'UI ; pas de police ajoutée |
+| A3 | Sélecteur de mode **segmenté** ; tests via un helper `chooseMode`, assertions inchangées |
+| A4 | « Essayer la démo » avec la fixture CC0 embarquée et un test d'égalité avec `fixtures/mini-4-pieces.mpd` |
+| A5 | Confirmation pour « Abandonner » (atelier autonome compris) et « Reprendre depuis cette étape » ; `surface-placement.spec.ts` et `filet-refonte.spec.ts` suivent dans le même commit |
+| A6 | Consignes dans la légende contextuelle, résultats dans le toast |
+| A7 | Pas de fermeture automatique des toasts pour l'instant |
+| A8 | **Pas de modification de `src/infra/`** : la proposition offrait deux options sans en choisir une, donc on garde les matériaux actuels (fantôme bleu, sélection ambre) tant que l'accord n'est pas donné explicitement |
+| A9 | Dépôt de fichiers sur la collection reporté |
+| A10 | Bouton « Réparer » sur les cartes sans mode |
+| A11 | Fonctions signalées conservées |
