@@ -87,7 +87,8 @@ describe('library: add, reopen, duplicates', () => {
 
   it('survives a real process restart (separate Node processes)', async () => {
     await addSync8Set();
-    const out = execFileSync('npx', ['tsx', 'tests/unit/helpers/print-library.ts', dir], { cwd: repo('.'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    // Node itself with the tsx loader: `npx` is `npx.cmd` on Windows, which execFileSync cannot start without a shell.
+    const out = execFileSync(process.execPath, ['--import', 'tsx', 'tests/unit/helpers/print-library.ts', dir], { cwd: repo('.'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     expect(JSON.parse(out.trim().split('\n').pop()!)).toEqual([['90001-1', [['Modèle principal', 8, 'synced+guided+freeManual']]]]);
   });
 
@@ -330,7 +331,8 @@ describe('library: storage errors and interrupted writes', () => {
     expect((await store.view()).sets).toHaveLength(1);
   });
 
-  it('a read-only library folder gives a clear error and changes nothing', async () => {
+  // Windows ignores the mode of a folder (chmod only toggles the read-only attribute of files): no read-only folder to simulate without ACLs.
+  it.skipIf(process.platform === 'win32')('a read-only library folder gives a clear error and changes nothing', async () => {
     await addSync8Set();
     const before = await fs.readFile(path.join(dir, 'library', 'library.json'), 'utf8');
     await fs.chmod(path.join(dir, 'library'), 0o500);
