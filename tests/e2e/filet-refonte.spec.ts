@@ -58,6 +58,22 @@ async function assistPlace(page: Page, tray = page.locator('.tray-item').first()
 const progressKeys = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('brick-lab:progress:')));
 
 test.describe('atelier sans collection', () => {
+  test('clavier : « Importer un modèle » est atteint au Tab, son bouton montre le focus', async ({ page }) => {
+    await page.goto('/atelier');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    const input = page.getByTestId('model-input');
+    await input.waitFor({ state: 'attached' });
+    let reached = false;
+    for (let i = 0; i < 30 && !reached; i++) {
+      await page.keyboard.press('Tab');
+      reached = await input.evaluate((el) => el === document.activeElement);
+    }
+    expect(reached).toBe(true);
+    // the file field is visually hidden: the focus ring is drawn on the label-button around it
+    expect(await input.evaluate((el) => getComputedStyle(el.parentElement!).outlineStyle)).toBe('solid');
+  });
+
   test('guidé : réinitialiser l’étape, montrer les emplacements, abandonner (effacement, rien de restauré au réimport)', async ({ page }) => {
     await openStandalone(page, MINI);
     await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();

@@ -52,7 +52,7 @@ function RepairInput({ file, accept, onRepaired, notify }: { file: FileView; acc
   return (
     <label className="button primary small">
       <Wrench size={14} aria-hidden /> Réparer : choisir le fichier d’origine
-      <input type="file" accept={accept} hidden data-testid={`repair-${file.sha256.slice(0, 8)}`} onChange={(e) => { const f = e.target.files?.[0]; if (f) void repair(f); e.target.value = ''; }} />
+      <input type="file" accept={accept} className="visually-hidden" data-testid={`repair-${file.sha256.slice(0, 8)}`} onChange={(e) => { const f = e.target.files?.[0]; if (f) void repair(f); e.target.value = ''; }} />
     </label>
   );
 }
@@ -244,7 +244,7 @@ function BuildPanel({ set, build, revision, refresh, notify }: { set: SetView; b
                 <span className="row-actions">
                   {b.state !== 'OK' && <RepairInput file={b} accept=".pdf" onRepaired={() => void refresh()} notify={notify} />}
                   <label className="button ghost small">Remplacer
-                    <input type="file" accept=".pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void replaceBooklet(b.sha256, f); e.target.value = ''; }} />
+                    <input type="file" accept=".pdf" className="visually-hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void replaceBooklet(b.sha256, f); e.target.value = ''; }} />
                   </label>
                   <ConfirmButton label="Dissocier" confirm="Dissocier cette notice (le fichier n’est pas supprimé) ?" onConfirm={() => void setBooklets(build.booklets.filter((x) => x.sha256 !== b.sha256).map((x) => x.sha256), 'Notice dissociée.')} />
                 </span>
@@ -254,7 +254,7 @@ function BuildPanel({ set, build, revision, refresh, notify }: { set: SetView; b
           <div className="section-actions">
             <label className="button secondary small">
               <Plus size={14} aria-hidden /> Associer une ou plusieurs notices
-              <input type="file" accept=".pdf" multiple hidden data-testid="detail-add-pdf" onChange={(e) => { const fs = [...(e.target.files ?? [])]; if (fs.length) void addBooklets(fs); e.target.value = ''; }} />
+              <input type="file" accept=".pdf" multiple className="visually-hidden" data-testid="detail-add-pdf" onChange={(e) => { const fs = [...(e.target.files ?? [])]; if (fs.length) void addBooklets(fs); e.target.value = ''; }} />
             </label>
           </div>
         </details>
@@ -283,7 +283,7 @@ function BuildPanel({ set, build, revision, refresh, notify }: { set: SetView; b
           <div className="section-actions">
             <label className="button secondary small">
               <Upload size={14} aria-hidden /> {build.mapping ? 'Remplacer par un fichier…' : 'Importer un fichier de correspondances'}
-              <input type="file" accept=".json,application/json" hidden data-testid="detail-mapping-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importMapping(f); e.target.value = ''; }} />
+              <input type="file" accept=".json,application/json" className="visually-hidden" data-testid="detail-mapping-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importMapping(f); e.target.value = ''; }} />
             </label>
           </div>
         </details>
@@ -421,7 +421,7 @@ export default function SetDetail({ setId }: { setId: string }) {
               <div className="add-build-row">
                 <input placeholder="Nom (ex. Modèle B : buggy)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} maxLength={120} aria-label="Nom de la nouvelle construction" />
                 <label className="button secondary small"><Upload size={14} aria-hidden /> Ajouter un modèle (.mpd / .ldr)
-                  <input type="file" accept=".mpd,.ldr" hidden data-testid="detail-add-build" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addAlternative(f); e.target.value = ''; }} />
+                  <input type="file" accept=".mpd,.ldr" className="visually-hidden" data-testid="detail-add-build" onChange={(e) => { const f = e.target.files?.[0]; if (f) void addAlternative(f); e.target.value = ''; }} />
                 </label>
               </div>
             </section>

@@ -243,7 +243,7 @@ export default function AddSetPage() {
                 <span className="small muted">Dépose ici, en une fois, tes fichiers .mpd, .ldr, .pdf et .brick-mapping.json (fonctionne sans Internet).</span>
                 <label className="button secondary small">
                   <FolderOpen size={16} aria-hidden /> Choisir des fichiers
-                  <input type="file" multiple hidden accept=".mpd,.ldr,.pdf,application/pdf,.json,application/json" data-testid="quick-input" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) void quickImport(fs); }} />
+                  <input type="file" multiple className="visually-hidden" accept=".mpd,.ldr,.pdf,application/pdf,.json,application/json" data-testid="quick-input" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) void quickImport(fs); }} />
                 </label>
               </div>
             </div>

@@ -1237,7 +1237,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               <div className="card-actions">
                 <label className="button primary lg">
                   <Upload size={16} aria-hidden /> Importer un modèle (.mpd / .ldr)
-                  <input type="file" accept=".ldr,.mpd" hidden data-testid="model-input"
+                  <input type="file" accept=".ldr,.mpd" className="visually-hidden" data-testid="model-input"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
                 </label>
                 <a className="button lg" href={`/atelier?demo=${DEMO_ID}`}><FlaskConical size={16} aria-hidden /> Essayer la démo</a>
@@ -1397,7 +1397,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                 {!initial && (
                   <label className="button secondary small">
                     <Upload size={14} aria-hidden /> Importer un autre modèle
-                    <input type="file" accept=".ldr,.mpd" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
+                    <input type="file" accept=".ldr,.mpd" className="visually-hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
                   </label>
                 )}
               </>
@@ -1485,9 +1485,9 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             )}
           </div>
           <div className="tray-actions">
-            <button type="button" aria-label="Annuler" data-tip="Annuler la dernière action (⌘Z)" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}><Undo2 size={16} aria-hidden /> Annuler <kbd aria-hidden>⌘Z</kbd></button>
+            <button type="button" aria-label="Annuler" data-tip="Annuler la dernière action (⌘Z)" data-tip-align="end" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}><Undo2 size={16} aria-hidden /> Annuler <kbd aria-hidden>⌘Z</kbd></button>
             {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}><RotateCw size={16} aria-hidden /> Orientation suivante (O)</button>}
-            <button type="button" onClick={assistPlace} disabled={!held} data-tip="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-testid="assist-place"><Target size={16} aria-hidden /> Poser à la position cible (aide)</button>
+            <button type="button" onClick={assistPlace} disabled={!held} data-tip="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-tip-align="end" data-testid="assist-place"><Target size={16} aria-hidden /> Poser à la position cible (aide)</button>
             <div className="tray-secondary">
               {isStepped(session.mode) && <button type="button" className="ghost small" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
               <button type="button" className="ghost small danger-text" onClick={() => setConfirmRestart(true)}><Trash2 size={14} aria-hidden /> Abandonner</button>

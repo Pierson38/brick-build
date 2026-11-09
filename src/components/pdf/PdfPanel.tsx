@@ -102,8 +102,8 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind√
   const go = (delta: number) => active && notice.show(active.sha256, page + delta);
   const shownError = error ?? renderError;
 
-  const importInput = (
-    <input type="file" accept="application/pdf,.pdf" hidden data-testid="pdf-input"
+  const importInput = (label?: string) => (
+    <input type="file" accept="application/pdf,.pdf" className="visually-hidden" data-testid="pdf-input" aria-label={label}
       onChange={(e) => { const f = e.target.files?.[0]; if (f) void notice.open(f, initialPage); e.target.value = ''; }} />
   );
 
@@ -113,7 +113,7 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind√
         <div className="pdf-toolbar">
           <label className="button ghost icon small" aria-label="Ajouter / changer de livret" data-tip="Ajouter / changer de livret" data-tip-side="bottom">
             <FilePlus2 size={16} aria-hidden />
-            {importInput}
+            {importInput('Ajouter / changer de livret')}
           </label>
           {booklets.length > 1 && (
             <select aria-label="Livret affich√©" data-testid="pdf-booklet" value={active.sha256}
@@ -149,7 +149,7 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind√
           <p className="muted small">Ta notice reste sur ce Mac : elle est lue localement et n‚Äôest pas sauvegard√©e.</p>
           <label className="button primary">
             <FileUp size={16} aria-hidden /> Importer une notice PDF
-            {importInput}
+            {importInput()}
           </label>
         </div>
       )}

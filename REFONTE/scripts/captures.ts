@@ -5,6 +5,8 @@
  *   npx tsx REFONTE/scripts/captures.ts <baseUrl> <outDir> <dataDir>             # normal server
  *   npx tsx REFONTE/scripts/captures.ts <baseUrl> <outDir> <dataDir> --degraded  # server started
  *       with LDRAW_LIBRARY_DIR= and BRICK_LAB_ONLINE=0, on the data folder of the first run
+ *   npx tsx REFONTE/scripts/captures.ts <baseUrl> <outDir> <dataDir> --extra     # after the redesign:
+ *       dark theme, confirmations, settings and help (normal server, data folder of the first run)
  *
  * The server must be `next dev` (test hooks) with BRICK_LAB_DATA_DIR=<dataDir>, an EMPTY folder for
  * the normal run. The "Chercher en ligne" button is never clicked: no request to the OMR.
@@ -18,9 +20,10 @@ import { analyzeModel } from '../../src/domain/import/analyze';
 import { addBooklet, addStep, assignToStep, createMapping, serializeMapping } from '../../src/domain/instructions/mapping';
 import { makeTestPdf } from '../../tests/e2e/make-test-pdf';
 
-const [baseUrl, outDir, dataDir, flag] = process.argv.slice(2);
+const [baseUrl = '', outDir = '', dataDir = '', flag] = process.argv.slice(2);
 if (!baseUrl || !outDir || !dataDir) throw new Error('usage: captures.ts <baseUrl> <outDir> <dataDir> [--degraded]');
 const degraded = flag === '--degraded';
+const extra = flag === '--extra';
 mkdirSync(outDir, { recursive: true });
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -251,7 +254,95 @@ async function degradedRun() {
   return errors;
 }
 
-const errors = degraded ? await degradedRun() : await normalRun();
+/** States added by the redesign (dark theme, new confirmations, manipulation settings, help). */
+async function extraRun() {
+  const errors: string[] = [];
+  const open = async (scheme: 'light' | 'dark', width = 1280, height = 800) => {
+    const page = await browser.newPage({ viewport: { width, height }, colorScheme: scheme });
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    return page;
+  };
+  // ---- dark theme: collection, set detail
+  let page = await open('dark');
+  await page.goto(baseUrl);
+  await page.waitForFunction(() => document.querySelectorAll('img.thumb').length >= 3, null, { timeout: 60_000 }).catch(() => undefined);
+  await shot(page, '31-collection-sombre', true);
+  await page.getByTestId('set-card-90001-1').getByRole('link', { name: 'Détails' }).click();
+  await page.locator('.build-panel').waitFor();
+  await page.waitForTimeout(1500);
+  await shot(page, '32-detail-set-sombre', true);
+  await page.getByTestId('detail-remove').click();
+  await shot(page, '33-detail-confirmation-retrait');
+  await page.getByRole('button', { name: 'Annuler', exact: true }).last().click();
+
+  // ---- synchronised build on 90001 (left in free mode by the normal run): back to the notice
+  await page.goto(baseUrl);
+  await page.getByTestId('set-card-90001-1').getByTestId('card-build').click();
+  await rendered(page);
+  await page.getByTestId('mode-select').locator('[data-value="synced"]').click();
+  const confirm = page.getByTestId('mode-switch-confirm');
+  if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.getByRole('button', { name: 'Retirer et changer de mode' }).click();
+  const again = page.getByRole('button', { name: 'Recommencer' });
+  if (await again.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await again.click();
+    await page.getByTestId('confirm-restart').getByRole('button', { name: 'Confirmer l’abandon' }).click();
+    await page.getByRole('tab', { name: 'Modèle' }).click();
+    await page.getByRole('button', { name: 'Commencer — notice synchronisée' }).click();
+  }
+  await page.getByRole('tab', { name: 'Notice PDF' }).click();
+  await page.getByTestId('pdf-canvas').waitFor();
+  for (let i = 0; i < 3; i++) await assistPlaceOne(page);
+  await shot(page, '34-atelier-synchronise-sombre');
+  await page.getByRole('button', { name: 'Étape précédente' }).click();
+  await settle(page);
+  await shot(page, '35-synchro-consultation-etape-faite');
+  await page.getByTestId('sync-rewind').click();
+  await shot(page, '36-synchro-confirmation-reprendre');
+  await page.getByTestId('confirm-rewind').getByRole('button', { name: 'Annuler' }).click();
+  await page.getByRole('tab', { name: 'Correspondances' }).click();
+  await page.getByTestId('mapping-status').waitFor();
+  await page.locator('aside').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await page.getByRole('button', { name: 'Tout effacer' }).click();
+  await shot(page, '37-editeur-confirmation-effacer');
+  await page.getByTestId('confirm-clear').getByRole('button', { name: 'Annuler' }).click();
+  await page.getByRole('button', { name: 'Terminer l’édition' }).click();
+  await page.close();
+
+  // ---- standalone atelier (demo): manipulation settings, help, 1024 px
+  page = await open('light');
+  await page.goto(`${baseUrl}/atelier?demo=mini-4`);
+  await rendered(page);
+  await page.getByRole('button', { name: 'Montage libre (avec notice)' }).click();
+  await page.locator('.tray-item').first().click();
+  const c = await canvasCentre(page);
+  await page.mouse.click(c.x + 60, c.y);
+  await settle(page);
+  const free = await page.evaluate(() => window.__brickLabGame!.freePieces());
+  const pose = free.at(-1)!.pose;
+  const p = await page.evaluate((pt) => window.__brickLab!.project(pt), [pose[12]! + 10, pose[13]!, pose[14]! + 5] as [number, number, number]);
+  await page.mouse.click(p.x, p.y);
+  await page.getByTestId('selection-info').waitFor();
+  await page.getByTestId('manip-settings').click();
+  await shot(page, '38-libre-reglages-manipulation');
+  await page.getByTestId('help-open').click();
+  await page.getByTestId('help-dialog').waitFor();
+  await shot(page, '39-aide-raccourcis');
+  await page.keyboard.press('Escape');
+  await page.close();
+  page = await open('dark', 1024, 768);
+  await page.goto(`${baseUrl}/atelier?demo=mini-4`);
+  await rendered(page);
+  await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+  await page.locator('.tray-item').first().click();
+  const g = await canvasCentre(page);
+  await page.mouse.move(g.x, g.y);
+  await settle(page);
+  await shot(page, '40-atelier-guide-sombre-1024');
+  await page.close();
+  return errors;
+}
+
+const errors = degraded ? await degradedRun() : extra ? await extraRun() : await normalRun();
 await browser.close();
 console.log(`${shots.length} capture(s) dans ${outDir}`);
 if (errors.length > 0) console.log(`Erreurs console (${errors.length}) :\n${[...new Set(errors)].join('\n')}`);

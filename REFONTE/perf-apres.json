@@ -1,0 +1,110 @@
+{
+  "machine": {
+    "os": "darwin 25.6.0",
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "memGB": 17,
+    "node": "v24.5.0",
+    "browser": "156.0.8078.4"
+  },
+  "summary": [
+    {
+      "set": "31040-1",
+      "runs": 3,
+      "importToFirstFrameMs": 1073,
+      "geometryMs": 323,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 31,
+      "ldrawRequests": 490,
+      "notFound": 171,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31009-1",
+      "runs": 3,
+      "importToFirstFrameMs": 1181,
+      "geometryMs": 636,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 50,
+      "ldrawRequests": 812,
+      "notFound": 293,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    }
+  ],
+  "results": [
+    {
+      "set": "31040-1",
+      "run": 0,
+      "importToFirstFrameMs": 1073,
+      "geometryMs": 517,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 25,
+      "ldrawRequests": 490,
+      "notFound": 171,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31040-1",
+      "run": 1,
+      "importToFirstFrameMs": 1151,
+      "geometryMs": 323,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 31,
+      "ldrawRequests": 490,
+      "notFound": 171,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31040-1",
+      "run": 2,
+      "importToFirstFrameMs": 657,
+      "geometryMs": 265,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 37,
+      "ldrawRequests": 490,
+      "notFound": 171,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31009-1",
+      "run": 0,
+      "importToFirstFrameMs": 1166,
+      "geometryMs": 646,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 50,
+      "ldrawRequests": 812,
+      "notFound": 293,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31009-1",
+      "run": 1,
+      "importToFirstFrameMs": 1185,
+      "geometryMs": 636,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 68,
+      "ldrawRequests": 812,
+      "notFound": 293,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    },
+    {
+      "set": "31009-1",
+      "run": 2,
+      "importToFirstFrameMs": 1181,
+      "geometryMs": 611,
+      "fpsIdle": 60,
+      "fpsOrbit": 60,
+      "heapMB": 45,
+      "ldrawRequests": 812,
+      "notFound": 293,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)"
+    }
+  ]
+}

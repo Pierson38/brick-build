@@ -244,7 +244,7 @@ export function MappingEditor(props: Props) {
         <button type="button" className="secondary small" data-testid="mapping-export" onClick={props.onExport}><Download size={14} aria-hidden /> Exporter (.json)</button>
         <label className="button secondary small">
           <Upload size={14} aria-hidden /> Importer un fichier de correspondances
-          <input type="file" accept="application/json,.json" hidden data-testid="mapping-import" onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ''; }} />
+          <input type="file" accept="application/json,.json" className="visually-hidden" data-testid="mapping-import" onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ''; }} />
         </label>
         <span className="spacer" />
         <button type="button" className="ghost small danger-text" onClick={() => setConfirmClear(true)}><Trash2 size={14} aria-hidden /> Tout effacer</button>
