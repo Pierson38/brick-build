@@ -56,7 +56,7 @@ function OpenDialog({ title, onClose, children, footer, wide = false, testId }: 
 }
 
 /** Confirmation of a destructive action: the safe choice has the focus. */
-export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel = 'Annuler', onConfirm, onCancel, testId }: {
+export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel = 'Annuler', onConfirm, onCancel, testId, confirmTestId }: {
   open: boolean;
   title: ReactNode;
   children: ReactNode;
@@ -65,6 +65,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
   onConfirm: () => void;
   onCancel: () => void;
   testId?: string;
+  confirmTestId?: string;
 }) {
   return (
     <Dialog
@@ -75,7 +76,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
       footer={(
         <>
           <button type="button" onClick={onCancel} autoFocus>{cancelLabel}</button>
-          <button type="button" className="danger solid" onClick={onConfirm}>{confirmLabel}</button>
+          <button type="button" className="danger solid" onClick={onConfirm} data-testid={confirmTestId}>{confirmLabel}</button>
         </>
       )}
     >

@@ -4,7 +4,7 @@ import { THEME_BOOT_SCRIPT } from '@/components/ui/theme';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Brick Lab Local',
+  title: { default: 'Brick Lab Local', template: '%s — Brick Lab' },
   description: 'Reconstruction virtuelle locale de modèles LDraw. Non affilié à LEGO.',
 };
 
