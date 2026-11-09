@@ -95,8 +95,8 @@ for (const set of SETS) {
     await page.screenshot({ path: path.join(PROOFS, `apres-${set.id}-notice-elargie.png`) });
 
     // guided mode (when the file has steps) or free mode: pieces placed by pointer after resizes
-    const mode = (await page.getByTestId('mode-select').locator('option[value="guided"]').count()) > 0 ? 'guided' : 'freeManual';
-    await page.getByTestId('mode-select').selectOption(mode);
+    const mode = (await page.getByTestId('mode-select').locator('[data-value="guided"]:not([aria-disabled])').count()) > 0 ? 'guided' : 'freeManual';
+    await page.getByTestId('mode-select').locator(`[data-value="${mode}"]`).click();
     const placeStats = newStats();
     const resizes = [() => dragSplitter(page, 200), () => page.setViewportSize({ width: 1512, height: 945 }), () => dragSplitter(page, -150), () => page.setViewportSize({ width: 1280, height: 800 })];
     for (const resize of resizes) {

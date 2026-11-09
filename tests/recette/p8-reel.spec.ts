@@ -120,7 +120,7 @@ test('part 2: after a server restart, resume without import; the same search fin
   await expect(setCard.getByTestId('card-build')).toHaveText('Reprendre');
   await setCard.getByTestId('card-build').click();
   await expect(again.getByTestId('message')).toContainText(`Progression restaurée : ${PLACE}/`, { timeout: 120_000 });
-  log.resume = { message: await again.getByTestId('message').textContent(), mode: await again.getByTestId('mode-select').inputValue() };
+  log.resume = { message: await again.getByTestId('message').textContent(), mode: await again.getByTestId('mode-select').getAttribute('data-value') };
   await again.screenshot({ path: path.join(PROOFS, `${CANON}-reprise.png`) });
   await context.close();
 

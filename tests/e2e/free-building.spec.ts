@@ -146,17 +146,17 @@ test('leaving the free mode: pieces at their model place are kept, others only r
   await clickAt(page, [200, 24, 100]);
   await expect(page.getByTestId('free-info')).toHaveText('2 posée(s) librement · 1 à leur place dans le modèle');
 
-  await page.getByTestId('mode-select').selectOption('guided');
+  await page.getByTestId('mode-select').locator('[data-value="guided"]').click();
   const confirm = page.getByTestId('mode-switch-confirm');
   await expect(confirm).toContainText('1 pièce(s) posée(s) hors du modèle officiel');
   await expect(confirm).toContainText('(1 reconnue(s) à leur place, gardée(s))');
   await confirm.getByRole('button', { name: 'Rester en montage libre' }).click();
-  await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'freeManual');
   await expect(page.getByTestId('progress')).toHaveText('2/4 pièces posées');
 
-  await page.getByTestId('mode-select').selectOption('guided');
+  await page.getByTestId('mode-select').locator('[data-value="guided"]').click();
   await page.getByTestId('mode-switch-confirm').getByRole('button', { name: 'Retirer et changer de mode' }).click();
-  await expect(page.getByTestId('mode-select')).toHaveValue('guided');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
   await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 1 / 2');
   // guided: a placed brick cannot be taken; a far drop is refused
@@ -168,10 +168,10 @@ test('leaving the free mode: pieces at their model place are kept, others only r
 
   // back to free, the blue brick at its place: the switch needs no question
   await page.keyboard.press('Escape');
-  await page.getByTestId('mode-select').selectOption('freeManual');
+  await page.getByTestId('mode-select').locator('[data-value="freeManual"]').click();
   await page.getByTestId('tray-3001.dat-1').click();
   await clickAt(page, [80, 24, 0]);
-  await page.getByTestId('mode-select').selectOption('guided');
+  await page.getByTestId('mode-select').locator('[data-value="guided"]').click();
   await expect(page.getByTestId('mode-switch-confirm')).toHaveCount(0);
   await expect(page.getByTestId('message')).toContainText('1 pièce(s) posée(s) librement reconnue(s) à leur place dans le modèle');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 2 / 2');

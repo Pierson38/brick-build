@@ -144,7 +144,7 @@ test('synchronised build, back to the collection, browser closed, resumed with n
   await expect(again.getByTestId('set-card-90001-1').getByTestId('card-build')).toHaveText('Reprendre');
   await again.getByTestId('set-card-90001-1').getByTestId('card-build').click();
   await expect(again.getByTestId('message')).toContainText('Progression restaurée : 3/8 pièces posées.', { timeout: 30_000 });
-  await expect(again.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(again.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await expect(again.getByTestId('notice-step')).toHaveText('Notice : Étape 2, p. 2');
   await expect(again.getByTestId('pdf-page')).toHaveText('PDF p. 2 / 3');
   await expect(again.getByTestId('sync-missing-booklet')).toHaveCount(0);
@@ -267,7 +267,7 @@ test('P5/P6 saves of this browser are taken over without being deleted', async (
   await page.getByTestId('set-card-90004-1').getByTestId('card-build').click();
   await expect(page.getByTestId('atelier-notes')).toContainText('Partie enregistrée dans ce navigateur reprise dans la bibliothèque (2/4 pièces');
   await expect(page.getByTestId('progress')).toHaveText('2/4 pièces posées');
-  await expect(page.getByTestId('mode-select')).toHaveValue('guided');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
   const lib = await library(request);
   expect(lib.sets.find((s) => s.setNumber === '90004-1')!.builds[0]!.progress).toMatchObject({ placed: 2, mode: 'guided' });
   expect(await page.evaluate((k) => localStorage.getItem(k), `brick-lab:progress:${variantSha}`)).toBe(JSON.stringify(v1b));
@@ -390,7 +390,7 @@ test('an OLDER browser save that differs is offered; keeping the library keeps i
   // identical saves now: no question, the recovered mode and bricks are restored
   await page.goto(`/atelier/${buildId}`);
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées', { timeout: 30_000 });
-  await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'freeManual');
   await expect(page.getByTestId('progress-choice')).toHaveCount(0);
 });
 
@@ -413,7 +413,7 @@ test('a browser save played with another mapping: the difference is shown, its m
   await expect(choice.getByTestId('choice-with-mapping')).toBeChecked();
   await choice.getByTestId('choice-browser').click();
   await expect(page.getByTestId('progress')).toHaveText('3/8 pièces posées', { timeout: 30_000 });
-  await expect(page.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 1, p. 2');
   const stored = (await (await request.get(`/api/library/builds/${buildId}/mapping`)).json()) as { mapping: { steps: unknown[] } };
   expect(stored.mapping.steps).toHaveLength(2);

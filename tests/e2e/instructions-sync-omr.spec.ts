@@ -84,8 +84,12 @@ test('31040 synchronised build to completion: page per step, auto-advance, reloa
     if (visited.at(-1) !== key) {
       visited.push(key);
       // the booklet page follows the step, without any click on the PDF
-      const shown = await page.getByTestId('pdf-page').textContent();
-      if (shown !== `PDF p. ${stepPage} / 32`) pageMismatches.push(`${key}: ${shown}`);
+      // the page follows in the render after the step change: wait for it (a loaded machine delays
+      // that render), a page that never comes is still recorded as a mismatch
+      const want = `PDF p. ${stepPage} / 32`;
+      const shown = await expect(page.getByTestId('pdf-page')).toHaveText(want, { timeout: 3_000 })
+        .then(() => want, () => page.getByTestId('pdf-page').textContent());
+      if (shown !== want) pageMismatches.push(`${key}: ${shown}`);
       if (key === '8@5') await page.screenshot({ path: path.join(PROOFS, '31040-1-synced-step8.png') });
     }
     // only the bricks of the active booklet step are offered

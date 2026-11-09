@@ -9,6 +9,7 @@ import { snapAlong, type PieceGroup, type PieceRef } from '@/domain/build/free';
 import { bottomExtent, type HoverHit, type LayerMode, type Ray } from '@/domain/build/surface';
 import type { BrickOccurrence, Matrix4Tuple } from '@/domain/ldraw/types';
 import { cloneTemplate, templateVertices, type BrickVariant } from '@/infra/ldraw/part-catalog';
+import { useTokenValues } from '../ui/theme';
 
 export interface HeldBrick {
   readonly partKey: string;
@@ -73,6 +74,8 @@ interface Props {
   readonly axesAt?: readonly [number, number, number];
   /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
   readonly groundY?: number;
+  /** Ground grid shown (default); off for the thumbnails, whose background is transparent. */
+  readonly grid?: boolean;
   readonly recenterToken: number;
 }
 
@@ -151,7 +154,7 @@ export function BuildCanvas(props: Props) {
       camera={{ fov: 45, near: 1, far: 20000, position: [bounds.center[0] + bounds.radius * 1.6, bounds.center[1] + bounds.radius * 1.4, bounds.center[2] + bounds.radius * 2] }}
       gl={{ preserveDrawingBuffer: true, antialias: true }}
     >
-      <color attach="background" args={['#eef1f5']} />
+      {/* no background: the canvas is transparent, the container shows the theme's --scene-bg */}
       <hemisphereLight args={['#ffffff', '#8a8f99', 1.6]} />
       <directionalLight position={[300, 600, 400]} intensity={1.8} />
       <directionalLight position={[-400, 200, -300]} intensity={0.6} />
@@ -162,7 +165,7 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, xray, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, xray, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround, grid = true }: Props) {
   // pieces carried by the gizmo during its drag: drawn in the gizmo's moving group, hidden here
   const [gizmoHidden, setGizmoHidden] = useState<ReadonlySet<string>>(new Set());
   // the gizmo moves a proxy at the pivot INSIDE the LDraw root (LDraw coordinates); the pieces follow
@@ -329,7 +332,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         {/* double-sided: after the LDraw -Y flip the plane faces away from the camera */}
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
       </mesh>
-      <gridHelper args={[2000, 100, '#c3c9d4', '#dde2ea']} position={[0, groundY, 0]} />
+      {grid && <ThemedGrid y={groundY} />}
       {gizmo && !held && (
         <>
           <primitive object={gizmoProxy} />
@@ -511,6 +514,14 @@ function SelectionGizmo({ spec, proxy, carried, onLive, onCommit, onHidden, onPr
         }}
       />
   );
+}
+
+const GRID_TOKENS = ['--scene-grid-center', '--scene-grid'] as const;
+
+/** Ground grid in the theme's colours: re-created only when the theme changes. */
+function ThemedGrid({ y }: { y: number }) {
+  const [centre, lines] = useTokenValues(GRID_TOKENS, ['#bfb8ac', '#d3cec5']);
+  return <gridHelper key={`${centre}${lines}`} args={[2000, 100, centre, lines]} position={[0, y, 0]} />;
 }
 
 /** Green dots on the connectors the snapping makes fit; drawn over everything, never picked. */

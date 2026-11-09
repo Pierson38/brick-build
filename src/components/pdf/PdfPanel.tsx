@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { BookOpen, ChevronLeft, ChevronRight, FilePlus2, FileUp, MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
 import type { RenderTask } from 'pdfjs-dist';
+import { Loading, Note } from '../ui/feedback';
 import type { NoticeState } from './useNotice';
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -100,42 +102,56 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
   const go = (delta: number) => active && notice.show(active.sha256, page + delta);
   const shownError = error ?? renderError;
 
+  const importInput = (label?: string) => (
+    <input type="file" accept="application/pdf,.pdf" className="visually-hidden" data-testid="pdf-input" aria-label={label}
+      onChange={(e) => { const f = e.target.files?.[0]; if (f) void notice.open(f, initialPage); e.target.value = ''; }} />
+  );
+
   return (
     <section className={compact ? 'pdf-panel compact' : 'pdf-panel'} aria-label="Notice PDF">
-      <div className="pdf-toolbar">
-        <label className="button secondary">
-          {active ? 'Ajouter / changer de livret' : 'Importer une notice PDF'}
-          <input type="file" accept="application/pdf,.pdf" hidden data-testid="pdf-input"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void notice.open(f, initialPage); e.target.value = ''; }} />
-        </label>
-        {booklets.length > 1 && (
-          <select aria-label="Livret affiché" data-testid="pdf-booklet" value={active?.sha256 ?? ''}
-            onChange={(e) => notice.show(e.target.value, 1)}>
-            {booklets.map((b) => <option key={b.sha256} value={b.sha256}>{b.fileName}</option>)}
-          </select>
-        )}
-        {active && (
-          <>
-            <button type="button" onClick={() => go(-1)} disabled={page <= 1} aria-label="Page précédente">◀</button>
-            <span data-testid="pdf-page">PDF p. {page} / {active.pageCount}</span>
-            <button type="button" onClick={() => go(1)} disabled={page >= active.pageCount} aria-label="Page suivante">▶</button>
-            <button type="button" onClick={() => (fit ? unfit(-1) : setZoomIndex((z) => Math.max(0, z - 1)))} aria-label="Zoom arrière">−</button>
-            <span data-testid="pdf-zoom">{fit ? 'Largeur' : `${Math.round(ZOOMS[zoomIndex]! * 100)} %`}</span>
-            <button type="button" onClick={() => (fit ? unfit(1) : setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1)))} aria-label="Zoom avant">+</button>
-            {!fit && <button type="button" onClick={() => setFit(true)} aria-label="Ajuster à la largeur">↔</button>}
-          </>
-        )}
-      </div>
+      {active && (
+        <div className="pdf-toolbar">
+          <label className="button ghost icon small" aria-label="Ajouter / changer de livret" data-tip="Ajouter / changer de livret" data-tip-side="bottom">
+            <FilePlus2 size={16} aria-hidden />
+            {importInput('Ajouter / changer de livret')}
+          </label>
+          {booklets.length > 1 && (
+            <select aria-label="Livret affiché" data-testid="pdf-booklet" value={active.sha256}
+              onChange={(e) => notice.show(e.target.value, 1)}>
+              {booklets.map((b) => <option key={b.sha256} value={b.sha256}>{b.fileName}</option>)}
+            </select>
+          )}
+          <span className="pdf-group" role="group" aria-label="Pages">
+            <button type="button" className="ghost icon small" onClick={() => go(-1)} disabled={page <= 1} aria-label="Page précédente"><ChevronLeft size={16} aria-hidden /></button>
+            <span className="num" data-testid="pdf-page">PDF p. {page} / {active.pageCount}</span>
+            <button type="button" className="ghost icon small" onClick={() => go(1)} disabled={page >= active.pageCount} aria-label="Page suivante"><ChevronRight size={16} aria-hidden /></button>
+          </span>
+          <span className="pdf-group" role="group" aria-label="Zoom">
+            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(-1) : setZoomIndex((z) => Math.max(0, z - 1)))} aria-label="Zoom arrière"><ZoomOut size={16} aria-hidden /></button>
+            <span className="num pdf-zoom" data-testid="pdf-zoom">{fit ? 'Largeur' : `${Math.round(ZOOMS[zoomIndex]! * 100)} %`}</span>
+            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(1) : setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1)))} aria-label="Zoom avant"><ZoomIn size={16} aria-hidden /></button>
+            {!fit && <button type="button" className="ghost icon small" onClick={() => setFit(true)} aria-label="Ajuster à la largeur" data-tip="Ajuster à la largeur" data-tip-side="bottom" data-tip-align="end"><MoveHorizontal size={16} aria-hidden /></button>}
+          </span>
+        </div>
+      )}
       {banner}
-      {loading && <p className="muted">Lecture du PDF…</p>}
-      {shownError && <p className="error" role="alert">{shownError}</p>}
+      {loading && <Loading>Lecture du PDF…</Loading>}
+      {shownError && <Note tone="error" role="alert">{shownError}</Note>}
       {active ? (
         <>
-          <p className="muted small">{active.fileName} — {caption}</p>
+          <p className="pdf-caption muted small"><span className="pdf-file">{active.fileName}</span> — {caption}</p>
           <div className={fit ? 'pdf-scroll fit' : 'pdf-scroll'} ref={scrollRef}><canvas ref={canvasRef} data-testid="pdf-canvas" /></div>
         </>
       ) : (
-        <p className="muted small">Ta notice reste sur ce Mac : elle est lue localement et n’est pas sauvegardée.</p>
+        <div className="pdf-empty">
+          <span className="empty-icon" aria-hidden><BookOpen size={20} /></span>
+          <p className="pdf-empty-title">Aucune notice ouverte</p>
+          <p className="muted small">Ta notice reste sur ce Mac : elle est lue localement et n’est pas sauvegardée.</p>
+          <label className="button primary">
+            <FileUp size={16} aria-hidden /> Importer une notice PDF
+            {importInput()}
+          </label>
+        </div>
       )}
     </section>
   );

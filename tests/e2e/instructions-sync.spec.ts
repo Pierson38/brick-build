@@ -213,7 +213,7 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   await expect(page.getByTestId('pdf-page')).toHaveText('PDF p. 3 / 3'); // auto page turn
 
   // consult a past step: its page and bricks, nothing removed
-  await page.getByRole('button', { name: '◀ Étape précédente' }).click();
+  await page.getByRole('button', { name: 'Étape précédente' }).click();
   await expect(page.getByTestId('sync-step')).toHaveText('Étape 2 (×2)');
   await expect(page.getByTestId('pdf-page')).toHaveText('PDF p. 2 / 3');
   expect((await scene(page)).selected).toBe(2);
@@ -223,8 +223,10 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   expect((await scene(page)).selected).toBe(0);
 
   // rewind: start again from step 2 (its bricks and the later ones are removed)
-  await page.getByRole('button', { name: '◀ Étape précédente' }).click();
+  await page.getByRole('button', { name: 'Étape précédente' }).click();
   await page.getByTestId('sync-rewind').click();
+  await expect(page.getByTestId('confirm-rewind')).toContainText('2 pièce(s) posée(s) à cette étape et aux suivantes seront retirées');
+  await page.getByTestId('confirm-rewind').getByRole('button', { name: 'Reprendre depuis cette étape' }).click();
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 2 / 4');
   await dropAt(page, 2);
@@ -242,7 +244,7 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   await importModel(page);
   await expect(page.getByTestId('message')).toHaveText('Progression restaurée : 5/8 pièces posées.');
   await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 3, p. 3');
-  await expect(page.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await expect(page.getByTestId('sync-missing-booklet')).toBeVisible();
   // a wrong notice (other edition, other fingerprint) is shown as such, never as the booklet
   await importPdf(page, OTHER_PDF, 'autre-notice.pdf');
@@ -295,16 +297,16 @@ test('without a valid mapping the synchronised mode is not offered, and a synced
   await page.reload();
   await importModel(page);
   await expect(page.getByTestId('message')).toContainText('aucune correspondance valide pour ce fichier : reprise en montage libre');
-  await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'freeManual');
   await expect(page.getByTestId('notice-step')).toHaveCount(0);
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
-  await expect(page.getByTestId('mode-select').locator('option[value=synced]')).toHaveCount(0);
+  await expect(page.getByTestId('mode-select').locator('[data-value=synced]:not([aria-disabled])')).toHaveCount(0);
 
   // re-importing the personal mapping file brings the synchronised mode back, same bricks
   await page.getByRole('tab', { name: 'Correspondances' }).click();
   await importMappingFile(page, referenceMapping());
   await page.getByRole('button', { name: 'Terminer l’édition' }).click();
-  await page.getByTestId('mode-select').selectOption('synced');
+  await page.getByTestId('mode-select').locator('[data-value="synced"]').click();
   await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 2 (×2), p. 2');
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
 });
@@ -317,6 +319,6 @@ test('P5 progress (schema v1) is still restored', async ({ page }) => {
   })), [hash, a.model.occurrences[0]!.occurrenceId] as const);
   await importModel(page);
   await expect(page.getByTestId('message')).toHaveText('Progression restaurée : 1/8 pièces posées.');
-  await expect(page.getByTestId('mode-select')).toHaveValue('guided');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 1 / 2');
 });

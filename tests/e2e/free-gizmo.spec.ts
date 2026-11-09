@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { expect, test, webkit, type Page } from '@playwright/test';
-import { clickAt, dragHandle, frame, freePieces, ground, handle, open, OWNER, P, point, type F } from './free-helpers';
+import { clickAt, dragHandle, frame, freePieces, ground, handle, manipSettings, open, OWNER, P, point, type F } from './free-helpers';
 
 /**
  * Transform gizmo of the free mode (07/11/2026): on a click, three arrows appear on the piece (X red,
@@ -37,6 +37,7 @@ test('the arrows appear on a click (no M); X, Y and Z move the piece along one a
   expect(xyz(await piece(page, 'f11'))).toEqual([start[0]! + 40, 9.41, start[2]! - 20]);
   await expect(page.getByTestId('message')).toContainText('Pièce : déplacée');
   // fine steps: 1 LDU
+  await manipSettings(page);
   await page.getByTestId('gizmo-step').selectOption('1');
   await dragHandle(page, 'translate', 'Y', -3.2);
   expect(xyz(await piece(page, 'f11'))[1]).toBeCloseTo(12.41, 6);
@@ -84,6 +85,7 @@ test('rings turn the piece (red axle upright by the mouse), local axes follow it
   expect(axle.pose[12]).toBe(200);
   expect(Math.abs(axle.pose[13]! - yBefore)).toBeCloseTo(8, 6); // one plate along the axle's own X (vertical)
   // typed coordinates (X, Y = height, Z)
+  await manipSettings(page);
   await page.getByTestId('gizmo-x').fill('150');
   await page.getByTestId('gizmo-z').fill('-40');
   await page.getByTestId('gizmo-apply').click();

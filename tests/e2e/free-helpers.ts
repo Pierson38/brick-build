@@ -24,6 +24,11 @@ export const OWNER = [
 export const ground = (page: Page) => page.evaluate(() => window.__brickLabGame!.ground());
 
 export const freePieces = (page: Page) => page.evaluate(() => window.__brickLabGame!.freePieces()) as Promise<F[]>;
+/** The step, angle and typed coordinates of the selection are in the « Réglages » popover of the bottom bar. */
+export async function manipSettings(page: Page) {
+  const button = page.getByTestId('manip-settings');
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+}
 export const frame = (page: Page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 export const held = async (page: Page) => {
   await frame(page);

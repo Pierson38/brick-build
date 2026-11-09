@@ -120,7 +120,7 @@ export async function placeOneByPointer(page: Page, stats: DropStats, preferSymm
       held = await hover(page, [t[12], t[13] + held.bottom, t[14]]);
       if (!held.targetId) held = await hover(page, [t[12], t[13], t[14]]);
     }
-    if (!held.targetId && (await page.getByTestId('mode-select').inputValue()) === 'freeManual') {
+    if (!held.targetId && (await page.getByTestId('mode-select').getAttribute('data-value')) === 'freeManual') {
       // free mode: the free height control (one plate per key, Shift: 1 LDU) up to the spot's height
       stats.manualFallbacks++;
       let current = held.layerMode === 'manual' ? held.layerY : held.previewLayerY ?? held.layerY;

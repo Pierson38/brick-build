@@ -98,7 +98,7 @@ test('31040: synchronised build from the collection, interrupted, browser closed
   await waitAtelier(again);
   const resumeMs = Date.now() - t0;
   await expect(again.getByTestId('message')).toContainText('Progression restaurée : 30/65 pièces posées.');
-  await expect(again.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(again.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await expect(again.getByTestId('notice-step')).toHaveText(step!);
   await expect(again.getByTestId('pdf-page')).toHaveText(pdfPage!);
   await expect(again.getByTestId('sync-missing-booklet')).toHaveCount(0);

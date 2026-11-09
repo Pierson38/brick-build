@@ -1,0 +1,214 @@
+/*
+ * Brick Lab Local — design tokens (proposition, direction A « Établi »).
+ * Source unique de vérité : en phase 4, ce fichier devient src/app/tokens.css, importé par
+ * globals.css ; aucun composant n'écrit de couleur, de rayon ou de durée en dur.
+ *
+ * Thème : clair par défaut, sombre selon prefers-color-scheme, bascule manuelle par
+ * <html data-theme="light|dark"> (préférence de ce navigateur, posée avant le premier rendu).
+ * Contrastes vérifiés (WCAG AA) : voir REFONTE/proposition-design.md § 3.
+ */
+
+:root {
+  /* ---------- typographie (police système : 0 Ko ajouté, aucune requête) ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-2xs: 11px;  /* badges « en main », kbd */
+  --text-xs: 12px;   /* secondaire, légendes */
+  --text-sm: 13px;   /* contrôles, panneaux */
+  --text-md: 14px;   /* texte courant */
+  --text-lg: 16px;   /* titres de carte */
+  --text-xl: 18px;   /* titres de section */
+  --text-2xl: 22px;  /* titre d'atelier / de set */
+  --text-3xl: 28px;  /* titre d'écran */
+  --leading-tight: 1.2;
+  --leading: 1.45;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---------- espacements (grille de 4 px) ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---------- rayons ---------- */
+  --radius-xs: 4px;     /* kbd, puces internes */
+  --radius-control: 7px; /* boutons, champs, segmentés */
+  --radius-card: 12px;  /* cartes, tuiles du bac, toasts */
+  --radius-panel: 14px; /* panneaux, modales */
+  --radius-pill: 999px;
+
+  /* ---------- tailles fixes ---------- */
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --control-h-lg: 40px;
+  --appbar-h: 52px;
+  --tray-h: 188px;       /* FIXE pendant une partie : un bac qui change de taille désynchronise le picking 3D (R7) */
+  --splitter-w: 8px;     /* = SPLITTER de src/domain/ui/panel-layout.ts */
+  --icon-sm: 14px;
+  --icon: 16px;
+  --icon-lg: 20px;
+  --icon-stroke: 1.75;
+  --content-max: 1360px;
+
+  /* ---------- couches ---------- */
+  --z-scene-overlay: 5;
+  --z-sticky: 10;
+  --z-popover: 30;
+  --z-dialog: 40;
+  --z-toast: 50;
+
+  /* ---------- mouvement ---------- */
+  --duration-fast: 150ms;
+  --duration: 200ms;
+  --duration-slow: 250ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, .2, 1);
+
+  /* ---------- axes (identiques dans les deux thèmes, convention de la scène) ---------- */
+  --axis-x: #dc2626;
+  --axis-y: #16a34a;
+  --axis-z: #2563eb;
+
+  color-scheme: light;
+}
+
+/* ---------- couleurs : thème clair (défaut) ---------- */
+:root {
+  --color-bg: #f6f4f0;          /* papier */
+  --color-surface: #ffffff;
+  --color-surface-2: #efece6;   /* survol, champs désactivés, tuiles */
+  --color-surface-3: #e7e3db;   /* pistes de progression */
+  --color-border: #e2ddd4;
+  --color-border-strong: #cfc8bc;
+  --color-border-control: #8f877a; /* bord des champs et cases : ≥ 3:1 (WCAG 1.4.11) */
+  --color-ink: #1e1b16;         /* texte */
+  --color-ink-2: #5c564c;       /* secondaire (6,9:1 sur papier) */
+  --color-ink-3: #6b6458;       /* tertiaire, légendes (≥ 4,96:1 sur papier et surface-2) */
+  --color-ink-inverse: #f6f4f0;
+
+  --color-accent: #1e6b5c;      /* action principale, progression, onglet actif */
+  --color-accent-hover: #175549;
+  --color-accent-ink: #ffffff;  /* texte sur accent (6,3:1) */
+  --color-accent-soft: #dcefe9;
+  --color-accent-line: #9fd1c3;
+  --color-focus: #1e6b5c;
+
+  --color-ok: #1b7a3d;     --color-ok-soft: #e2f3e7;
+  --color-warn: #8a5300;   --color-warn-soft: #fbefd5;
+  --color-danger: #b42318; --color-danger-soft: #fde8e6;
+  --color-info: #2453a6;   --color-info-soft: #e3ecfa;
+
+  /* qualité d'import (badges) : jouable / libre seulement / incomplet / invalide */
+  --quality-guided: var(--color-ok);      --quality-guided-bg: var(--color-ok-soft);
+  --quality-manual: var(--color-info);    --quality-manual-bg: var(--color-info-soft);
+  --quality-partial: var(--color-warn);   --quality-partial-bg: var(--color-warn-soft);
+  --quality-invalid: var(--color-danger); --quality-invalid-bg: var(--color-danger-soft);
+
+  /* scène 3D (lues par BuildCanvas au montage et au changement de thème) */
+  --scene-bg: #e9e6e0;
+  --scene-grid: #d3cec5;
+  --scene-grid-center: #bfb8ac;
+  --scene-ghost: #1e6b5c;       /* à brancher seulement si accord sur src/infra (cf. § arbitrages) */
+  --scene-select: #c2410c;
+  --scene-snap: #16a34a;
+  --scene-overlay-bg: rgb(255 255 255 / .92);
+
+  --shadow-1: 0 1px 2px rgb(40 30 10 / .06), 0 1px 1px rgb(40 30 10 / .04);
+  --shadow-2: 0 6px 20px rgb(40 30 10 / .10), 0 2px 6px rgb(40 30 10 / .06);
+  --shadow-3: 0 18px 48px rgb(40 30 10 / .18), 0 4px 12px rgb(40 30 10 / .08);
+  --backdrop: rgb(30 27 22 / .40);
+}
+
+/* ---------- couleurs : thème sombre ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #171614;
+    --color-surface: #201e1b;
+    --color-surface-2: #2a2723;
+    --color-surface-3: #33302b;
+    --color-border: #3a3631;
+    --color-border-strong: #4d4841;
+    --color-border-control: #7a7367;
+    --color-ink: #f1eee8;
+    --color-ink-2: #b4ada1;
+    --color-ink-3: #a09a8e;
+    --color-ink-inverse: #171614;
+    --color-accent: #4fbfa5;
+    --color-accent-hover: #6fd0b9;
+    --color-accent-ink: #0d1f1a;
+    --color-accent-soft: #183a33;
+    --color-accent-line: #2d6b5d;
+    --color-focus: #6fd0b9;
+    --color-ok: #5fcf85;     --color-ok-soft: #173322;
+    --color-warn: #f0b45a;   --color-warn-soft: #3a2a10;
+    --color-danger: #ff8a7a; --color-danger-soft: #3d1a16;
+    --color-info: #8fb4ff;   --color-info-soft: #1b2740;
+    --scene-bg: #1c1b19;
+    --scene-grid: #2e2b27;
+    --scene-grid-center: #45403a;
+    --scene-ghost: #4fbfa5;
+    --scene-select: #fb923c;
+    --scene-snap: #4ade80;
+    --scene-overlay-bg: rgb(32 30 27 / .92);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .40);
+    --shadow-2: 0 8px 24px rgb(0 0 0 / .45);
+    --shadow-3: 0 20px 56px rgb(0 0 0 / .55);
+    --backdrop: rgb(0 0 0 / .55);
+  }
+}
+/* bascule manuelle : mêmes valeurs que le bloc précédent (dupliquées à la main, vérifiées par un test) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #171614;
+  --color-surface: #201e1b;
+  --color-surface-2: #2a2723;
+  --color-surface-3: #33302b;
+  --color-border: #3a3631;
+  --color-border-strong: #4d4841;
+  --color-border-control: #7a7367;
+  --color-ink: #f1eee8;
+  --color-ink-2: #b4ada1;
+  --color-ink-3: #a09a8e;
+  --color-ink-inverse: #171614;
+  --color-accent: #4fbfa5;
+  --color-accent-hover: #6fd0b9;
+  --color-accent-ink: #0d1f1a;
+  --color-accent-soft: #183a33;
+  --color-accent-line: #2d6b5d;
+  --color-focus: #6fd0b9;
+  --color-ok: #5fcf85;     --color-ok-soft: #173322;
+  --color-warn: #f0b45a;   --color-warn-soft: #3a2a10;
+  --color-danger: #ff8a7a; --color-danger-soft: #3d1a16;
+  --color-info: #8fb4ff;   --color-info-soft: #1b2740;
+  --scene-bg: #1c1b19;
+  --scene-grid: #2e2b27;
+  --scene-grid-center: #45403a;
+  --scene-ghost: #4fbfa5;
+  --scene-select: #fb923c;
+  --scene-snap: #4ade80;
+  --scene-overlay-bg: rgb(32 30 27 / .92);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .40);
+  --shadow-2: 0 8px 24px rgb(0 0 0 / .45);
+  --shadow-3: 0 20px 56px rgb(0 0 0 / .55);
+  --backdrop: rgb(0 0 0 / .55);
+}
+
+/* ---------- mouvement réduit ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration: 0ms;
+    --duration-slow: 0ms;
+  }
+}

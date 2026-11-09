@@ -59,7 +59,7 @@ test('a build started in Chromium is resumed in WebKit, and back', async ({ page
   await expect(card.getByTestId('card-progress')).toHaveText('1/4 pièces posées', { timeout: 60_000 });
   await card.getByTestId('card-build').click();
   await expect(s.getByTestId('message')).toContainText('Progression restaurée : 1/4 pièces posées.', { timeout: 60_000 });
-  await expect(s.getByTestId('mode-select')).toHaveValue('guided');
+  await expect(s.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
   await placeOne(s, '2/4 pièces posées');
   await expect.poll(async () => ((await (await request.get(`/api/library/builds/${buildId}/progress`)).json()) as { progress: { placedOccurrenceIds: string[] } | null }).progress?.placedOccurrenceIds.length).toBe(2);
   await s.screenshot({ path: 'test-results/proof-p7-webkit.png' });
