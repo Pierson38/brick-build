@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Box, Check, CircleAlert, Crosshair, FlaskConical, Ghost, Grid3x3, Link2, LoaderCircle, Magnet, PanelRightClose, PanelRightOpen, RotateCcw, RotateCw, Target, Trash2, Undo2, Upload } from 'lucide-react';
+import { BookOpen, Box, Check, CircleAlert, Crosshair, FlaskConical, Ghost, Grid3x3, Link2, LoaderCircle, Magnet, PanelRightClose, PanelRightOpen, RotateCcw, RotateCw, ScanEye, Target, Trash2, Undo2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import {
   activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, orientationChoices, placeExact,
@@ -33,6 +33,7 @@ import { browserStore, type BuildStore, type SaveState } from '@/infra/persisten
 import { downloadMapping } from '@/infra/persistence/local-mapping';
 import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
 import { HelpButton } from './atelier/HelpDialog';
+import { HeldBar, SelectionBar } from './atelier/ManipBar';
 import { ModeSwitch } from './atelier/ModeSwitch';
 import { StartPanel } from './atelier/StartPanel';
 import { PartsTray } from './build/PartsTray';
@@ -229,6 +230,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const [gizmoRotation, setGizmoRotation] = useState<90 | 15>(90);
   const [gizmoLive, setGizmoLive] = useState<Matrix4Tuple | null>(null);
   const [typed, setTyped] = useState<[string, string, string] | null>(null);
+  const [manipSettings, setManipSettings] = useState(false);
 
   useEffect(() => setRecent(library ? [] : listRecentSessions()), [loaded, library]);
   useEffect(() => store.onSaveState(setSaveState), [store]);
@@ -1108,17 +1110,6 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const shownRotation = held && !held.group ? heldRotation(held)
     : !held && selection.length === 1 && ctx && session ? poseOf(ctx, session, selection[0]!) : null;
   const orientation = shownRotation ? orientationLabel(shownRotation) : null;
-  const rotationControls = (
-    <span className="rotations" role="group" aria-label="Rotations">
-      {(['x', 'y', 'z'] as const).map((axis) => (
-        <span key={axis} className={`axis axis-${axis}`}>
-          <b>{axis.toUpperCase()}</b>
-          <button type="button" data-testid={`rot-${axis}-minus`} onClick={() => rotate(axis, -1)} title={`−90° autour de ${axis.toUpperCase()} (Maj+${axis.toUpperCase()})`}>−90°</button>
-          <button type="button" data-testid={`rot-${axis}-plus`} onClick={() => rotate(axis, 1)} title={`+90° autour de ${axis.toUpperCase()} (${axis.toUpperCase()})`}>+90°</button>
-        </span>
-      ))}
-    </span>
-  );
   const orientationInfo = orientation && <span className="small muted" data-testid="orientation-info">Dessus : {orientation.top} · Avant : {orientation.front}</span>;
   if (editing && report) {
     // editor preview: built up to the current step, its bricks highlighted, unassigned as ghosts
@@ -1135,7 +1126,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       : geometry ? `Géométrie LDraw : ${geometry.templates.size} combinaison(s) pièce/couleur chargée(s), ${missing.length} référence(s) manquante(s), ${Math.round(geometry.durationMs)} ms.`
         : '';
 
-  // status of the piece in hand: in the bottom bar (guided, synced), in the bar over the 3D view (free mode)
+  // status of the piece in hand, in the HUD at the top left of the 3D view (every mode)
   const heldInfo = held ? (
     <span className="small muted" data-testid="held-info">
       {held.moving ? 'Pièce reprise · ' : held.group ? `Groupe de ${held.group.members.length} pièces · ` : ''}
@@ -1286,6 +1277,9 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                   </label>
                 </>
               )}
+              {freeMode && !held && selection.length > 0 && (
+                <button type="button" className="ghost icon" data-testid="xray" aria-pressed={xray} aria-label="Voir les connexions" data-tip="Voir les connexions : les autres pièces deviennent transparentes (affichage seulement)" data-tip-side="left" onClick={() => setXray(!xray)}><ScanEye size={18} aria-hidden /></button>
+              )}
               {panelCollapsed && (
                 <>
                   <hr />
@@ -1294,84 +1288,73 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               )}
             </div>
           )}
-          {held && !freeMode && !editing && <div className="hud" aria-live="polite">{heldInfo}</div>}
-          {message && <Toast tone={message.kind} onClose={() => setMessage(null)}>{message.text}</Toast>}
-          {sceneHint && <p className="scene-legend" data-testid="scene-hint">{sceneHint} <span className="legend-help"><kbd>?</kbd> toutes les touches</span></p>}
-          {freeMode && !editing && (held || selection.length > 0) && (
-            <div className="manip-bar" data-testid="manip-bar">
-              {held ? (
-                <>
-                  {/* readouts on their own line: the buttons below never move when a text changes */}
-                  <div className="status">
-                    {heldInfo}
+          <div className="scene-top">
+            {freeMode && !editing && held && (
+              <HeldBar moving={Boolean(held.moving || held.group)} autoHeight={held.layerMode === 'auto'} heightStep={heightStep} steps={[HEIGHT_STEP_LDU, FINE_HEIGHT_STEP_LDU]}
+                onLift={lift} onStep={setHeightStep} onAuto={autoHeight} onRotate={rotate} onRemove={removeHeld} onCancel={cancelHeld} />
+            )}
+            {freeMode && !editing && !held && selection.length > 0 && (
+              <SelectionBar gizmoMode={gizmoMode} gizmoSpace={gizmoSpace} onGizmoMode={setGizmoMode} onGizmoSpace={setGizmoSpace} onRotate={rotate}
+                onMove={() => moveSelection(selection)} onAssembly={() => selectAssembly(selection)} onRemove={removeSelection} onClear={() => setSelection([])}
+                settingsOpen={manipSettings} onSettings={() => setManipSettings((o) => !o)}
+                settings={(
+                  <>
+                    <label className="field-row" title="Pas des flèches : à l’horizontale ½ tenon (10 LDU) ou un tenon (20 LDU), à la verticale une plaque (8 LDU) ; ou 1 LDU partout. ⌥ pendant le glisser : sans pas.">
+                      <span>Pas des flèches</span>
+                      <select data-testid="gizmo-step" value={gizmoStep} onChange={(e) => setGizmoStep(Number(e.target.value) as 10 | 20 | 1)}>
+                        <option value={10}>½ tenon</option>
+                        <option value={20}>tenon</option>
+                        <option value={1}>1 LDU</option>
+                      </select>
+                    </label>
+                    <label className="field-row" title="⌥ pendant le glisser : sans pas.">
+                      <span>Pas des anneaux</span>
+                      <select data-testid="gizmo-angle" value={gizmoRotation} onChange={(e) => setGizmoRotation(Number(e.target.value) as 90 | 15)}>
+                        <option value={90}>90°</option>
+                        <option value={15}>15°</option>
+                      </select>
+                    </label>
+                      {shown && (
+                      <fieldset className="coords">
+                        <legend>Coordonnées <span className="muted">(LDU, Y = hauteur)</span></legend>
+                        {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+                          <label key={axis}>{axis}{' '}
+                            <input type="number" step="any" data-testid={`gizmo-${axis.toLowerCase()}`} value={typed ? typed[i] : String(shown[i])}
+                              onChange={(e) => { const next = [...(typed ?? shown.map(String))] as [string, string, string]; next[i] = e.target.value; setTyped(next); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') applyTyped(); }} />
+                          </label>
+                        ))}
+                        <button type="button" className="primary small" data-testid="gizmo-apply" onClick={applyTyped} disabled={!typed}>Appliquer</button>
+                      </fieldset>
+                    )}
+                  </>
+                )} />
+            )}
+            {held && !editing && (
+              <div className="hud" aria-live="polite">
+                {heldInfo}
+                {freeMode && (heightAboveGround !== null || orientationInfo) && (
+                  <div className="hud-line">
                     {heightAboveGround !== null && <span className="small" data-testid="height-info">bas à {heightAboveGround} LDU du sol</span>}
                     {orientationInfo}
                   </div>
-                  <button type="button" data-testid="lift-up" onClick={() => lift(1)} title="PageUp (Maj : 1 LDU)">▲ Monter</button>
-                  <button type="button" data-testid="lift-down" onClick={() => lift(-1)} title="PageDown (Maj : 1 LDU)">▼ Descendre</button>
-                  <span className="segmented" role="group" aria-label="Pas de hauteur">
-                    <button type="button" data-testid="step-8" aria-pressed={heightStep === HEIGHT_STEP_LDU} onClick={() => setHeightStep(HEIGHT_STEP_LDU)}>8 LDU</button>
-                    <button type="button" data-testid="step-1" aria-pressed={heightStep === FINE_HEIGHT_STEP_LDU} onClick={() => setHeightStep(FINE_HEIGHT_STEP_LDU)}>1 LDU</button>
-                  </span>
-                  <button type="button" data-testid="height-auto" onClick={autoHeight} disabled={held.layerMode === 'auto'} title="A">Hauteur auto</button>
-                  {rotationControls}
-                  {(held.moving || held.group) && <button type="button" data-testid="remove-piece" onClick={removeHeld}>Remettre dans le stock (Suppr)</button>}
-                  <button type="button" data-testid="cancel-held" onClick={cancelHeld}>{held.moving || held.group ? 'Laisser en place (Échap)' : 'Lâcher (Échap)'}</button>
-                </>
-              ) : (
-                <>
-                  <div className="status">
-                    <span className="small" data-testid="selection-info">{selection.length} pièce(s) sélectionnée(s)</span>
+                )}
+              </div>
+            )}
+            {freeMode && !editing && !held && selection.length > 0 && (
+              <div className="hud">
+                <span className="small" data-testid="selection-info">{selection.length} pièce(s) sélectionnée(s)</span>
+                {(orientationInfo || shown) && (
+                  <div className="hud-line">
                     {orientationInfo}
-                    {shown && (
-                      <span className="small" data-testid="gizmo-coords">
-                        X {shown[0]} · Y {shown[1]} (hauteur) · Z {shown[2]} LDU
-                      </span>
-                    )}
+                    {shown && <span className="small" data-testid="gizmo-coords">X {shown[0]} · Y {shown[1]} (hauteur) · Z {shown[2]} LDU</span>}
                   </div>
-                  <span className="segmented" role="group" aria-label="Manipulateur">
-                    <button type="button" data-testid="gizmo-translate" aria-pressed={gizmoMode === 'translate'} onClick={() => setGizmoMode('translate')} title="Flèches : déplacer le long d’un axe (W)">Flèches</button>
-                    <button type="button" data-testid="gizmo-rotate" aria-pressed={gizmoMode === 'rotate'} onClick={() => setGizmoMode('rotate')} title="Anneaux : tourner autour d’un axe (E)">Anneaux</button>
-                  </span>
-                  <span className="segmented" role="group" aria-label="Axes">
-                    <button type="button" data-testid="gizmo-world" aria-pressed={gizmoSpace === 'world'} onClick={() => setGizmoSpace('world')} title="Axes de la scène (Q)">Globaux</button>
-                    <button type="button" data-testid="gizmo-local" aria-pressed={gizmoSpace === 'local'} onClick={() => setGizmoSpace('local')} title="Axes de la pièce tournée (Q)">Locaux</button>
-                  </span>
-                  <label className="small" title="Pas des flèches : à l’horizontale ½ tenon (10 LDU) ou un tenon (20 LDU), à la verticale une plaque (8 LDU) ; ou 1 LDU partout. ⌥ pendant le glisser : sans pas.">Pas{' '}
-                    <select data-testid="gizmo-step" value={gizmoStep} onChange={(e) => setGizmoStep(Number(e.target.value) as 10 | 20 | 1)}>
-                      <option value={10}>½ tenon</option>
-                      <option value={20}>tenon</option>
-                      <option value={1}>1 LDU</option>
-                    </select>
-                  </label>
-                  <label className="small" title="Pas des anneaux">Angle{' '}
-                    <select data-testid="gizmo-angle" value={gizmoRotation} onChange={(e) => setGizmoRotation(Number(e.target.value) as 90 | 15)}>
-                      <option value={90}>90°</option>
-                      <option value={15}>15°</option>
-                    </select>
-                  </label>
-                  {shown && (
-                    <span className="coords small" role="group" aria-label="Coordonnées">
-                      {(['X', 'Y', 'Z'] as const).map((axis, i) => (
-                        <label key={axis}>{axis}{' '}
-                          <input type="number" step="any" data-testid={`gizmo-${axis.toLowerCase()}`} value={typed ? typed[i] : String(shown[i])}
-                            onChange={(e) => { const next = [...(typed ?? shown.map(String))] as [string, string, string]; next[i] = e.target.value; setTyped(next); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter') applyTyped(); }} />
-                        </label>
-                      ))}
-                      <button type="button" data-testid="gizmo-apply" onClick={applyTyped} disabled={!typed}>Appliquer</button>
-                    </span>
-                  )}
-                  <button type="button" data-testid="move-selection" onClick={() => moveSelection(selection)} title="Prendre la sélection en main (M)">Déplacer (M)</button>
-                  {rotationControls}
-                  <button type="button" data-testid="remove-selection" onClick={removeSelection} title="Remettre dans le stock (Suppr)">Au stock</button>
-                  <button type="button" data-testid="select-assembly" onClick={() => selectAssembly(selection)} title="Toutes les pièces emboîtées, visibles ou cachées (double-clic sur une pièce)">Assemblage</button>
-                  <button type="button" data-testid="xray" aria-pressed={xray} onClick={() => setXray(!xray)} title="Les autres pièces deviennent transparentes pour voir les connexions intérieures (affichage seulement)">Voir les connexions</button>
-                  <button type="button" data-testid="clear-selection" onClick={() => setSelection([])}>Désélectionner</button>
-                </>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
+          {message && <Toast tone={message.kind} onClose={() => setMessage(null)}>{message.text}</Toast>}
+          {sceneHint && <p className="scene-legend" data-testid="scene-hint">{sceneHint} <span className="legend-help"><kbd>?</kbd> toutes les touches</span></p>}
         </div>
 
         <Splitter side={panel.side} total={panel.total} context={editing ? 'editor' : 'atelier'} onResize={panel.setSide} />

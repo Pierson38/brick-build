@@ -261,15 +261,40 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 .viewport > .toast .toast-close { pointer-events: auto; }
 
 /* free mode: height and selection controls over the 3D view */
-.manip-bar { position: absolute; left: var(--space-3); top: var(--space-3); right: var(--space-3); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px var(--space-2); border-radius: var(--radius-card); background: var(--scene-overlay-bg); border: 1px solid var(--color-border); box-shadow: var(--shadow-1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: var(--z-scene-overlay); }
-.manip-bar button { min-height: var(--control-h-sm); padding: 0 var(--space-2); }
-.manip-bar .coords { display: inline-flex; gap: 4px; align-items: center; }
-.manip-bar .coords input { width: 62px; min-height: var(--control-h-sm); }
-.manip-bar select { min-height: var(--control-h-sm); }
-.manip-bar .status { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 18px; background: none; padding: 0; font-weight: var(--weight-regular); color: var(--color-ink); }
-.manip-bar .rotations { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* top of the scene: the free-mode contextual bar (piece in hand or selection, one row), its
+   settings row, then the HUD. The far background is covered, never the ground near the camera;
+   the HUD only reads out, clicks go through it to the scene. */
+.scene-top { position: absolute; left: var(--space-3); top: var(--space-3); right: 64px; z-index: var(--z-scene-overlay); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); pointer-events: none; }
+.scene-top > * { pointer-events: auto; }
+.scene-top > .hud { pointer-events: none; }
+.manip-bar, .manip-settings { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 100%; padding: 6px var(--space-2); border-radius: var(--radius-card); background: var(--scene-overlay-bg); border: 1px solid var(--color-border); box-shadow: var(--shadow-1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.manip-bar button { min-height: var(--control-h-sm); padding: 0 var(--space-2); gap: 6px; }
+.manip-bar .segmented > button { min-height: calc(var(--control-h-sm) - 6px); }
+.manip-bar .tool-group { display: inline-flex; gap: 6px; align-items: center; }
+.manip-bar .sep { width: 1px; align-self: stretch; margin: 2px; background: var(--color-border); }
+.manip-bar .rotations { display: inline-flex; gap: var(--space-2); align-items: center; }
 .manip-bar .axis { display: inline-flex; gap: 2px; align-items: center; }
-.manip-bar .axis b { width: 14px; text-align: center; }
+.manip-bar .axis b { width: 14px; text-align: center; font-size: var(--text-xs); }
+.manip-bar .axis button { padding: 0 6px; }
+.manip-settings { gap: 6px var(--space-4); font-size: var(--text-sm); }
+.manip-settings .field-row { display: inline-flex; align-items: center; gap: var(--space-2); }
+.manip-settings select { min-height: var(--control-h-sm); }
+.manip-settings .coords { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; padding: 0; border: 0; }
+.manip-settings .coords legend { float: left; padding: 0; margin-right: 4px; }
+.manip-settings .coords label { display: inline-flex; gap: 4px; align-items: center; }
+.manip-settings .coords input { width: 62px; min-height: var(--control-h-sm); }
+/* a narrow scene: the bar keeps its icons, the names stay for assistive technologies */
+.viewport { container: scene / inline-size; }
+.manip-bar .ico { display: inline-flex; }
+.manip-bar .ico.narrow-only { display: none; }
+.manip-bar .rot-unit { font-size: var(--text-2xs); color: var(--color-ink-3); }
+.manip-bar .axis button { min-width: 26px; justify-content: center; font-size: var(--text-md); }
+@container scene (max-width: 840px) {
+  .manip-bar .ico.narrow-only { display: inline-flex; }
+  .manip-bar .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .manip-bar button { padding: 0 6px; }
+  .manip-settings .coords legend .muted { display: none; }
+}
 .axis-x b, b.axis-x, .axis-x { color: var(--axis-x); } .axis-y b, b.axis-y, .axis-y { color: var(--axis-y); } .axis-z b, b.axis-z, .axis-z { color: var(--axis-z); }
 
 .side { background: var(--color-surface); overflow: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
@@ -435,7 +460,7 @@ body.resizing-panels .viewport, body.resizing-panels .side { pointer-events: non
 
 /* WebKit before color-mix (Safari < 16.2): opaque fallbacks */
 @supports not (color: color-mix(in srgb, red 50%, blue)) {
-  .manip-bar { background: var(--color-surface); }
+  .manip-bar, .manip-settings { background: var(--color-surface); }
   button.danger { border-color: var(--color-danger); }
 }
 
@@ -551,13 +576,14 @@ body.resizing-panels .viewport, body.resizing-panels .side { pointer-events: non
 .tool-toggle:has(> input:checked) { background: var(--color-accent-soft); color: var(--color-accent); }
 .tool-toggle > input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
 
-.hud { position: absolute; left: var(--space-3); top: var(--space-3); z-index: var(--z-scene-overlay); max-width: calc(100% - 90px); padding: 6px var(--space-3); border-radius: var(--radius-card); background: var(--scene-overlay-bg); border: 1px solid var(--color-border); box-shadow: var(--shadow-1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: var(--text-xs); }
+.hud { max-width: 100%; padding: 6px var(--space-3); border-radius: var(--radius-card); background: var(--scene-overlay-bg); border: 1px solid var(--color-border); box-shadow: var(--shadow-1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: var(--text-xs); }
 .hud .muted { color: var(--color-ink-2); }
 .viewport > .toast { bottom: 44px; }
 .scene-legend { position: absolute; left: var(--space-3); right: 90px; bottom: var(--space-3); z-index: var(--z-scene-overlay); margin: 0; font-size: var(--text-xs); color: var(--color-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; text-shadow: 0 0 6px var(--scene-bg), 0 0 2px var(--scene-bg); }
 .scene-legend:hover { white-space: normal; }
 .legend-help { margin-left: var(--space-2); white-space: nowrap; }
-.manip-bar { right: 64px; }
+.hud { display: flex; flex-direction: column; gap: 2px; }
+.hud-line { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }
 
 .tab-panel { display: flex; flex-direction: column; gap: var(--space-3); }
 .tab-panel[hidden] { display: none; }

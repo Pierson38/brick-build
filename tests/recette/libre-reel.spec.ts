@@ -584,6 +584,8 @@ test('part 4: the owner’s own 31039 build (copied, read only) — the gizmo on
     await page.mouse.click(wq.x, wq.y);
     const sel = await page.evaluate(() => window.__brickLabGame!.selection().map((r) => (r as { id: string }).id));
     if (sel.length === 1) {
+      const settings = page.getByTestId('manip-settings'); // step, angle, coordinates: in the bottom bar's popover
+      if ((await settings.getAttribute('aria-expanded')) !== 'true') await settings.click();
       await page.getByTestId('gizmo-x').fill('360');
       await page.getByTestId('gizmo-apply').click();
       now = await game<Free[]>(page, 'freePieces');
