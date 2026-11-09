@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { FileBox, FileText, Link2, X } from 'lucide-react';
 import type { PreparedImport } from '@/domain/library/import-types';
 import { formatBytes } from '../labels';
 import { buildRows, type BuildChoice, type Selection } from './selection';
@@ -19,17 +20,17 @@ export function ResourcesPanel({ prepared, selection, onChange, onRemove, onExtr
   const rows = buildRows(prepared, selection);
   const checked = rows.filter((r) => selection.builds[r.key]?.checked);
   return (
-    <section className="add-panel" data-testid="resources">
-      <h2>Fichiers sélectionnés</h2>
+    <section className="resources" data-testid="resources">
+      <h3>Fichiers retenus</h3>
       {prepared.models.length === 0 && (
         <p className="warn" data-testid="no-model">Aucun modèle 3D trouvé pour ce set.{prepared.pdfs.length > 0 ? ' Notice trouvée sans modèle 3D : pas de construction interactive disponible.' : ''}</p>
       )}
       {prepared.models.map((model) => (
         <div key={model.sha256} className="file-card" data-testid="model-card">
           <div className="file-card-head">
-            <strong>{model.name}</strong>
+            <strong className="file-name"><FileBox size={16} aria-hidden /> {model.name}</strong>
             <span className="small muted">{formatBytes(model.size)} · {SOURCE[model.provenance.source]}{model.inLibrary ? ' · déjà dans la bibliothèque (pas de nouvelle copie)' : ''}</span>
-            <button type="button" className="small" onClick={() => onRemove(model.sha256)}>Retirer</button>
+            <button type="button" className="small ghost" onClick={() => onRemove(model.sha256)}><X size={14} aria-hidden /> Retirer</button>
           </div>
           <p className="small muted">{model.provenance.author ? `Auteur : ${model.provenance.author}. ` : ''}Licence : {model.provenance.license ?? 'non indiquée dans le fichier'}.{model.provenance.url ? <> Source : <a href={model.provenance.url} target="_blank" rel="noreferrer noopener">{new URL(model.provenance.url).hostname}</a></> : null}</p>
           {model.roots.map((root) => {
@@ -71,7 +72,7 @@ export function ResourcesPanel({ prepared, selection, onChange, onRemove, onExtr
 
       {prepared.pdfs.length > 0 && (
         <div className="file-card" data-testid="pdf-card">
-          <strong>Notices PDF</strong>
+          <strong className="file-name"><FileText size={16} aria-hidden /> Notices PDF</strong>
           {checked.length > 1 && <p className="small muted">Plusieurs constructions : coche pour chaque notice la ou les constructions qu’elle accompagne. Aucune association n’est déduite du contenu du PDF.</p>}
           {prepared.pdfs.map((pdf) => (
             <div key={pdf.sha256} className="pdf-row" data-testid="pdf-row">
@@ -89,7 +90,7 @@ export function ResourcesPanel({ prepared, selection, onChange, onRemove, onExtr
                   );
                 })}
               </span>
-              <button type="button" className="small" onClick={() => onRemove(pdf.sha256)}>Retirer</button>
+              <button type="button" className="small ghost" onClick={() => onRemove(pdf.sha256)}><X size={14} aria-hidden /> Retirer</button>
             </div>
           ))}
         </div>
@@ -97,7 +98,7 @@ export function ResourcesPanel({ prepared, selection, onChange, onRemove, onExtr
 
       {checked.some((r) => r.mappings.length > 0) && (
         <div className="file-card" data-testid="mapping-card">
-          <strong>Correspondances notice ↔ 3D</strong> <span className="small muted">(reconnues par l’empreinte exacte du modèle, jamais par leur nom)</span>
+          <strong className="file-name"><Link2 size={16} aria-hidden /> Correspondances notice ↔ 3D</strong> <span className="small muted">(reconnues par l’empreinte exacte du modèle, jamais par leur nom)</span>
           {checked.filter((r) => r.mappings.length > 0).map((r) => {
             const c = selection.builds[r.key]!;
             return (

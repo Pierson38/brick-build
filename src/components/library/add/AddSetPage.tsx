@@ -7,6 +7,9 @@ import type { FileRef, ImportResult, LocalLookup, OnlineLookup, PreparedImport }
 import { parseSetNumber } from '@/domain/library/set-number';
 import type { FileKind } from '@/domain/library/types';
 import { ApiError, libraryApi } from '@/infra/library/api';
+import { Check, CircleAlert, CircleCheck, FolderOpen, Hammer, Hash, Info, LoaderCircle, RotateCcw, Search, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { AppBar } from '../../ui/AppBar';
 import { ModeChips } from '../labels';
 import { ResourcesPanel } from './ResourcesPanel';
 import { EMPTY_SELECTION, importBuilds, selectedBuilds, withDefaults, type BuildChoice, type Selection } from './selection';
@@ -22,6 +25,9 @@ interface Picked { readonly kind: FileKind; readonly ref: FileRef }
 
 const kindOf = (name: string): FileKind | null => (/\.(mpd|ldr)$/i.test(name) ? 'model' : /\.pdf$/i.test(name) ? 'pdf' : /\.json$/i.test(name) ? 'mapping' : null);
 const GENERIC_TITLE = /^(main|model|untitled)?$/i;
+const LINE_ICON: Record<string, ReactNode> = {
+  ok: <CircleCheck size={14} aria-hidden />, warn: <TriangleAlert size={14} aria-hidden />, error: <CircleAlert size={14} aria-hidden />, info: <Info size={14} aria-hidden />,
+};
 
 export default function AddSetPage() {
   const [number, setNumber] = useState('');
@@ -193,59 +199,84 @@ export default function AddSetPage() {
     }
   };
 
+  // where the user is: 1 files, 2 checking, 3 confirmation, 4 ready (the sections stay on one page)
+  const stage = result ? 4 : prepared && (builds.length > 0 || existing.length > 0) ? 3 : prepared ? 2 : 1;
+  const STAGES = ['Fichiers', 'Vérification', 'Confirmation', 'Prêt'] as const;
+
   return (
     <div className="collection add-page">
-      <header className="topbar">
-        <Link href="/" className="button secondary small">← Ma collection</Link>
-        <strong>Ajouter un set</strong>
-        <span className="spacer" />
-        {busy && <span className="small muted" role="status" data-testid="busy">{busy}</span>}
-      </header>
-      <main className="collection-main add-main">
-        <section className="add-panel" data-testid="search">
-          <h2>Recherche</h2>
-          <form className="search-row" onSubmit={(e) => { e.preventDefault(); void search(); }}>
-            <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Numéro du set, ex. 31040" aria-label="Numéro du set" data-testid="search-number" autoFocus />
-            <button type="submit" className="button primary" disabled={busy !== null} data-testid="search-submit">Rechercher</button>
-          </form>
-          {((parsed?.ok && parsed.value.variantPresumed) || (local?.setNumber.variantPresumed && local.setNumber.canonical === effectiveNumber)) && (
-            <p className="small muted" data-testid="variant-note">Lu comme {effectiveNumber} (variante -1 supposée ; saisis par exemple {effectiveNumber.replace(/-\d+$/, '-2')} pour une autre variante de la boîte).</p>
-          )}
-          <div className={`dropzone${dragging ? ' over' : ''}`} data-testid="dropzone"
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); void quickImport([...e.dataTransfer.files]); }}>
-            <strong>Import local rapide</strong>
-            <span className="small muted">Dépose ici, en une fois, tes fichiers .mpd, .ldr, .pdf et .brick-mapping.json (fonctionne sans Internet).</span>
-            <label className="button secondary small">
-              Choisir des fichiers
-              <input type="file" multiple hidden accept=".mpd,.ldr,.pdf,application/pdf,.json,application/json" data-testid="quick-input" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) void quickImport(fs); }} />
-            </label>
-          </div>
-          {errors.length > 0 && <ul className="plain small" role="alert" data-testid="add-errors">{errors.map((e, i) => <li key={i} className="error">{e}</li>)}</ul>}
-        </section>
-
-        {local && !result && <SourcesPanel local={local} online={online} onlineBusy={onlineBusy} downloading={downloading} downloaded={downloaded} onSearchOnline={() => void searchOnline()} onDownload={(u, p) => void download(u, p)} />}
-        {local && !prepared && picked.length === 0 && online && online.omr.models.length === 0 && <p className="warn" data-testid="nothing-found">Aucun modèle 3D trouvé pour ce set. Tu peux ajouter un fichier toi-même avec l’import rapide.</p>}
-
-        {prepared && !result && <ResourcesPanel prepared={prepared} selection={selection} onChange={change} onRemove={remove} onExtraRoot={(sha, rootName) => setExtraRoots((r) => [...r, { sha256: sha, rootName }])} />}
-
-        {prepared && !result && builds.length > 0 && (
-          <section className="add-panel" data-testid="compatibility">
-            <h2>Compatibilité</h2>
-            {builds.map((b) => (
-              <div key={b.row.key} className="compat" data-testid="compat-card">
-                <div className="model-row"><strong>{b.choice.label}</strong> <span className="small muted">{b.row.root.occurrenceCount} pièces</span> <ModeChips modes={b.sheet.modes} /></div>
-                <p className="compat-headline" data-testid="compat-headline">{b.sheet.headline}</p>
-                <ul className="plain small">{b.sheet.lines.map((l, i) => <li key={i} className={l.level === 'ok' ? 'ok' : l.level === 'warn' ? 'warning' : l.level === 'error' ? 'error' : 'info'}>{l.text}</li>)}</ul>
-              </div>
+      <AppBar crumbs={[{ label: 'Ma collection', href: '/', testId: 'back-to-collection' }, { label: 'Ajouter un set' }]}>
+        {busy && <span className="small muted busy" role="status" data-testid="busy"><LoaderCircle className="spinner" size={16} aria-hidden /> {busy}</span>}
+      </AppBar>
+      <main className="collection-main add-main" id="contenu">
+        <div className="add-intro">
+          <h1>Ajouter un set</h1>
+          <ol className="stepper" aria-label="Étapes de l’ajout">
+            {STAGES.map((label, i) => (
+              <li key={label} className={i + 1 < stage ? 'done' : i + 1 === stage ? 'current' : 'todo'} aria-current={i + 1 === stage ? 'step' : undefined}>
+                <span className="dot" aria-hidden>{i + 1 < stage ? <Check size={12} /> : i + 1}</span>{label}
+              </li>
             ))}
+          </ol>
+        </div>
+
+        {!result && (
+          <section className="add-panel" data-testid="search" aria-labelledby="step-files">
+            <h2 id="step-files"><span className="step-no">1</span> Fichiers</h2>
+            <div className="entry-ways">
+              <div className="entry-way">
+                <h3><Hash size={16} aria-hidden /> Par numéro de set</h3>
+                <form className="search-row" onSubmit={(e) => { e.preventDefault(); void search(); }}>
+                  <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Numéro du set, ex. 31040" aria-label="Numéro du set" data-testid="search-number" autoFocus />
+                  <button type="submit" className="button primary" disabled={busy !== null} data-testid="search-submit"><Search size={16} aria-hidden /> Rechercher</button>
+                </form>
+                <p className="small muted">Cherche d’abord dans ton dossier de données ; Internet n’est contacté que si tu le demandes ensuite.</p>
+                {((parsed?.ok && parsed.value.variantPresumed) || (local?.setNumber.variantPresumed && local.setNumber.canonical === effectiveNumber)) && (
+                  <p className="small muted" data-testid="variant-note">Lu comme {effectiveNumber} (variante -1 supposée ; saisis par exemple {effectiveNumber.replace(/-\d+$/, '-2')} pour une autre variante de la boîte).</p>
+                )}
+              </div>
+              <div className={`dropzone${dragging ? ' over' : ''}`} data-testid="dropzone"
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setDragging(false); void quickImport([...e.dataTransfer.files]); }}>
+                <span className="drop-icon" aria-hidden><Upload size={20} /></span>
+                <strong>Import local rapide</strong>
+                <span className="small muted">Dépose ici, en une fois, tes fichiers .mpd, .ldr, .pdf et .brick-mapping.json (fonctionne sans Internet).</span>
+                <label className="button secondary small">
+                  <FolderOpen size={16} aria-hidden /> Choisir des fichiers
+                  <input type="file" multiple hidden accept=".mpd,.ldr,.pdf,application/pdf,.json,application/json" data-testid="quick-input" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) void quickImport(fs); }} />
+                </label>
+              </div>
+            </div>
+            {errors.length > 0 && <ul className="plain small note error" role="alert" data-testid="add-errors">{errors.map((e, i) => <li key={i} className="error">{e}</li>)}</ul>}
+            {local && <SourcesPanel local={local} online={online} onlineBusy={onlineBusy} downloading={downloading} downloaded={downloaded} onSearchOnline={() => void searchOnline()} onDownload={(u, p) => void download(u, p)} />}
+            {local && !prepared && picked.length === 0 && online && online.omr.models.length === 0 && <p className="warn" data-testid="nothing-found">Aucun modèle 3D trouvé pour ce set. Tu peux ajouter un fichier toi-même avec l’import rapide.</p>}
           </section>
         )}
-        {prepared && prepared.models.length === 0 && prepared.pdfs.length > 0 && <p className="warn" data-testid="pdf-only">{NOTICE_WITHOUT_MODEL}</p>}
+        {result && errors.length > 0 && <ul className="plain small note error" role="alert" data-testid="add-errors">{errors.map((e, i) => <li key={i} className="error">{e}</li>)}</ul>}
+
+        {prepared && !result && (
+          <section className="add-panel" aria-labelledby="step-check">
+            <h2 id="step-check"><span className="step-no">2</span> Vérification</h2>
+            <ResourcesPanel prepared={prepared} selection={selection} onChange={change} onRemove={remove} onExtraRoot={(sha, rootName) => setExtraRoots((r) => [...r, { sha256: sha, rootName }])} />
+            {builds.length > 0 && (
+              <div className="compat-list" data-testid="compatibility">
+                <h3>Compatibilité</h3>
+                {builds.map((b) => (
+                  <div key={b.row.key} className="compat" data-testid="compat-card">
+                    <div className="model-row"><strong>{b.choice.label}</strong> <span className="small muted num">{b.row.root.occurrenceCount} pièces</span> <ModeChips modes={b.sheet.modes} /></div>
+                    <p className="compat-headline" data-testid="compat-headline">{b.sheet.headline}</p>
+                    <ul className="plain small compat-lines">{b.sheet.lines.map((l, i) => <li key={i} className={l.level === 'ok' ? 'ok' : l.level === 'warn' ? 'warning' : l.level === 'error' ? 'error' : 'info'}>{LINE_ICON[l.level]}<span>{l.text}</span></li>)}</ul>
+                  </div>
+                ))}
+              </div>
+            )}
+            {prepared.models.length === 0 && prepared.pdfs.length > 0 && <p className="warn" data-testid="pdf-only">{NOTICE_WITHOUT_MODEL}</p>}
+          </section>
+        )}
 
         {prepared && !result && (builds.length > 0 || existing.length > 0) && (
-          <section className="add-panel" data-testid="confirm">
-            <h2>Confirmation</h2>
+          <section className="add-panel" data-testid="confirm" aria-labelledby="step-confirm">
+            <h2 id="step-confirm"><span className="step-no">3</span> Confirmation</h2>
             {existing.length > 0 && (
               <div className="warn small" data-testid="existing-set">
                 Ce set est déjà dans ta collection : {existing.map((s) => `${s.setNumber} « ${s.name} » (${s.builds.length} construction${s.builds.length > 1 ? 's' : ''})`).join(', ')}.
@@ -263,29 +294,40 @@ export default function AddSetPage() {
                 </label>
               </div>
             )}
-            <p className="small muted">Les fichiers ajoutés sont copiés dans <code>library/</code> et identifiés par leur SHA-256 ; ceux du dossier de données restent en place. Aucun de tes fichiers n’est envoyé hors de ce Mac (Internet ne sert qu’aux recherches et téléchargements que tu demandes).</p>
-            {blocker && <p className="small error" data-testid="confirm-blocker">{blocker}</p>}
-            <button type="button" className="button primary" disabled={busy !== null || blocker !== null || builds.length === 0} onClick={() => void confirm()} data-testid="import-submit">
-              {targetSet ? `Ajouter ${builds.length} construction(s) à ${targetSet.setNumber}` : 'Ajouter à ma collection'}
-            </button>
+            <p className="small muted"><ShieldCheck size={14} aria-hidden className="inline-icon" /> Les fichiers ajoutés sont copiés dans <code>library/</code> et identifiés par leur SHA-256 ; ceux du dossier de données restent en place. Aucun de tes fichiers n’est envoyé hors de ce Mac (Internet ne sert qu’aux recherches et téléchargements que tu demandes).</p>
           </section>
         )}
 
         {result && (
-          <section className="add-panel done" data-testid="import-done">
-            <h2>{result.created.length > 0 ? 'Ajouté à ta collection' : 'Déjà dans ta collection'}</h2>
+          <section className="add-panel done" data-testid="import-done" aria-labelledby="step-done">
+            <span className="done-icon" aria-hidden><Check size={22} /></span>
+            <h2 id="step-done">{result.created.length > 0 ? 'Ajouté à ta collection' : 'Déjà dans ta collection'}</h2>
             {result.alreadyPresent.length > 0 && <p className="small" data-testid="already-present">Ce modèle existe déjà dans ta collection : {result.alreadyPresent.map((b) => `« ${b.label} »`).join(', ')} (rien n’a été dupliqué, la progression est conservée).</p>}
             {result.mappingsKept.length > 0 && <p className="small">Correspondances existantes conservées pour {result.mappingsKept.join(', ')} (non remplacées).</p>}
             <p className="small muted">{result.filesAdded} fichier(s) ajouté(s), {result.filesReused} déjà présent(s).</p>
             <div className="card-actions">
-              {[...result.created, ...result.alreadyPresent].slice(0, 4).map((b) => <Link key={b.id} className="button primary" href={`/atelier/${b.id}`} data-testid="import-build">Construire « {b.label} »</Link>)}
+              {[...result.created, ...result.alreadyPresent].slice(0, 4).map((b) => <Link key={b.id} className="button primary lg" href={`/atelier/${b.id}`} data-testid="import-build"><Hammer size={16} aria-hidden /> Construire « {b.label} »</Link>)}
               <Link className="button secondary" href={`/sets/${result.setId}`}>Voir le set</Link>
-              <Link className="button secondary" href="/">Ma collection</Link>
-              <button type="button" className="button secondary" onClick={reset} data-testid="add-another">Ajouter un autre set</button>
+              <Link className="button ghost" href="/">Ma collection</Link>
+              <button type="button" className="ghost" onClick={reset} data-testid="add-another"><RotateCcw size={16} aria-hidden /> Ajouter un autre set</button>
             </div>
           </section>
         )}
       </main>
+
+      {prepared && !result && (builds.length > 0 || existing.length > 0) && (
+        <div className="action-bar" role="region" aria-label="Action principale">
+          <div className="action-bar-inner">
+            {blocker
+              ? <p className="small error" data-testid="confirm-blocker">{blocker}</p>
+              : <p className="small muted">{builds.length} construction(s) prête(s) · {targetSet ? `ajout à ${targetSet.setNumber}` : `nouveau set ${effectiveNumber}`}</p>}
+            <span className="spacer" />
+            <button type="button" className="button primary lg" disabled={busy !== null || blocker !== null || builds.length === 0} onClick={() => void confirm()} data-testid="import-submit">
+              {targetSet ? `Ajouter ${builds.length} construction(s) à ${targetSet.setNumber}` : 'Ajouter à ma collection'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
