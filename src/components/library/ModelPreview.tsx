@@ -114,6 +114,8 @@ export function ModelPreview({ model, onThumbnail, className = 'preview3d' }: Pr
         onHover={() => undefined}
         onDrop={() => undefined}
         recenterToken={0}
+        // the captured thumbnail has a transparent background: no grid baked in the theme of the day
+        grid={!onThumbnail}
       />
     </div>
   );

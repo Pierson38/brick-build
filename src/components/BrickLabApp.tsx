@@ -32,6 +32,7 @@ import { browserStore, type BuildStore, type SaveState } from '@/infra/persisten
 import { downloadMapping } from '@/infra/persistence/local-mapping';
 import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
 import { PartsTray } from './build/PartsTray';
+import { DEMO_ID, DEMO_MODEL } from './demo/demo-model';
 import { ModelSummary } from './import/ModelSummary';
 import { MappingEditor } from './mapping/MappingEditor';
 import { Splitter, useSidePanel } from './layout/Splitter';
@@ -355,7 +356,16 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   // last is opened last, at its saved page; in synchronised mode the step then turns the page.
   const started = useRef(false);
   useEffect(() => {
-    if (!initial || started.current) return;
+    if (started.current) return;
+    // standalone atelier, « Essayer la démo » of the first launch: the embedded CC0 model, imported
+    // exactly as a file chosen by hand (progress kept in this browser, nothing added to the library)
+    if (!initial && !library && new URLSearchParams(window.location.search).get('demo') === DEMO_ID) {
+      started.current = true;
+      const bytes = new TextEncoder().encode(DEMO_MODEL.text);
+      void sha256Hex(bytes).then((hash) => importText(DEMO_MODEL.fileName, DEMO_MODEL.text, hash));
+      return;
+    }
+    if (!initial) return;
     started.current = true;
     void (async () => {
       await importText(initial.fileName, initial.text, initial.sha256, initial.rootName);

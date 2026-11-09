@@ -74,6 +74,8 @@ interface Props {
   readonly axesAt?: readonly [number, number, number];
   /** Lowest point of the finished model (see modelGroundY); computed here when not given. */
   readonly groundY?: number;
+  /** Ground grid shown (default); off for the thumbnails, whose background is transparent. */
+  readonly grid?: boolean;
   readonly recenterToken: number;
 }
 
@@ -163,7 +165,7 @@ export function BuildCanvas(props: Props) {
   );
 }
 
-function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, xray, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround }: Props) {
+function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held, previewPose, onHover, onDrop, onPick, freePieces, selectedFree, groupPreview, onSelect, onDragStart, onDragEnd, onDoublePick, snapPoints, axesAt, xray, gizmo, onGizmoLive, onGizmoCommit, groundY: givenGround, grid = true }: Props) {
   // pieces carried by the gizmo during its drag: drawn in the gizmo's moving group, hidden here
   const [gizmoHidden, setGizmoHidden] = useState<ReadonlySet<string>>(new Set());
   // the gizmo moves a proxy at the pivot INSIDE the LDraw root (LDraw coordinates); the pieces follow
@@ -330,7 +332,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
         {/* double-sided: after the LDraw -Y flip the plane faces away from the camera */}
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
       </mesh>
-      <ThemedGrid y={groundY} />
+      {grid && <ThemedGrid y={groundY} />}
       {gizmo && !held && (
         <>
           <primitive object={gizmoProxy} />

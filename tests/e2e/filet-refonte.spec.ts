@@ -258,4 +258,43 @@ test.describe('bibliothèque', () => {
     await expect(page.getByText('Ta collection est vide')).toBeVisible();
     expect((await library(request)).sets).toHaveLength(0);
   });
+  test('collection (refonte) : démo au premier lancement, bandeau « Reprendre », filtres au clavier', async ({ page, request }) => {
+    // empty collection: the first-launch screen offers the embedded demo (standalone atelier, nothing added)
+    await page.goto('/');
+    await expect(page.getByText('Ta collection est vide')).toBeVisible();
+    await page.getByTestId('try-demo').click();
+    await expect(page).toHaveURL(/\/atelier\?demo=mini-4$/);
+    await expect(page.getByTestId('render-status')).toContainText('Géométrie LDraw', { timeout: 60_000 });
+    await expect(page.getByTestId('occurrence-count')).toHaveText('4');
+    expect((await library(request)).sets).toHaveLength(0);
+
+    // a build in progress: the banner resumes it in one click
+    await page.goto('/ajouter');
+    await page.getByTestId('search-number').fill('90061');
+    await page.getByTestId('quick-input').setInputFiles(MINI);
+    await page.getByTestId('confirm-name').fill('Reprise');
+    await page.getByTestId('import-submit').click();
+    await page.getByTestId('import-build').first().click();
+    await expect(page.getByTestId('render-status')).toContainText('Géométrie LDraw', { timeout: 60_000 });
+    await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+    await assistPlace(page);
+    await expect(page.getByTestId('save-state')).toHaveText('Enregistré dans la bibliothèque');
+    await page.goto('/');
+    const banner = page.getByTestId('resume-banner');
+    await expect(banner).toContainText('Reprise');
+    await expect(banner).toContainText('1/4 pièces posées');
+    await expect(page.locator('img.thumb')).toHaveCount(1, { timeout: 30_000 }); // the banner image is not a card thumbnail
+    await banner.getByTestId('resume-build').click();
+    await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées', { timeout: 60_000 });
+
+    // status filters: a radio group driven by the arrow keys
+    await page.goto('/');
+    await page.getByRole('radio', { name: 'Tous' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('radio', { name: 'En cours' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'En cours' })).toBeFocused();
+    await expect(page.getByTestId('set-card-90061-1')).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByTestId('no-result')).toBeVisible();
+  });
 });
