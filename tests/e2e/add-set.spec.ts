@@ -159,7 +159,7 @@ test('OMR main + alternate downloaded on click, booklets and mapping dropped, sy
   await again.goto('/');
   await again.getByTestId('set-card-90020-1').getByTestId('card-build').click();
   await expect(again.getByTestId('message')).toContainText('Progression restaurée : 2/8 pièces posées.', { timeout: 30_000 });
-  await expect(again.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(again.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await again.screenshot({ path: 'test-results/proof-p8-resumed.png' });
   await context.close();
   expect((await library(request)).sets).toHaveLength(1);

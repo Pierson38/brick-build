@@ -242,7 +242,7 @@ test('synchronised build: page per step, only the step bricks, auto-advance, con
   await importModel(page);
   await expect(page.getByTestId('message')).toHaveText('Progression restaurée : 5/8 pièces posées.');
   await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 3, p. 3');
-  await expect(page.getByTestId('mode-select')).toHaveValue('synced');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'synced');
   await expect(page.getByTestId('sync-missing-booklet')).toBeVisible();
   // a wrong notice (other edition, other fingerprint) is shown as such, never as the booklet
   await importPdf(page, OTHER_PDF, 'autre-notice.pdf');
@@ -295,16 +295,16 @@ test('without a valid mapping the synchronised mode is not offered, and a synced
   await page.reload();
   await importModel(page);
   await expect(page.getByTestId('message')).toContainText('aucune correspondance valide pour ce fichier : reprise en montage libre');
-  await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'freeManual');
   await expect(page.getByTestId('notice-step')).toHaveCount(0);
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
-  await expect(page.getByTestId('mode-select').locator('option[value=synced]')).toHaveCount(0);
+  await expect(page.getByTestId('mode-select').locator('[data-value=synced]:not([aria-disabled])')).toHaveCount(0);
 
   // re-importing the personal mapping file brings the synchronised mode back, same bricks
   await page.getByRole('tab', { name: 'Correspondances' }).click();
   await importMappingFile(page, referenceMapping());
   await page.getByRole('button', { name: 'Terminer l’édition' }).click();
-  await page.getByTestId('mode-select').selectOption('synced');
+  await page.getByTestId('mode-select').locator('[data-value="synced"]').click();
   await expect(page.getByTestId('notice-step')).toHaveText('Notice : Étape 2 (×2), p. 2');
   await expect(page.getByTestId('progress')).toHaveText('2/8 pièces posées');
 });
@@ -317,6 +317,6 @@ test('P5 progress (schema v1) is still restored', async ({ page }) => {
   })), [hash, a.model.occurrences[0]!.occurrenceId] as const);
   await importModel(page);
   await expect(page.getByTestId('message')).toHaveText('Progression restaurée : 1/8 pièces posées.');
-  await expect(page.getByTestId('mode-select')).toHaveValue('guided');
+  await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
   await expect(page.getByTestId('step-indicator')).toHaveText('Étape 1 / 2');
 });

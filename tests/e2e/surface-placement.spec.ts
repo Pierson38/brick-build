@@ -65,6 +65,8 @@ test('far from any spot: placed where pointed in free mode (no magnet); the same
   await expect(page.getByTestId('free-info')).toHaveText('1 posée(s) librement · 0 à leur place dans le modèle');
   // guided mode: validation against the model unchanged
   await page.getByRole('button', { name: 'Abandonner' }).click();
+  // UI redesign, decision A5: the standalone atelier confirms the abandon too
+  await page.getByTestId('confirm-restart').getByRole('button', { name: 'Confirmer l’abandon' }).click();
   await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
   await page.getByTestId('tray-3001.dat-4').click();
   p = await point(page, [0, 24, 120]);

@@ -300,12 +300,12 @@ test('part 1: add 31009 and 31039 (copies), build freely away from the model, id
     await page.getByRole('button', { name: 'Centrer' }).click();
 
     // 9) leaving the free mode is explicit when pieces are off the model
-    if ((await page.getByTestId('mode-select').locator('option[value="guided"]').count()) > 0) {
-      await page.getByTestId('mode-select').selectOption('guided');
+    if ((await page.getByTestId('mode-select').locator('[data-value="guided"]:not([aria-disabled])').count()) > 0) {
+      await page.getByTestId('mode-select').locator('[data-value="guided"]').click();
       await expect(page.getByTestId('mode-switch-confirm')).toContainText('hors du modèle officiel');
       entry.modeSwitch = await page.getByTestId('mode-switch-confirm').textContent();
       await page.getByRole('button', { name: 'Rester en montage libre' }).click();
-      await expect(page.getByTestId('mode-select')).toHaveValue('freeManual');
+      await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'freeManual');
     }
 
     // 10) A–D of the owner's second recette, on real parts: a stud piece on the ground, a receptor
@@ -403,11 +403,11 @@ test('part 2: after a server restart, the same assembly is restored; guided mode
     restored.undoAfterReload = (await game<Free[]>(page, 'freePieces')).length;
 
     // guided mode (when the file has steps): the free pieces off the model go only by choice, then a far drop is refused
-    if ((await page.getByTestId('mode-select').locator('option[value="guided"]').count()) > 0) {
+    if ((await page.getByTestId('mode-select').locator('[data-value="guided"]:not([aria-disabled])').count()) > 0) {
       const spots = await groundSpots(page, 16); // around the whole model (free mode: every target counts)
-      await page.getByTestId('mode-select').selectOption('guided');
+      await page.getByTestId('mode-select').locator('[data-value="guided"]').click();
       await page.getByTestId('mode-switch-confirm').getByRole('button', { name: 'Retirer et changer de mode' }).click();
-      await expect(page.getByTestId('mode-select')).toHaveValue('guided');
+      await expect(page.getByTestId('mode-select')).toHaveAttribute('data-value', 'guided');
       await expect(page.getByTestId('progress')).toHaveText(`0/${entry.occurrences}`.concat(' pièces posées'));
       await page.locator('.tray-item').first().click();
       // a spot where the guided mode finds no target of the step (the pointer ray crosses none)

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { BookOpen, Box, Check, CircleAlert, Crosshair, FlaskConical, Ghost, Grid3x3, Link2, LoaderCircle, Magnet, PanelRightClose, PanelRightOpen, RotateCcw, RotateCw, Target, Trash2, Undo2, Upload } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import {
   activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, orientationChoices, placeExact,
   resetActiveStep, rewindToStep, switchMode, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
@@ -31,6 +32,9 @@ import { loadModelGeometry, PartCatalog, templateVertices, type GeometryLoadResu
 import { browserStore, type BuildStore, type SaveState } from '@/infra/persistence/build-store';
 import { downloadMapping } from '@/infra/persistence/local-mapping';
 import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
+import { HelpButton } from './atelier/HelpDialog';
+import { ModeSwitch } from './atelier/ModeSwitch';
+import { StartPanel } from './atelier/StartPanel';
 import { PartsTray } from './build/PartsTray';
 import { DEMO_ID, DEMO_MODEL } from './demo/demo-model';
 import { ModelSummary } from './import/ModelSummary';
@@ -38,6 +42,11 @@ import { MappingEditor } from './mapping/MappingEditor';
 import { Splitter, useSidePanel } from './layout/Splitter';
 import { PdfPanel } from './pdf/PdfPanel';
 import { useNotice } from './pdf/useNotice';
+import { ProgressBar } from './library/labels';
+import { AppBar, type Crumb } from './ui/AppBar';
+import { ConfirmDialog } from './ui/Dialog';
+import { Loading, Note, Toast } from './ui/feedback';
+import { LdrawSetup } from './ui/LdrawSetup';
 import { SyncStepBanner } from './sync/SyncStepBanner';
 import { BuildCanvas, modelGroundY, type GizmoSpec, type HeldBrick } from './three/BuildCanvas';
 
@@ -106,7 +115,8 @@ export interface BrickLabAppProps {
     readonly rootName: string;
     readonly booklets: readonly { readonly file: File; readonly sha256: string }[];
   };
-  readonly nav?: ReactNode;
+  /** Breadcrumb after the brand (where this atelier sits). */
+  readonly crumbs?: readonly Crumb[];
   /** Shown under the top bar (library notes). */
   readonly banner?: ReactNode;
 }
@@ -140,7 +150,14 @@ function freeEndText(atModel: number, total: number): string {
 
 const SAVE_LABEL = { idle: 'Enregistré dans la bibliothèque', saving: 'Enregistrement…', saved: 'Enregistré dans la bibliothèque' } as const;
 
-export default function BrickLabApp({ store = browserStore, initial, nav, banner }: BrickLabAppProps = {}) {
+const NO_STEPS_TEXT = 'Étapes non disponibles dans ce fichier : aucune séquence n’est inventée.';
+/** Instructions of the scene legend (decision A6: instructions there, results in the toast). */
+const HINT_PICK_FREE = 'Pointe où tu veux : la pièce se pose sur la surface visée (grille d’un demi-tenon, G pour la retirer). Clic : poser · R : tourner · O : orientation · Monter / Descendre (PageUp / PageDown) : hauteur libre · Échap : lâcher.';
+const HINT_PICK = 'Survole le modèle : la pièce se pose sur la surface visée. Clic : poser · R : tourner · O : orientation · PageUp/PageDown : niveau manuel (A : auto) · Échap : lâcher.';
+const HINT_TAKEN = 'Pièce reprise : clic pour la reposer · R / O : la tourner · Monter / Descendre : hauteur · Suppr : la remettre dans le stock · Échap : la laisser où elle était.';
+const PANEL_KEY = 'brick-lab:panel-collapsed';
+
+export default function BrickLabApp({ store = browserStore, initial, crumbs = [], banner }: BrickLabAppProps = {}) {
   const catalog = useMemo(() => new PartCatalog(), []);
   // connection interfaces of the parts (studs, receptors, pins, pin holes), read in the background
   const connectorCatalog = useMemo(() => new ConnectorCatalog(), []);
@@ -174,6 +191,24 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
   const restoredBooklet = useRef<string | undefined>(undefined);
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const [confirmRestart, setConfirmRestart] = useState(false);
+  // side panel folded away (browser preference, like its width)
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(PANEL_KEY) === '1');
+    } catch {
+      // storage unavailable: the panel is shown
+    }
+  }, []);
+  const setPanelCollapsed = (value: boolean) => {
+    setCollapsed(value);
+    try {
+      window.localStorage.setItem(PANEL_KEY, value ? '1' : '0');
+    } catch {
+      // private browsing: applies to this page only
+    }
+  };
+  const [homeDrag, setHomeDrag] = useState(false);
   // free mode: previous states of this session, for undo (move, turn, removal); empty after a reload
   const [freeHistory, setFreeHistory] = useState<BuildSession[]>([]);
   const [snap, setSnap] = useState({ grid: true, magnet: true });
@@ -441,7 +476,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setHeld(null);
     setConsultIdx(null);
     if (mode === 'synced') setTab('pdf');
-    setMessage({ kind: 'info', text: MODE_HINT[mode] + note });
+    setMessage(note ? { kind: 'info', text: note.trim() } : null);
   };
 
   const pick = (item: TrayItem) => {
@@ -451,12 +486,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     const orientation = orientationChoices(ctx, item.partKey, item.colorCode)[0]!;
     setOrientationIdx(0);
     setHeld({ partKey: item.partKey, colorCode: item.colorCode, quarterTurns: 0, layerY: Number.isFinite(lowest) ? lowest : layers[0] ?? 0, orientation, layerMode: 'auto' });
-    setMessage({
-      kind: 'info',
-      text: session.mode === 'freeManual'
-        ? 'Pointe où tu veux : la pièce se pose sur la surface visée (grille d’un demi-tenon, G pour la retirer). Clic : poser · R : tourner · O : orientation · Monter / Descendre (PageUp / PageDown) : hauteur libre · Échap : lâcher.'
-        : 'Survole le modèle : la pièce se pose sur la surface visée. Clic : poser · R : tourner · O : orientation · PageUp/PageDown : niveau manuel (A : auto) · Échap : lâcher.',
-    });
   };
 
   /** Vertices of a part (part-local), from the geometry already loaded; null when not rendered. */
@@ -491,7 +520,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setOrientationIdx(0);
     liftXZ.current = null;
     setHeld({ ...kind, quarterTurns: 0, layerY: pose[13], orientation: withTranslation(pose, [0, 0, 0]), layerMode: 'auto', moving: ref });
-    setMessage({ kind: 'info', text: 'Pièce reprise : clic pour la reposer · R / O : la tourner · Monter / Descendre : hauteur · Suppr : la remettre dans le stock · Échap : la laisser où elle était.' });
   };
 
   /** Free mode: click on a placed piece = select it; Shift+click = add / remove; click elsewhere = clear. */
@@ -504,11 +532,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     const has = selection.some((r) => sameRef(r, ref));
     const next = shift ? (has ? selection.filter((r) => !sameRef(r, ref)) : [...selection, ref]) : [ref];
     setSelection(next);
-    setMessage({
-      kind: 'info',
-      text: next.length === 0 ? 'Sélection vide.'
-        : `${next.length} pièce(s) sélectionnée(s) · flèches X / Y / Z (W) ou anneaux (E) du manipulateur, ou glisse la pièce · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`,
-    });
   };
 
   /**
@@ -541,7 +564,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     const group = makeGroup(members);
     liftXZ.current = null;
     setHeld({ partKey: members[0]!.partKey, colorCode: members[0]!.colorCode, quarterTurns: 0, layerY: group.pivot[1], orientation: IDENTITY, layerMode: 'auto', group });
-    setMessage({ kind: 'info', text: `Groupe de ${members.length} pièces en main : déplace la souris, clic pour le poser · R : tourner · Monter / Descendre : hauteur · Échap : le laisser où il était.` });
   };
 
   /**
@@ -555,7 +577,6 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     setSelection(refs);
     dragging.current = true;
     moveSelection(refs);
-    setMessage({ kind: 'info', text: `${refs.length > 1 ? `Groupe de ${refs.length} pièces` : 'Pièce'} en main : relâche pour poser · X / Y / Z : tourner · Échap : annuler.` });
   };
   const dragEnd = () => {
     if (!dragging.current) return;
@@ -928,8 +949,8 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
 
   const restart = async () => {
     if (!loaded) return;
-    // library: an explicit confirmation, and the progress goes to the build's history
-    if (library && !confirmRestart) return setConfirmRestart(true);
+    // confirmed in a dialog first (decision A5, standalone atelier included); library: the
+    // progress goes to the build's history
     setConfirmRestart(false);
     if (!(await store.clearProgress(loaded.hash))) return;
     setSession(null);
@@ -1004,6 +1025,18 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     store.clearMapping(loaded.hash);
     changeMapping(createMapping(target), 'Correspondances effacées.');
     setEditStepId(null);
+  };
+
+  /** ← / → move between the tabs of the side panel (roving focus, as in a native tab list). */
+  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const tabs: ('model' | 'pdf' | 'mapping')[] = loaded ? ['model', 'pdf', 'mapping'] : ['model', 'pdf'];
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = tabs[(tabs.indexOf(tab) + d + tabs.length) % tabs.length]!;
+    if (next === 'mapping') openEditor();
+    else setTab(next);
+    requestAnimationFrame(() => document.getElementById(`tab-${next}`)?.focus());
   };
 
   const geometry = loaded?.geometry ?? null;
@@ -1117,35 +1150,54 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
     </span>
   ) : null;
 
+  const sessionTotal = ctx?.occurrences.length ?? 0;
+  const placedNow = session ? usedCount(session) : 0;
+  const modeUnavailable: Partial<Record<BuildMode, string>> = loaded ? {
+    ...(syncPlan ? {} : { synced: syncUnavailable || 'aucune correspondance notice ↔ 3D validée.' }),
+    ...(availableModes(loaded.analysis.plan).includes('guided') ? {} : { guided: loaded.analysis.plan.kind === 'NO_STEPS' ? NO_STEPS_TEXT : 'étapes LDraw inutilisables.' }),
+  } : {};
+  const sceneHint = !session || editing ? null
+    : held ? (held.group ? `Groupe de ${held.group.members.length} pièces en main : déplace la souris, clic (ou relâche) pour le poser · R, X / Y / Z : tourner · Monter / Descendre : hauteur · Échap : le laisser où il était.`
+      : held.moving ? HINT_TAKEN : freeMode ? HINT_PICK_FREE : HINT_PICK)
+      : freeMode && selection.length > 0 ? `${selection.length} pièce(s) sélectionnée(s) · flèches X / Y / Z (W) ou anneaux (E) du manipulateur, ou glisse la pièce · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`
+        : MODE_HINT[session.mode];
+  const showLdrawSetup = Boolean(loaded?.libraryProblem && !geometry);
+  const restartText = `La progression (${placedNow}/${sessionTotal}) sera retirée de cette partie${library ? ' (copie gardée dans l’historique de la bibliothèque)' : ' et effacée de ce navigateur'}.`;
+  const panelCollapsed = collapsed && !editing;
+
   return (
     <div className="app">
+      <a className="skip-link" href="#panneau">Aller au panneau latéral</a>
       <div className="app-head">
-      <header className="topbar">
-        {nav}
-        {!nav && <strong>Brick Lab Local</strong>}
-        {loaded && !initial && <span className="muted">{loaded.fileName}</span>}
-        <span className="spacer" />
+      <AppBar crumbs={[...crumbs, ...(loaded && !initial ? [{ label: loaded.fileName, title: loaded.fileName }] : [])]}>
         {ctx && session && (
           <>
-            {isStepped(session.mode) && stepIdx >= 0 && <span data-testid="step-indicator">Étape {stepIdx + 1} / {ctx.plan.steps.length}</span>}
-            {session.mode === 'synced' && ctx.plan.steps[stepIdx]?.instruction && (
-              <span data-testid="notice-step">Notice : {ctx.plan.steps[stepIdx]!.instruction!.label}, p. {ctx.plan.steps[stepIdx]!.instruction!.page}</span>
-            )}
-            {session.mode === 'freeManual' && <span>Montage libre</span>}
-            <span data-testid="progress">{usedCount(session)}/{ctx.occurrences.length} pièces posées</span>
-            {match && freePiecesOf(session).length > 0 && (
-              <span className="small muted" data-testid="free-info">
-                {freePiecesOf(session).length} posée(s) librement · {atModelCount(session, match)} à leur place dans le modèle
-              </span>
-            )}
+            <ModeSwitch value={session.mode} labels={MODE_LABEL} unavailable={modeUnavailable} onChange={(m) => start(m, true)} />
+            <div className="atelier-progress">
+              <div className="atelier-progress-main">
+                <ProgressBar placed={placedNow} total={ctx.occurrences.length} />
+                <span className="num" data-testid="progress">{placedNow}/{ctx.occurrences.length} pièces posées</span>
+              </div>
+              <div className="atelier-progress-sub small muted" title={[isStepped(session.mode) && stepIdx >= 0 ? `Étape ${stepIdx + 1} / ${ctx.plan.steps.length}` : '', match && freePiecesOf(session).length > 0 ? `${freePiecesOf(session).length} posée(s) librement · ${atModelCount(session, match)} à leur place dans le modèle` : ''].filter(Boolean).join(' · ') || undefined}>
+                {isStepped(session.mode) && stepIdx >= 0 && <span data-testid="step-indicator">Étape {stepIdx + 1} / {ctx.plan.steps.length}</span>}
+                {session.mode === 'synced' && ctx.plan.steps[stepIdx]?.instruction && (
+                  <span data-testid="notice-step">Notice : {ctx.plan.steps[stepIdx]!.instruction!.label}, p. {ctx.plan.steps[stepIdx]!.instruction!.page}</span>
+                )}
+                {match && freePiecesOf(session).length > 0 && (
+                  <span data-testid="free-info">{freePiecesOf(session).length} posée(s) librement · {atModelCount(session, match)} à leur place dans le modèle</span>
+                )}
+              </div>
+            </div>
             {library
-              ? <span className={`small save-${saveState.kind}`} data-testid="save-state" role={saveState.kind === 'error' || saveState.kind === 'conflict' ? 'alert' : undefined}>
-                {saveState.kind === 'error' || saveState.kind === 'conflict' ? `Non enregistré : ${saveState.message}` : SAVE_LABEL[saveState.kind]}
+              ? <span className={`small save-state save-${saveState.kind}`} data-testid="save-state" role={saveState.kind === 'error' || saveState.kind === 'conflict' ? 'alert' : undefined}>
+                {saveState.kind === 'saving' ? <LoaderCircle className="spinner" size={14} aria-hidden /> : saveState.kind === 'error' || saveState.kind === 'conflict' ? <CircleAlert size={14} aria-hidden /> : <Check size={14} aria-hidden />}
+                {saveState.kind === 'error' || saveState.kind === 'conflict' ? `Non enregistré : ${saveState.message}` : saveState.kind === 'saving' ? SAVE_LABEL.saving : <>Enregistré<span className="visually-hidden"> dans la bibliothèque</span></>}
               </span>
-              : <span className="muted small">Sauvegardé localement</span>}
+              : <span className="small save-state save-saved"><Check size={14} aria-hidden />Sauvegardé localement</span>}
           </>
         )}
-      </header>
+        <HelpButton />
+      </AppBar>
       {banner}
       {saveState.kind === 'conflict' && (
         <div className="banner error" role="alert" data-testid="save-conflict">
@@ -1154,7 +1206,7 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
       )}
       </div>
 
-      <main className={editing ? 'workspace editing' : 'workspace'} ref={panel.ref} style={{ gridTemplateColumns: panel.gridTemplateColumns }} data-side-width={panel.side}>
+      <main className={editing ? 'workspace editing' : 'workspace'} ref={panel.ref} style={{ gridTemplateColumns: panelCollapsed ? 'minmax(0, 1fr) 0 0' : panel.gridTemplateColumns }} data-side-width={panel.side} data-panel={panelCollapsed ? 'collapsed' : 'open'}>
         <div className="viewport">
           {loaded && geometry && geometry.templates.size > 0 && ctx ? (
             <BuildCanvas
@@ -1174,33 +1226,77 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
               {...(freeMode && held && preview ? { axesAt: [preview.previewPose[12], preview.previewPose[13], preview.previewPose[14]] as const } : {})}
               recenterToken={recenter}
             />
+          ) : showLdrawSetup ? (
+            <div className="scene-screen">
+              <LdrawSetup reason={loaded!.libraryProblem!} onRetry={() => void importText(loaded!.fileName, loaded!.text, loaded!.hash, loaded!.analysis.model.rootName)} />
+            </div>
           ) : initial ? (
             // library build: no manual import here, only what is being loaded (or why it cannot render)
-            <div className="home" data-testid="library-loading">
-              <p className="muted">{busy ?? (loaded ? '' : 'Chargement du modèle…')}</p>
-              {loaded && !geometry && <p className="error">{renderStatus}</p>}
+            <div className="scene-screen" data-testid="library-loading">
+              {busy || !loaded ? <Loading>{busy ?? 'Chargement du modèle…'}</Loading> : null}
+              {loaded && !geometry && <Note tone="error" role="alert">{renderStatus}</Note>}
             </div>
           ) : (
-            <div className="home">
-              <h1>Brick Lab Local</h1>
-              <p className="muted">Reconstruis virtuellement un modèle LDraw pièce par pièce. Tout reste sur ce Mac. Application non affiliée à LEGO.</p>
-              <label className="button primary">
-                Importer un modèle (.mpd / .ldr)
-                <input type="file" accept=".ldr,.mpd" hidden data-testid="model-input"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
-              </label>
-              <p className="small"><a href="https://www.lego.com/fr-fr/service/building-instructions" target="_blank" rel="noreferrer noopener">Trouver une notice sur LEGO.com</a> (ouvre le site, aucun téléchargement automatique)</p>
-              {busy && <p className="muted">{busy}</p>}
-              {loaded && !geometry && <p className="error">{renderStatus}</p>}
+            <div className={`scene-screen home${homeDrag ? ' over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setHomeDrag(true); }} onDragLeave={() => setHomeDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setHomeDrag(false); const f = e.dataTransfer.files[0]; if (f) void onModelFile(f); }}>
+              <span className="empty-icon" aria-hidden><Box size={22} /></span>
+              <h1>Atelier sans collection</h1>
+              <p className="muted">Reconstruis virtuellement un modèle LDraw pièce par pièce, sans l’ajouter à ta collection : la progression reste dans ce navigateur. Tout reste sur ce Mac. Application non affiliée à LEGO.</p>
+              <div className="card-actions">
+                <label className="button primary lg">
+                  <Upload size={16} aria-hidden /> Importer un modèle (.mpd / .ldr)
+                  <input type="file" accept=".ldr,.mpd" hidden data-testid="model-input"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
+                </label>
+                <a className="button lg" href={`/atelier?demo=${DEMO_ID}`}><FlaskConical size={16} aria-hidden /> Essayer la démo</a>
+              </div>
+              <p className="small muted">ou dépose le fichier ici. <a href="https://www.lego.com/fr-fr/service/building-instructions" target="_blank" rel="noreferrer noopener">Trouver une notice sur LEGO.com</a> (ouvre le site, aucun téléchargement automatique)</p>
+              {busy && <Loading>{busy}</Loading>}
+              {loaded && !geometry && <Note tone="error" role="alert">{renderStatus}</Note>}
               {recent.length > 0 && (
                 <section className="recent">
-                  <h3>Sessions récentes</h3>
+                  <h3 className="section-title">Sessions récentes de ce navigateur</h3>
                   <ul>{recent.map((r) => <li key={r.hash}>{r.displayName} — {r.placed}/{r.total} pièces · réimporte le fichier pour reprendre</li>)}</ul>
                 </section>
               )}
             </div>
           )}
-          {message && <div className={`toast ${message.kind}`} role="status" data-testid="message">{message.text}</div>}
+          {ctx && session && !editing && (
+            <div className="scene-rail" role="toolbar" aria-label="Outils de la scène" aria-orientation="vertical">
+              <button type="button" className="ghost icon" aria-label="Centrer" data-tip="Centrer la vue" data-tip-side="left" onClick={() => setRecenter((n) => n + 1)}><Crosshair size={18} aria-hidden /></button>
+              <label className="tool-toggle" data-tip="Montrer les emplacements" data-tip-side="left">
+                <input type="checkbox" aria-label="Montrer les emplacements" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} />
+                <Ghost size={18} aria-hidden />
+              </label>
+              {freeMode && (
+                <>
+                  <hr />
+                  <label className="tool-toggle" data-tip="Grille d’un demi-tenon et niveaux de plaque (G)" data-tip-side="left">
+                    <input type="checkbox" aria-label="Grille (G)" data-testid="snap-grid" checked={snap.grid} onChange={(e) => setSnap({ ...snap, grid: e.target.checked })} />
+                    <Grid3x3 size={18} aria-hidden />
+                  </label>
+                  <label className="tool-toggle" data-tip="Aimant pièces : tenons, réceptacles, goupilles (⌥ pour l’ignorer)" data-tip-side="left">
+                    <input type="checkbox" aria-label="Aimant pièces" data-testid="snap-pieces" checked={snapPieces} onChange={(e) => setSnapPieces(e.target.checked)} />
+                    <Magnet size={18} aria-hidden />
+                  </label>
+                  <label className="tool-toggle" data-tip="Aimant modèle : se cale sur sa place dans le modèle" data-tip-side="left">
+                    <input type="checkbox" aria-label="Aimant modèle" data-testid="snap-model" checked={snap.magnet} onChange={(e) => setSnap({ ...snap, magnet: e.target.checked })} />
+                    <Target size={18} aria-hidden />
+                  </label>
+                </>
+              )}
+              {panelCollapsed && (
+                <>
+                  <hr />
+                  <button type="button" className="ghost icon" aria-label="Afficher le panneau" data-tip="Afficher le panneau" data-tip-side="left" onClick={() => setPanelCollapsed(false)}><PanelRightOpen size={18} aria-hidden /></button>
+                </>
+              )}
+            </div>
+          )}
+          {held && !freeMode && !editing && <div className="hud" aria-live="polite">{heldInfo}</div>}
+          {message && <Toast tone={message.kind} onClose={() => setMessage(null)}>{message.text}</Toast>}
+          {sceneHint && <p className="scene-legend" data-testid="scene-hint">{sceneHint} <span className="legend-help"><kbd>?</kbd> toutes les touches</span></p>}
           {freeMode && !editing && (held || selection.length > 0) && (
             <div className="manip-bar" data-testid="manip-bar">
               {held ? (
@@ -1279,15 +1375,24 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
         </div>
 
         <Splitter side={panel.side} total={panel.total} context={editing ? 'editor' : 'atelier'} onResize={panel.setSide} />
-        <aside className="side">
-          <nav className="tabs" role="tablist">
-            <button type="button" role="tab" aria-selected={tab === 'model'} onClick={() => setTab('model')}>Modèle</button>
-            <button type="button" role="tab" aria-selected={tab === 'pdf'} onClick={() => setTab('pdf')}>Notice PDF</button>
-            {loaded && <button type="button" role="tab" aria-selected={tab === 'mapping'} onClick={openEditor}>Correspondances</button>}
-          </nav>
-          <div hidden={tab !== 'model'}>
+        <aside className="side" id="panneau" tabIndex={-1} hidden={panelCollapsed}>
+          <div className="tabs" role="tablist" aria-label="Panneau latéral" onKeyDown={onTabKey}>
+            <button type="button" role="tab" id="tab-model" aria-controls="panel-model" aria-selected={tab === 'model'} tabIndex={tab === 'model' ? 0 : -1} onClick={() => setTab('model')}><Box size={15} aria-hidden /> Modèle</button>
+            <button type="button" role="tab" id="tab-pdf" aria-controls="panel-pdf" aria-selected={tab === 'pdf'} tabIndex={tab === 'pdf' ? 0 : -1} onClick={() => setTab('pdf')}><BookOpen size={15} aria-hidden /> Notice PDF</button>
+            {loaded && <button type="button" role="tab" id="tab-mapping" aria-controls="panel-pdf" aria-selected={tab === 'mapping'} tabIndex={tab === 'mapping' ? 0 : -1} onClick={openEditor}><Link2 size={15} aria-hidden /> Correspondances</button>}
+            <span className="spacer" />
+            {!editing && <button type="button" className="ghost icon small" aria-label="Replier le panneau" data-tip="Replier le panneau" data-tip-side="left" onClick={() => setPanelCollapsed(true)}><PanelRightClose size={16} aria-hidden /></button>}
+          </div>
+          <div role="tabpanel" id="panel-model" aria-labelledby="tab-model" hidden={tab !== 'model'} className="tab-panel">
             {loaded ? (
               <>
+                {!session && playable && ctx && <StartPanel unavailable={modeUnavailable} onStart={(m) => start(m)} />}
+                {!playable && loaded.quality.quality !== 'INVALID' && (
+                  <Note tone="warning">
+                    Visualisation seulement tant que des pièces manquent.
+                    {loaded.libraryProblem && <> Cause : la bibliothèque de pièces LDraw de ce Mac (voir la zone 3D), pas ton fichier.</>}
+                  </Note>
+                )}
                 <ModelSummary
                   fileName={loaded.fileName}
                   analysis={loaded.analysis}
@@ -1297,33 +1402,25 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
                   inventory={inventoryCheck(loaded.hash)}
                   {...(initial ? {} : { onChooseRoot: (name: string) => void importText(loaded.fileName, loaded.text, loaded.hash, name) })}
                 />
-                {!session && playable && ctx && (
-                  <div className="actions">
-                    {syncPlan && <button type="button" className="button primary" onClick={() => start('synced')}>Commencer — notice synchronisée</button>}
-                    {availableModes(loaded.analysis.plan).includes('guided') && <button type="button" className={syncPlan ? 'button secondary' : 'button primary'} onClick={() => start('guided')}>Commencer — mode guidé</button>}
-                    <button type="button" className="button secondary" onClick={() => start('freeManual')}>Montage libre (avec notice)</button>
-                    {loaded.analysis.plan.kind === 'NO_STEPS' && <p className="small muted">Étapes non disponibles dans ce fichier : aucune séquence n’est inventée.</p>}
-                  </div>
-                )}
+                {loaded.analysis.plan.kind === 'NO_STEPS' && session && <p className="small muted">{NO_STEPS_TEXT}</p>}
                 {playable && (
                   <div className="sync-status small" data-testid="sync-availability">
                     {syncPlan
                       ? <span className="ok">Notice synchronisée disponible : {syncPlan.steps.length} étape(s) de notice, correspondances validées.</span>
                       : <span className="muted">Notice synchronisée indisponible : {syncUnavailable}</span>}
-                    {' '}<button type="button" className="small" onClick={openEditor}>{mapping && mapping.steps.length > 0 ? 'Modifier les correspondances' : 'Créer les correspondances'}</button>
+                    {' '}<button type="button" className="small" onClick={openEditor}><Link2 size={14} aria-hidden /> {mapping && mapping.steps.length > 0 ? 'Modifier les correspondances' : 'Créer les correspondances'}</button>
                   </div>
                 )}
-                {!playable && loaded.quality.quality !== 'INVALID' && <p className="small muted">Visualisation seulement tant que des pièces manquent.</p>}
                 {!initial && (
                   <label className="button secondary small">
-                    Importer un autre modèle
+                    <Upload size={14} aria-hidden /> Importer un autre modèle
                     <input type="file" accept=".ldr,.mpd" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
                   </label>
                 )}
               </>
             ) : <p className="muted small">Aucun modèle importé.</p>}
           </div>
-          <div hidden={tab === 'model'}>
+          <div role="tabpanel" id="panel-pdf" aria-labelledby={tab === 'mapping' ? 'tab-mapping' : 'tab-pdf'} hidden={tab === 'model'} className="tab-panel">
             <PdfPanel
               notice={notice}
               initialPage={restoredPdfPage.current}
@@ -1380,66 +1477,68 @@ export default function BrickLabApp({ store = browserStore, initial, nav, banner
 
       {ctx && session && !editing && (
         <footer className="tray">
-          {isComplete(ctx, session) ? (
-            <div className="done">
-              <strong>Modèle terminé : {ctx.occurrences.length}/{ctx.occurrences.length} pièces.</strong>
-              <button type="button" className="button primary" onClick={() => void restart()}>{confirmRestart ? 'Confirmer : recommencer' : 'Recommencer'}</button>
-            </div>
-          ) : freeMode && match && isStockExhausted(ctx, session) ? (
-            <div className="done" data-testid="free-done">
-              <strong>{freeEndText(atModelCount(session, match), ctx.occurrences.length)}</strong>
-              <button type="button" className="button secondary" onClick={() => void restart()}>{confirmRestart ? 'Confirmer : recommencer' : 'Recommencer'}</button>
-            </div>
-          ) : (
-            <PartsTray
-              items={tray(ctx, session)}
-              heldKey={held ? trayKey(held.partKey, held.colorCode) : null}
-              colourOf={(c) => catalog.colourHex(c)}
-              colourName={(c) => catalog.colourName(c)}
-              {...(geometry ? { templates: geometry.templates } : {})}
-              onPick={pick}
-            />
-          )}
+          <div className="tray-parts">
+            {isComplete(ctx, session) ? (
+              <div className="done">
+                <span className="done-icon" aria-hidden><Check size={20} /></span>
+                <strong>Modèle terminé : {ctx.occurrences.length}/{ctx.occurrences.length} pièces.</strong>
+                <button type="button" className="button primary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> Recommencer</button>
+              </div>
+            ) : freeMode && match && isStockExhausted(ctx, session) ? (
+              <div className="done" data-testid="free-done">
+                <span className="done-icon" aria-hidden><Check size={20} /></span>
+                <strong>{freeEndText(atModelCount(session, match), ctx.occurrences.length)}</strong>
+                <button type="button" className="button secondary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> Recommencer</button>
+              </div>
+            ) : (
+              <PartsTray
+                items={tray(ctx, session)}
+                heldKey={held ? trayKey(held.partKey, held.colorCode) : null}
+                colourOf={(c) => catalog.colourHex(c)}
+                colourName={(c) => catalog.colourName(c)}
+                {...(geometry ? { templates: geometry.templates } : {})}
+                onPick={pick}
+              />
+            )}
+          </div>
           <div className="tray-actions">
-            {held && !freeMode && heldInfo}
-            {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}>Orientation suivante (O)</button>}
-            <button type="button" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}>Annuler</button>
-            {isStepped(session.mode) && <button type="button" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
-            <label className="small">Mode{' '}
-              <select data-testid="mode-select" value={session.mode} onChange={(e) => start(e.target.value as BuildMode, true)}>
-                {(['synced', 'guided', 'freeManual'] as const)
-                  .filter((m) => m === session.mode || (m === 'synced' ? syncPlan !== null : m === 'guided' ? availableModes(loaded!.analysis.plan).includes('guided') : true))
-                  .map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
-              </select>
-            </label>
-            {freeMode && (
-              <>
-                <label className="small" title="Grille d’un demi-tenon et niveaux de plaque (G)"><input type="checkbox" data-testid="snap-grid" checked={snap.grid} onChange={(e) => setSnap({ ...snap, grid: e.target.checked })} /> Grille</label>
-                <label className="small" title="Emboîte la pièce sur les tenons, réceptacles et trous Technic reconnus des pièces posées (maintenir ⌥ pour l’ignorer)"><input type="checkbox" data-testid="snap-pieces" checked={snapPieces} onChange={(e) => setSnapPieces(e.target.checked)} /> Aimant pièces</label>
-                <label className="small" title="La pièce se cale sur sa place dans le modèle quand elle en est tout près"><input type="checkbox" data-testid="snap-model" checked={snap.magnet} onChange={(e) => setSnap({ ...snap, magnet: e.target.checked })} /> Aimant modèle</label>
-              </>
-            )}
-            <label className="small"><input type="checkbox" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} /> Montrer les emplacements</label>
-            <button type="button" onClick={() => setRecenter((n) => n + 1)}>Centrer</button>
-            <button type="button" onClick={assistPlace} disabled={!held} title="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-testid="assist-place">Poser à la position cible (aide)</button>
-            {pendingSwitch && (
-              <span className="confirm small" role="alert" data-testid="mode-switch-confirm">
-                {pendingSwitch.unmatched} pièce(s) posée(s) hors du modèle officiel : pour passer en {MODE_LABEL[pendingSwitch.mode]}, elles seront remises dans le stock
-                {pendingSwitch.recognised > 0 ? ` (${pendingSwitch.recognised} reconnue(s) à leur place, gardée(s))` : ''}.
-                {' '}<button type="button" className="danger" onClick={() => start(pendingSwitch.mode, true, true)}>Retirer et changer de mode</button>
-                {' '}<button type="button" onClick={() => setPendingSwitch(null)}>Rester en montage libre</button>
-              </span>
-            )}
-            {confirmRestart ? (
-              <span className="confirm small" data-testid="confirm-restart">
-                La progression ({usedCount(session)}/{ctx.occurrences.length}) sera retirée de cette partie (copie gardée dans l’historique de la bibliothèque).
-                {' '}<button type="button" className="danger" onClick={() => void restart()}>Confirmer l’abandon</button>
-                {' '}<button type="button" onClick={() => setConfirmRestart(false)}>Annuler</button>
-              </span>
-            ) : <button type="button" onClick={() => void restart()}>Abandonner</button>}
+            <button type="button" aria-label="Annuler" data-tip="Annuler la dernière action (⌘Z)" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}><Undo2 size={16} aria-hidden /> Annuler <kbd aria-hidden>⌘Z</kbd></button>
+            {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}><RotateCw size={16} aria-hidden /> Orientation suivante (O)</button>}
+            <button type="button" onClick={assistPlace} disabled={!held} data-tip="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-testid="assist-place"><Target size={16} aria-hidden /> Poser à la position cible (aide)</button>
+            <div className="tray-secondary">
+              {isStepped(session.mode) && <button type="button" className="ghost small" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
+              <button type="button" className="ghost small danger-text" onClick={() => setConfirmRestart(true)}><Trash2 size={14} aria-hidden /> Abandonner</button>
+            </div>
           </div>
         </footer>
       )}
+
+      <ConfirmDialog
+        open={confirmRestart && Boolean(session)}
+        title="Abandonner cette partie ?"
+        confirmLabel="Confirmer l’abandon"
+        onConfirm={() => void restart()}
+        onCancel={() => setConfirmRestart(false)}
+        testId="confirm-restart"
+      >
+        <p>{restartText}</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={pendingSwitch !== null}
+        title={pendingSwitch ? `Passer en ${MODE_LABEL[pendingSwitch.mode]} ?` : ''}
+        confirmLabel="Retirer et changer de mode"
+        cancelLabel="Rester en montage libre"
+        onConfirm={() => pendingSwitch && start(pendingSwitch.mode, true, true)}
+        onCancel={() => setPendingSwitch(null)}
+        testId="mode-switch-confirm"
+      >
+        {pendingSwitch && (
+          <p>
+            {pendingSwitch.unmatched} pièce(s) posée(s) hors du modèle officiel : pour passer en {MODE_LABEL[pendingSwitch.mode]}, elles seront remises dans le stock
+            {pendingSwitch.recognised > 0 ? ` (${pendingSwitch.recognised} reconnue(s) à leur place, gardée(s))` : ''}.
+          </p>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

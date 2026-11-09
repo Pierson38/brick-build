@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { FileWarning, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { analyzeModel, sha256Hex } from '@/domain/import/analyze';
 import { parseMapping, serializeMapping } from '@/domain/instructions/mapping';
@@ -10,7 +11,11 @@ import { libraryApi } from '@/infra/library/api';
 import { libraryBuildStore, type BuildStore } from '@/infra/persistence/build-store';
 import BrickLabApp, { type BrickLabAppProps } from '../BrickLabApp';
 import { keptSignatureOf, mappingsDiffer, readBrowserMapping, readBrowserSave, recoverBrowserSave, rememberKept, SaveDiffView } from './BrowserSave';
+import { AppBar, type Crumb } from '../ui/AppBar';
+import { Loading } from '../ui/feedback';
 import { formatDate } from './labels';
+
+const LOAD_STEPS = ['Vérification des fichiers…', 'Chargement du modèle…', 'Lecture de la progression…'];
 
 type Ready = { store: BuildStore; initial: NonNullable<BrickLabAppProps['initial']>; notes: string[] };
 type Answer = { useBrowser: boolean; withMapping: boolean };
@@ -111,28 +116,35 @@ export default function LibraryAtelier({ buildId }: { buildId: string }) {
     };
   }, [buildId]);
 
-  const nav = (
-    <>
-      <Link href="/" className="button secondary small" data-testid="back-to-collection">← Ma collection</Link>
-      {meta && <Link href={`/sets/${meta.set.id}`} className="small"><strong>{meta.set.setNumber}</strong> {meta.set.name}{meta.set.name !== meta.build.label ? ` · ${meta.build.label}` : ''}</Link>}
-    </>
-  );
+  const crumbs: Crumb[] = [
+    { label: 'Ma collection', href: '/', testId: 'back-to-collection' },
+    ...(meta ? [{ label: <><span className="setno">{meta.set.setNumber}</span> {meta.set.name}</>, href: `/sets/${meta.set.id}`, title: `${meta.set.setNumber} ${meta.set.name}` }] : []),
+    ...(meta && meta.set.name !== meta.build.label ? [{ label: meta.build.label }] : []),
+  ];
 
   if (fatal || choice || !ready) {
     return (
       <div className="app">
-        <header className="topbar">{nav}</header>
+        <AppBar crumbs={crumbs} />
         <main className="atelier-wait">
           {fatal ? (
-            <div className="repair" role="alert" data-testid="atelier-error">
+            <div className="repair card" role="alert" data-testid="atelier-error">
+              <span className="empty-icon error-icon" aria-hidden><FileWarning size={20} /></span>
               <h2>Impossible d’ouvrir cette construction</h2>
               <p className="error">{fatal}</p>
-              <p>Rien n’a été chargé à la place : aucun autre modèle ni aucune correspondance n’est utilisé.</p>
-              {meta && <Link className="button primary" href={`/sets/${meta.set.id}`}>Réparer depuis le détail du set</Link>}
+              <p className="muted">Rien n’a été chargé à la place : aucun autre modèle ni aucune correspondance n’est utilisé.</p>
+              {meta && <Link className="button primary" href={`/sets/${meta.set.id}`}><Wrench size={16} aria-hidden /> Réparer depuis le détail du set</Link>}
             </div>
           ) : choice ? (
             <ChoiceScreen choice={choice} />
-          ) : <p className="muted">{step}</p>}
+          ) : (
+            <div className="repair">
+              <Loading>{step}</Loading>
+              <ol className="load-steps small muted">
+                {LOAD_STEPS.map((label) => <li key={label} className={label === step ? 'current' : undefined}>{label}</li>)}
+              </ol>
+            </div>
+          )}
         </main>
       </div>
     );
@@ -141,7 +153,7 @@ export default function LibraryAtelier({ buildId }: { buildId: string }) {
     <BrickLabApp
       store={ready.store}
       initial={ready.initial}
-      nav={nav}
+      crumbs={crumbs}
       banner={ready.notes.length > 0 && notesOpen ? (
         <div className="banner info" data-testid="atelier-notes">
           <ul className="plain small">{ready.notes.map((n) => <li key={n}>{n}</li>)}</ul>
@@ -157,7 +169,7 @@ function ChoiceScreen({ choice }: { choice: Choice }) {
   // the mapping the browser save was played with goes with it by default; always visible and optional
   const [withMapping, setWithMapping] = useState(mappingDiffers && decision.kind === 'ask' && decision.diff.keys.includes('mapping'));
   return (
-    <div className="repair" data-testid="progress-choice">
+    <div className="repair card" data-testid="progress-choice">
       <h2>Deux sauvegardes différentes pour cette construction</h2>
       {decision.kind === 'ask' ? (
         <>

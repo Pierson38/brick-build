@@ -19,10 +19,10 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 | A1 | Accueil = Ma collection | `/` → `CollectionView` | URL | Liste des sets de la bibliothèque locale | Rendu client uniquement (`dynamic(..., { ssr: false })`), affiche « Chargement… » pendant l'import du chunk | lib, add | `/` inchangé ; « Chargement… » remplacé par un squelette de page (Skeleton) | ☐ |
 | A2 | Ajouter un set | `/ajouter` → `AddSetPage` | Bouton « Ajouter un set » (topbar collection, `data-testid=add-set`) | Parcours recherche → ressources → compatibilité → confirmation | — | add, lib-omr | `/ajouter` inchangé ; bouton primaire « Ajouter un set » dans la barre d'outils de la collection (même `add-set`) | ☑ |
 | A3 | Détail d'un set | `/sets/[setId]` → `SetDetail` | Vignette, titre ou bouton « Détails » d'une carte | Gestion du set, de ses constructions et fichiers | Set inexistant : message + lien retour | lib | `/sets/[id]` inchangé ; vignette, titre et « Détails » de la carte | ☐ |
-| A4 | Atelier d'une construction | `/atelier/[buildId]` → `LibraryAtelier` → `BrickLabApp` | « Construire / Reprendre / Revoir » (carte, détail, fin d'import) | Ouvre la construction avec fichiers vérifiés, progression et notices | `key={buildId}` : remonte l'atelier à chaque changement de build | lib, lib-omr, add | `/atelier/[buildId]` inchangé ; bandeau Reprendre, bouton de carte, carte Construction du détail, étape 4 de l'ajout | ☐ |
-| A5 | Atelier sans collection | `/atelier` → `StandaloneAtelier` | Lien « Atelier sans collection » (topbar collection) | Atelier P5/P6 : import manuel, progression dans le navigateur | Topbar : « ← Ma collection » + « Atelier sans collection » | brick, sync, ux, surf, fb… | `/atelier` inchangé ; lien « Atelier sans collection » dans le menu de la barre d'app de la collection et sur l'écran d'accueil | ☐ |
-| A6 | Retour à la collection | Topbar de `/ajouter`, `/sets/…` (`back-to-collection`), `/atelier/…` (`back-to-collection`), `/atelier` | Lien « ← Ma collection » | Navigation vers `/` | Dans l'atelier : `pagehide` + démontage → `store.flush()` (dernière modification envoyée) | lib | Barre d'app › premier élément du fil d'Ariane « ← Ma collection » (`back-to-collection` conservé) ; flush à la sortie inchangé | ☐ |
-| A7 | Lien vers le set depuis l'atelier | Topbar `/atelier/[id]` | Lien « **n°** nom · construction » | Navigation vers `/sets/[setId]` | Libellé de construction affiché seulement s'il diffère du nom du set | — | Barre d'app › fil d'Ariane (2e segment : n° + nom du set) | ☐ |
+| A4 | Atelier d'une construction | `/atelier/[buildId]` → `LibraryAtelier` → `BrickLabApp` | « Construire / Reprendre / Revoir » (carte, détail, fin d'import) | Ouvre la construction avec fichiers vérifiés, progression et notices | `key={buildId}` : remonte l'atelier à chaque changement de build | lib, lib-omr, add | `/atelier/[buildId]` inchangé ; bandeau Reprendre, bouton de carte, carte Construction du détail, étape 4 de l'ajout | ☑ |
+| A5 | Atelier sans collection | `/atelier` → `StandaloneAtelier` | Lien « Atelier sans collection » (topbar collection) | Atelier P5/P6 : import manuel, progression dans le navigateur | Topbar : « ← Ma collection » + « Atelier sans collection » | brick, sync, ux, surf, fb… | `/atelier` inchangé ; lien « Atelier sans collection » dans le menu de la barre d'app de la collection et sur l'écran d'accueil | ☑ |
+| A6 | Retour à la collection | Topbar de `/ajouter`, `/sets/…` (`back-to-collection`), `/atelier/…` (`back-to-collection`), `/atelier` | Lien « ← Ma collection » | Navigation vers `/` | Dans l'atelier : `pagehide` + démontage → `store.flush()` (dernière modification envoyée) | lib | Barre d'app › premier élément du fil d'Ariane « ← Ma collection » (`back-to-collection` conservé) ; flush à la sortie inchangé | ☑ |
+| A7 | Lien vers le set depuis l'atelier | Topbar `/atelier/[id]` | Lien « **n°** nom · construction » | Navigation vers `/sets/[setId]` | Libellé de construction affiché seulement s'il diffère du nom du set | — | Barre d'app › fil d'Ariane (2e segment : n° + nom du set) | ☑ |
 | A8 | Titre/description de page | `layout.tsx` | — | `title` « Brick Lab Local », mention non affilié LEGO, `lang="fr"` | Même titre sur toutes les routes | — | `layout.tsx` : titre par page (« Ma collection — Brick Lab »…) ; mention non affilié conservée | ☐ |
 
 ## B. Ma collection (`/`)
@@ -108,65 +108,65 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| E1 | Étapes de chargement | `LibraryAtelier` `.atelier-wait` | Ouverture | « Vérification des fichiers… » → « Chargement du modèle… » → « Lecture de la progression… » → « Chargement des notices (i/n)… » | Texte seul, pas d'indicateur visuel | lib | Atelier › écran de chargement : étapes listées avec indicateur d'activité (même textes) | ☐ |
-| E2 | Erreur bloquante | `atelier-error` (role=alert) | Fichier modèle invalide/absent/empreinte | « Impossible d'ouvrir cette construction », raison, « Rien n'a été chargé à la place… », lien « Réparer depuis le détail du set » | Aucun substitut chargé | lib | Atelier › écran d'erreur (illustration, raison, « Réparer depuis le détail du set » en primaire) | ☐ |
-| E3 | Choix entre deux sauvegardes | `ChoiceScreen` (`progress-choice`) : tableau `save-diff`, case `choice-with-mapping`, `choice-library` / `choice-browser` | Sauvegardes divergentes | Choix explicite, l'autre conservée | Variante « sauvegarde bibliothèque ne correspond plus » | lib | Atelier › écran de choix : deux cartes côte à côte (Bibliothèque / Ce navigateur) + tableau de différences | ☐ |
-| E4 | Notes d'ouverture | Bannière `atelier-notes` + « OK » | Migration/choix/notices non chargées | Explique ce qui a été repris ou non | Fermable | lib | Atelier › bannière d'information sous la barre d'app, fermable | ☐ |
-| E5 | Ouverture automatique modèle + notices | `BrickLabApp initial` | Auto | Modèle et livrets chargés depuis la bibliothèque ; dernier livret affiché à la page sauvegardée | Pas d'import manuel possible dans ce contexte | lib, lib-omr | Inchangé (chargement automatique) | ☐ |
+| E1 | Étapes de chargement | `LibraryAtelier` `.atelier-wait` | Ouverture | « Vérification des fichiers… » → « Chargement du modèle… » → « Lecture de la progression… » → « Chargement des notices (i/n)… » | Texte seul, pas d'indicateur visuel | lib | Atelier › écran de chargement : indicateur d'activité + liste des étapes (l'étape en cours en gras) | ☑ |
+| E2 | Erreur bloquante | `atelier-error` (role=alert) | Fichier modèle invalide/absent/empreinte | « Impossible d'ouvrir cette construction », raison, « Rien n'a été chargé à la place… », lien « Réparer depuis le détail du set » | Aucun substitut chargé | lib | Atelier › écran d'erreur (illustration, raison, « Réparer depuis le détail du set » en primaire) | ☑ |
+| E3 | Choix entre deux sauvegardes | `ChoiceScreen` (`progress-choice`) : tableau `save-diff`, case `choice-with-mapping`, `choice-library` / `choice-browser` | Sauvegardes divergentes | Choix explicite, l'autre conservée | Variante « sauvegarde bibliothèque ne correspond plus » | lib | Atelier › écran de choix : deux cartes côte à côte (Bibliothèque / Ce navigateur) + tableau de différences | ☑ |
+| E4 | Notes d'ouverture | Bannière `atelier-notes` + « OK » | Migration/choix/notices non chargées | Explique ce qui a été repris ou non | Fermable | lib | Atelier › bannière d'information sous la barre d'app, fermable | ☑ |
+| E5 | Ouverture automatique modèle + notices | `BrickLabApp initial` | Auto | Modèle et livrets chargés depuis la bibliothèque ; dernier livret affiché à la page sauvegardée | Pas d'import manuel possible dans ce contexte | lib, lib-omr | Inchangé (chargement automatique) | ☑ |
 
 ## F. Atelier — cadre commun
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| F1 | Topbar de l'atelier | `header.topbar` | — | Navigation (nav), nom du fichier (atelier autonome), indicateurs de partie | — | toutes | Atelier › Barre d'app (fil d'Ariane, mode, progression, sauvegarde, aide, thème) | ☐ |
-| F2 | Indicateur d'étape | `step-indicator` | Modes guidé et synchronisé | « Étape i / n » | — | brick, sync | Atelier › Barre d'app, sous le compteur de progression | ☐ |
-| F3 | Étape de notice | `notice-step` | Mode synchronisé | « Notice : Étape 2 (×2), p. 2 » | — | sync | Atelier › Barre d'app, sous le compteur (mode synchro) + carte d'étape du panneau Notice | ☐ |
-| F4 | Mode courant | Texte « Montage libre » | Mode libre | Indique le mode | Guidé/synchro : pas de libellé de mode dans la topbar | — | Atelier › Barre d'app, sélecteur de mode segmenté (mode actif) | ☐ |
-| F5 | **Progression** | `progress` | Partie en cours | « x/y pièces posées » | Toujours visible pendant une partie | toutes | Atelier › Barre d'app, barre de progression + « x/y pièces posées » (`progress`) | ☐ |
-| F6 | Détail montage libre | `free-info` | Pièces libres | « N posée(s) librement · a à leur place dans le modèle » | — | fb | Atelier › Barre d'app, sous le compteur (`free-info`) | ☐ |
-| F7 | État de sauvegarde | `save-state` (bibliothèque) / « Sauvegardé localement » (autonome) | Auto | Enregistrement… / Enregistré dans la bibliothèque / Non enregistré : … (role=alert) | Erreur et conflit en rouge | lib | Atelier › Barre d'app, état de sauvegarde (icône + texte ; erreur en rouge, `role=alert`) | ☐ |
-| F8 | Conflit de sauvegarde | Bannière `save-conflict` + « Recharger » | Autre onglet a écrit | Explique et propose de recharger | — | lib | Atelier › bannière d'alerte sous la barre d'app + « Recharger » | ☐ |
-| F9 | Bannière bibliothèque | `banner` (notes E4) | — | Sous la topbar | — | lib | Atelier › bannière sous la barre d'app | ☐ |
-| F10 | Séparateur redimensionnable | `Splitter` (`splitter`, role=separator) | Glisser / double-clic / ← → (Maj ×5) / Home / End / Entrée | Largeur du panneau latéral, mémorisée par contexte (atelier/éditeur) en localStorage, en proportion | Bornes : panneau ≥ 280 px, vue 3D ≥ 320 px ; pendant le glisser la vue 3D ignore le pointeur | ux | Atelier › séparateur (poignée visible) + bouton de repli du panneau | ☐ |
-| F11 | Onglets du panneau | `nav.tabs role=tablist` : Modèle / Notice PDF / Correspondances | Clic | Change le contenu du panneau | « Correspondances » seulement si un modèle est chargé ; pas de navigation flèches ; mode synchro bascule auto sur Notice | sync, ux | Atelier › panneau, onglets Démarrer/Étape · Notice · Correspondances (`role=tablist`, flèches ←/→, `tabpanel`) | ☐ |
-| F12 | Toast de l'atelier | `message` (role=status), en bas à gauche de la vue 3D | Chaque action | Consignes, succès (vert), erreurs (rouge) | Persistant jusqu'au message suivant ; `pointer-events:none` ; peut être long (consignes complètes des raccourcis) | toutes | Atelier › pile de toasts (bas gauche de la scène), résultats seulement ; consignes → légende contextuelle (A6) | ☐ |
-| F13 | Recentrer la caméra | Bouton « Centrer » (barre du bac) | Clic | Replace la caméra sur le modèle | — | ux, brick | Atelier › rail d'outils de la scène, icône « Centrer » (`aria-label`) | ☐ |
+| F1 | Topbar de l'atelier | `header.topbar` | — | Navigation (nav), nom du fichier (atelier autonome), indicateurs de partie | — | toutes | Atelier › Barre d'app (fil d'Ariane, mode, progression, sauvegarde, aide, thème) | ☑ |
+| F2 | Indicateur d'étape | `step-indicator` | Modes guidé et synchronisé | « Étape i / n » | — | brick, sync | Atelier › Barre d'app, sous le compteur de progression | ☑ |
+| F3 | Étape de notice | `notice-step` | Mode synchronisé | « Notice : Étape 2 (×2), p. 2 » | — | sync | Atelier › Barre d'app, sous le compteur (mode synchro) + carte d'étape du panneau Notice | ☑ |
+| F4 | Mode courant | Texte « Montage libre » | Mode libre | Indique le mode | Guidé/synchro : pas de libellé de mode dans la topbar | — | Atelier › Barre d'app, sélecteur de mode segmenté (mode actif) | ☑ |
+| F5 | **Progression** | `progress` | Partie en cours | « x/y pièces posées » | Toujours visible pendant une partie | toutes | Atelier › Barre d'app, barre de progression + « x/y pièces posées » (`progress`) | ☑ |
+| F6 | Détail montage libre | `free-info` | Pièces libres | « N posée(s) librement · a à leur place dans le modèle » | — | fb | Atelier › Barre d'app, sous le compteur (`free-info`) | ☑ |
+| F7 | État de sauvegarde | `save-state` (bibliothèque) / « Sauvegardé localement » (autonome) | Auto | Enregistrement… / Enregistré dans la bibliothèque / Non enregistré : … (role=alert) | Erreur et conflit en rouge | lib | Atelier › Barre d'app, état de sauvegarde (icône + texte ; erreur en rouge, `role=alert`) | ☑ |
+| F8 | Conflit de sauvegarde | Bannière `save-conflict` + « Recharger » | Autre onglet a écrit | Explique et propose de recharger | — | lib | Atelier › bannière d'alerte sous la barre d'app + « Recharger » | ☑ |
+| F9 | Bannière bibliothèque | `banner` (notes E4) | — | Sous la topbar | — | lib | Atelier › bannière sous la barre d'app | ☑ |
+| F10 | Séparateur redimensionnable | `Splitter` (`splitter`, role=separator) | Glisser / double-clic / ← → (Maj ×5) / Home / End / Entrée | Largeur du panneau latéral, mémorisée par contexte (atelier/éditeur) en localStorage, en proportion | Bornes : panneau ≥ 280 px, vue 3D ≥ 320 px ; pendant le glisser la vue 3D ignore le pointeur | ux | Atelier › séparateur (poignée visible) + bouton de repli du panneau | ☑ |
+| F11 | Onglets du panneau | `nav.tabs role=tablist` : Modèle / Notice PDF / Correspondances | Clic | Change le contenu du panneau | « Correspondances » seulement si un modèle est chargé ; pas de navigation flèches ; mode synchro bascule auto sur Notice | sync, ux | Atelier › panneau, onglets Démarrer/Étape · Notice · Correspondances (`role=tablist`, flèches ←/→, `tabpanel`) | ☑ |
+| F12 | Toast de l'atelier | `message` (role=status), en bas à gauche de la vue 3D | Chaque action | Consignes, succès (vert), erreurs (rouge) | Persistant jusqu'au message suivant ; `pointer-events:none` ; peut être long (consignes complètes des raccourcis) | toutes | Atelier › toast en bas à gauche de la scène (résultats, fermeture ×) ; consignes → légende de la scène (A6) | ☑ |
+| F13 | Recentrer la caméra | Bouton « Centrer » (barre du bac) | Clic | Replace la caméra sur le modèle | — | ux, brick | Atelier › rail d'outils de la scène, icône « Centrer » (`aria-label`) | ☑ |
 
 ## G. Atelier — panneau Modèle, diagnostic et choix du mode
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| G1 | Résumé du modèle | `ModelSummary` : titre, `quality`, pièces (`occurrence-count`), références, couleurs, sous-modèles, étapes (`step-count` + type), auteur, licence | Après import | Fiche du modèle | — | brick | Atelier › panneau, onglet Démarrer : résumé du modèle | ☐ |
-| G2 | **Badge de qualité** | `quality` (`q-INVALID / ANALYSABLE / RENDERABLE / MANUAL_ONLY / GUIDED_PLAYABLE`) | — | Invalide / Analysable (rendu incomplet ou non vérifié) / Affichable / Montage libre uniquement / Jouable avec étapes 3D | Couleurs rouge/ambre/bleu/vert | brick | Atelier › onglet Démarrer, badge de qualité (`QualityBadge`) | ☐ |
-| G3 | Choix du modèle principal | Select « Modèle principal » | Plusieurs candidats (autonome) | Ré-analyse avec la racine choisie | Bibliothèque : texte seul (identité figée) | — | Atelier › onglet Démarrer, sélecteur « Modèle principal » | ☐ |
-| G4 | État du rendu | `render-status` | — | « Géométrie LDraw : N combinaison(s), M référence(s) manquante(s), t ms » ou « Rendu indisponible : <raison> » | — | brick | Atelier › onglet Démarrer, ligne d'état du rendu | ☐ |
-| G5 | **Pièces absentes** | `missing-parts` | Pièces non trouvées | Liste des références absentes de la bibliothèque locale | — | brick | Atelier › onglet Démarrer, alerte « Pièces absentes » (rouge) | ☐ |
-| G6 | **Vérification d'inventaire** | `inventory-check` (role=note si non cohérent) | — | ✓ cohérent / ⚠ indéterminé / incomplet / non vérifié contre la notice officielle | — | omr | Atelier › onglet Démarrer, ligne d'inventaire | ☐ |
-| G7 | Raisons de classement | `ul.reasons` | — | Motifs du classement qualité | — | — | Atelier › onglet Démarrer, raisons sous le badge | ☐ |
-| G8 | Diagnostics détaillés | `<details>` « Diagnostics (n problème(s), m info(s)) » | Clic | Liste [severity] message (ligne) — 200 max | — | — | Atelier › onglet Démarrer, section repliable Diagnostics | ☐ |
-| G9 | **Démarrer — notice synchronisée** | Bouton primaire | Clic | `start('synced')`, bascule sur l'onglet Notice | Affiché seulement si correspondances valides | sync | Atelier › onglet Démarrer, carte de mode « Notice synchronisée » (bouton « Commencer — notice synchronisée ») | ☐ |
-| G10 | **Démarrer — mode guidé** | Bouton (primaire si pas de synchro) | Clic | `start('guided')` | Affiché seulement si le fichier a des étapes | brick | Atelier › onglet Démarrer, carte de mode « Guidé » (bouton « Commencer — mode guidé ») | ☐ |
-| G11 | **Montage libre (avec notice)** | Bouton secondaire | Clic | `start('freeManual')` | Toujours proposé si jouable | brick, fb | Atelier › onglet Démarrer, carte de mode « Montage libre » (bouton « Montage libre (avec notice) ») | ☐ |
-| G12 | **Étapes non disponibles** | Texte sous les boutons | `plan.kind === 'NO_STEPS'` | « Étapes non disponibles dans ce fichier : aucune séquence n'est inventée. » | — | brick | Atelier › onglet Démarrer, carte « Guidé » désactivée avec cette raison | ☐ |
-| G13 | **Disponibilité de la synchro** | `sync-availability` | Modèle jouable | « Notice synchronisée disponible : N étape(s)… » ou « indisponible : <raison> » + bouton « Créer / Modifier les correspondances » | — | sync | Atelier › onglet Démarrer, carte « Notice synchronisée » (disponible / raison) + bouton Créer/Modifier les correspondances | ☐ |
-| G14 | **Visualisation seulement** | Texte | Non jouable (ANALYSABLE) | « Visualisation seulement tant que des pièces manquent. » | Aucun bouton de démarrage | brick, filet | Atelier › onglet Démarrer, alerte « Visualisation seulement » à la place des cartes de mode | ☐ |
-| G15 | Importer un autre modèle | Label-bouton (atelier autonome) | Choix de fichier | Remplace le modèle courant | Absent en bibliothèque | brick | Atelier › onglet Démarrer, bouton secondaire « Importer un autre modèle » (input dans l'`<aside>`) | ☐ |
-| G16 | Aucun modèle | Texte « Aucun modèle importé. » | Onglet Modèle vide | — | — | — | Atelier › scène : écran d'accueil de l'atelier autonome ; onglet Démarrer : état vide | ☐ |
+| G1 | Résumé du modèle | `ModelSummary` : titre, `quality`, pièces (`occurrence-count`), références, couleurs, sous-modèles, étapes (`step-count` + type), auteur, licence | Après import | Fiche du modèle | — | brick | Atelier › onglet Modèle : cartes de mode d'abord, puis résumé du modèle | ☑ |
+| G2 | **Badge de qualité** | `quality` (`q-INVALID / ANALYSABLE / RENDERABLE / MANUAL_ONLY / GUIDED_PLAYABLE`) | — | Invalide / Analysable (rendu incomplet ou non vérifié) / Affichable / Montage libre uniquement / Jouable avec étapes 3D | Couleurs rouge/ambre/bleu/vert | brick | Atelier › onglet Démarrer, badge de qualité (`QualityBadge`) | ☑ |
+| G3 | Choix du modèle principal | Select « Modèle principal » | Plusieurs candidats (autonome) | Ré-analyse avec la racine choisie | Bibliothèque : texte seul (identité figée) | — | Atelier › onglet Démarrer, sélecteur « Modèle principal » | ☑ |
+| G4 | État du rendu | `render-status` | — | « Géométrie LDraw : N combinaison(s), M référence(s) manquante(s), t ms » ou « Rendu indisponible : <raison> » | — | brick | Atelier › onglet Démarrer, ligne d'état du rendu | ☑ |
+| G5 | **Pièces absentes** | `missing-parts` | Pièces non trouvées | Liste des références absentes de la bibliothèque locale | — | brick | Atelier › onglet Démarrer, alerte « Pièces absentes » (rouge) | ☑ |
+| G6 | **Vérification d'inventaire** | `inventory-check` (role=note si non cohérent) | — | ✓ cohérent / ⚠ indéterminé / incomplet / non vérifié contre la notice officielle | — | omr | Atelier › onglet Démarrer, ligne d'inventaire | ☑ |
+| G7 | Raisons de classement | `ul.reasons` | — | Motifs du classement qualité | — | — | Atelier › onglet Démarrer, raisons sous le badge | ☑ |
+| G8 | Diagnostics détaillés | `<details>` « Diagnostics (n problème(s), m info(s)) » | Clic | Liste [severity] message (ligne) — 200 max | — | — | Atelier › onglet Démarrer, section repliable Diagnostics | ☑ |
+| G9 | **Démarrer — notice synchronisée** | Bouton primaire | Clic | `start('synced')`, bascule sur l'onglet Notice | Affiché seulement si correspondances valides | sync | Atelier › onglet Modèle, carte « Notice synchronisée » (bouton « Commencer — notice synchronisée ») | ☑ |
+| G10 | **Démarrer — mode guidé** | Bouton (primaire si pas de synchro) | Clic | `start('guided')` | Affiché seulement si le fichier a des étapes | brick | Atelier › onglet Modèle, carte « Mode guidé » (bouton « Commencer — mode guidé ») | ☑ |
+| G11 | **Montage libre (avec notice)** | Bouton secondaire | Clic | `start('freeManual')` | Toujours proposé si jouable | brick, fb | Atelier › onglet Modèle, carte « Montage libre » (bouton « Montage libre (avec notice) ») | ☑ |
+| G12 | **Étapes non disponibles** | Texte sous les boutons | `plan.kind === 'NO_STEPS'` | « Étapes non disponibles dans ce fichier : aucune séquence n'est inventée. » | — | brick | Atelier › onglet Modèle, carte « Mode guidé » sans bouton, avec ce texte ; info du sélecteur de mode | ☑ |
+| G13 | **Disponibilité de la synchro** | `sync-availability` | Modèle jouable | « Notice synchronisée disponible : N étape(s)… » ou « indisponible : <raison> » + bouton « Créer / Modifier les correspondances » | — | sync | Atelier › onglet Modèle : carte « Notice synchronisée » (raison si indisponible) + ligne `sync-availability` et bouton Créer/Modifier les correspondances | ☑ |
+| G14 | **Visualisation seulement** | Texte | Non jouable (ANALYSABLE) | « Visualisation seulement tant que des pièces manquent. » | Aucun bouton de démarrage | brick, filet | Atelier › onglet Modèle : note « Visualisation seulement… » (+ cause bibliothèque LDraw) à la place des cartes | ☑ |
+| G15 | Importer un autre modèle | Label-bouton (atelier autonome) | Choix de fichier | Remplace le modèle courant | Absent en bibliothèque | brick | Atelier › onglet Démarrer, bouton secondaire « Importer un autre modèle » (input dans l'`<aside>`) | ☑ |
+| G16 | Aucun modèle | Texte « Aucun modèle importé. » | Onglet Modèle vide | — | — | — | Atelier › scène : écran d'accueil de l'atelier autonome ; onglet Modèle : « Aucun modèle importé. » | ☑ |
 
 ## H. Mode guidé (étapes LDraw)
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| H1 | Emplacements de l'étape | Scène : fantômes bleus | Mode guidé, « Montrer les emplacements » coché par défaut | Affiche les cibles de l'étape active | — | brick | Atelier › scène (fantômes) ; rail d'outils « Montrer les emplacements » | ☐ |
-| H2 | Prendre une pièce | Bac → clic sur une pièce | Clic | Pièce en main, suit le pointeur ; consigne dans le toast | Orientation par défaut = 1re orientation cible | brick | Atelier › bac | ☐ |
-| H3 | Aimantation sur la cible | Scène | Survol | La pièce se pose sur la surface visée ; cible trouvée → `target-found` « emplacement trouvé, clic pour poser » | — | brick, surf | Atelier › scène + HUD (« emplacement trouvé », vert) | ☐ |
-| H4 | Poser | Clic dans la scène | Clic | `tryPlace` ; succès « Pièce posée (x/y) » ; refus explicite (« Trop loin », orientation…) | Clic avec glissement ≤ 4 px = clic ; > 4 px = orbite | brick, surf | Atelier › scène ; résultat en toast | ☐ |
-| H5 | Passage à l'étape suivante | Auto | Étape complète | `step-indicator` avance | — | brick | Atelier › Barre d'app (étape) + panneau, onglet Étape | ☐ |
-| H6 | Fin de modèle | Pied : « Modèle terminé : y/y pièces. » + « Recommencer » ; toast « Bravo, modèle terminé ! » | Dernière pièce | — | « Recommencer » demande confirmation en bibliothèque | brick | Atelier › panneau, écran de fin + zone du bac (« Recommencer » → confirmation) | ☐ |
-| H7 | Niveau manuel | PageUp/PageDown ; `held-info` « Niveau manuel i/n (A : auto) » ; A = auto | Clavier | Choisit un niveau du modèle quand la surface ne suffit pas | — | surf | Atelier › HUD (« Niveau manuel i/n ») ; légende contextuelle | ☐ |
-| H8 | Infos de la pièce en main | `held-info` dans la barre du bac | Pièce en main | Niveau, rotation, orientation i/n, cible trouvée | — | brick | Atelier › HUD | ☐ |
-| H9 | Réinitialiser l'étape | Bouton « Réinitialiser l'étape » | Clic | Retire les pièces de l'étape active | Pas de confirmation | filet | Atelier › menu ⋯ des actions du bac | ☐ |
-| H10 | Pièce posée non sélectionnable | Scène | — | En guidé, un clic sur une pièce posée ne fait rien | — | fh | Inchangé | ☐ |
+| H1 | Emplacements de l'étape | Scène : fantômes bleus | Mode guidé, « Montrer les emplacements » coché par défaut | Affiche les cibles de l'étape active | — | brick | Atelier › scène (fantômes) ; rail d'outils « Montrer les emplacements » | ☑ |
+| H2 | Prendre une pièce | Bac → clic sur une pièce | Clic | Pièce en main, suit le pointeur ; consigne dans le toast | Orientation par défaut = 1re orientation cible | brick | Atelier › bac | ☑ |
+| H3 | Aimantation sur la cible | Scène | Survol | La pièce se pose sur la surface visée ; cible trouvée → `target-found` « emplacement trouvé, clic pour poser » | — | brick, surf | Atelier › scène + HUD (« emplacement trouvé », vert) | ☑ |
+| H4 | Poser | Clic dans la scène | Clic | `tryPlace` ; succès « Pièce posée (x/y) » ; refus explicite (« Trop loin », orientation…) | Clic avec glissement ≤ 4 px = clic ; > 4 px = orbite | brick, surf | Atelier › scène ; résultat en toast | ☑ |
+| H5 | Passage à l'étape suivante | Auto | Étape complète | `step-indicator` avance | — | brick | Atelier › Barre d'app (étape) + panneau, onglet Étape | ☑ |
+| H6 | Fin de modèle | Pied : « Modèle terminé : y/y pièces. » + « Recommencer » ; toast « Bravo, modèle terminé ! » | Dernière pièce | — | « Recommencer » demande confirmation en bibliothèque | brick | Atelier › bloc de fin dans la zone du bac (« Recommencer » → modale de confirmation) | ☑ |
+| H7 | Niveau manuel | PageUp/PageDown ; `held-info` « Niveau manuel i/n (A : auto) » ; A = auto | Clavier | Choisit un niveau du modèle quand la surface ne suffit pas | — | surf | Atelier › HUD (« Niveau manuel i/n ») ; légende contextuelle | ☑ |
+| H8 | Infos de la pièce en main | `held-info` dans la barre du bac | Pièce en main | Niveau, rotation, orientation i/n, cible trouvée | — | brick | Atelier › HUD | ☑ |
+| H9 | Réinitialiser l'étape | Bouton « Réinitialiser l'étape » | Clic | Retire les pièces de l'étape active | Pas de confirmation | filet | Atelier › colonne d'actions du bac, bouton discret « Réinitialiser l’étape » | ☑ |
+| H10 | Pièce posée non sélectionnable | Scène | — | En guidé, un clic sur une pièce posée ne fait rien | — | fh | Inchangé | ☑ |
 
 ## I. Notice synchronisée (mode `synced`)
 
@@ -221,17 +221,17 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| K1 | Bac de pièces | `PartsTray` `ul.tray-items` (hauteur fixe 188 px, défilement interne) | Partie en cours | Une tuile par référence/couleur : miniature, « ×restant », référence | Hauteur fixe pour ne pas désynchroniser le picking 3D | ux, brick | Atelier › bac (hauteur fixe 188 px conservée) | ☐ |
-| K2 | Miniatures réelles des pièces | `PartThumb` | Auto | Rendu local de la géométrie LDraw | Chargement (pastille couleur) ; absente → « forme indisponible » (`data-thumb=missing`) | ux | Atelier › bac, tuiles | ☐ |
-| K3 | Pièce en main dans le bac | `.tray-item.held` + badge « en main » ; `aria-pressed` | Prise | Indique la pièce tenue | — | ux | Atelier › bac, tuile en main (contour accent + badge) | ☐ |
-| K4 | Infobulle et label des tuiles | `title`, `aria-label` | Survol / lecteur d'écran | « 3001 · Red (4) · 2/4 à poser » ; « Pièce 3001, Red, 2 à poser » | — | ux | Inchangé (`title`, `aria-label`) | ☐ |
-| K5 | Aucune pièce | « Aucune pièce à placer. » | Bac vide | — | — | — | Atelier › bac, état vide | ☐ |
-| K6 | **Annuler** | Bouton « Annuler » ; ⌘Z / Ctrl+Z | Clic/clavier | Guidé/synchro : dernière pose ; libre : dernier changement (historique 200, perdu au rechargement), sinon dernière pièce | Désactivé si rien à annuler | toutes | Atelier › actions du bac, bouton « Annuler » (⌘Z affiché) | ☐ |
-| K7 | Changer de mode | Select `mode-select` (`Mode`) | Choix | Bascule en gardant les pièces (voir J30) | Options filtrées selon la disponibilité | brick, fb, sync | Atelier › Barre d'app, sélecteur de mode segmenté (A3) | ☐ |
-| K8 | Montrer les emplacements | Case « Montrer les emplacements » | Bascule | Fantômes des cibles (toutes en guidé ; en libre, celles de la pièce tenue) | Cochée par défaut en guidé/synchro | filet | Atelier › rail d'outils (« Montrer les emplacements ») | ☐ |
-| K9 | Poser à la position cible (aide) | `assist-place` | Clic (pièce en main) | Pose la pièce à l'emplacement libre le plus proche (accessibilité) | Désactivé sans pièce en main | surf, brick | Atelier › actions du bac, « Poser à la position cible (aide) » | ☐ |
-| K10 | **Abandonner** | Bouton « Abandonner » → `confirm-restart` « Confirmer l'abandon » / « Annuler » | Clic | Efface la progression (bibliothèque : copie dans l'historique) | **Atelier autonome : aucune confirmation** (effacement immédiat du localStorage) | filet | Atelier › menu ⋯ des actions du bac → modale de confirmation, aussi en atelier autonome (A5) | ☐ |
-| K11 | Recommencer (fin) | Bouton dans `.done` | Clic | Même effet que K10 ; « Confirmer : recommencer » en bibliothèque | — | — | Atelier › panneau, écran de fin → modale de confirmation | ☐ |
+| K1 | Bac de pièces | `PartsTray` `ul.tray-items` (hauteur fixe 188 px, défilement interne) | Partie en cours | Une tuile par référence/couleur : miniature, « ×restant », référence | Hauteur fixe pour ne pas désynchroniser le picking 3D | ux, brick | Atelier › bac (hauteur fixe 188 px conservée) | ☑ |
+| K2 | Miniatures réelles des pièces | `PartThumb` | Auto | Rendu local de la géométrie LDraw | Chargement (pastille couleur) ; absente → « forme indisponible » (`data-thumb=missing`) | ux | Atelier › bac, tuiles | ☑ |
+| K3 | Pièce en main dans le bac | `.tray-item.held` + badge « en main » ; `aria-pressed` | Prise | Indique la pièce tenue | — | ux | Atelier › bac, tuile en main (contour accent + badge) | ☑ |
+| K4 | Infobulle et label des tuiles | `title`, `aria-label` | Survol / lecteur d'écran | « 3001 · Red (4) · 2/4 à poser » ; « Pièce 3001, Red, 2 à poser » | — | ux | Inchangé (`title`, `aria-label`) | ☑ |
+| K5 | Aucune pièce | « Aucune pièce à placer. » | Bac vide | — | — | — | Atelier › bac, état vide | ☑ |
+| K6 | **Annuler** | Bouton « Annuler » ; ⌘Z / Ctrl+Z | Clic/clavier | Guidé/synchro : dernière pose ; libre : dernier changement (historique 200, perdu au rechargement), sinon dernière pièce | Désactivé si rien à annuler | toutes | Atelier › actions du bac, bouton « Annuler » (⌘Z affiché) | ☑ |
+| K7 | Changer de mode | Select `mode-select` (`Mode`) | Choix | Bascule en gardant les pièces (voir J30) | Options filtrées selon la disponibilité | brick, fb, sync | Atelier › barre d'app, sélecteur segmenté (A3) ; modes indisponibles désactivés avec leur raison | ☑ |
+| K8 | Montrer les emplacements | Case « Montrer les emplacements » | Bascule | Fantômes des cibles (toutes en guidé ; en libre, celles de la pièce tenue) | Cochée par défaut en guidé/synchro | filet | Atelier › rail d'outils (« Montrer les emplacements ») | ☑ |
+| K9 | Poser à la position cible (aide) | `assist-place` | Clic (pièce en main) | Pose la pièce à l'emplacement libre le plus proche (accessibilité) | Désactivé sans pièce en main | surf, brick | Atelier › actions du bac, « Poser à la position cible (aide) » | ☑ |
+| K10 | **Abandonner** | Bouton « Abandonner » → `confirm-restart` « Confirmer l'abandon » / « Annuler » | Clic | Efface la progression (bibliothèque : copie dans l'historique) | **Atelier autonome : aucune confirmation** (effacement immédiat du localStorage) | filet | Atelier › colonne d'actions du bac, « Abandonner » (discret, rouge) → modale de confirmation, atelier autonome compris (A5) | ☑ |
+| K11 | Recommencer (fin) | Bouton dans `.done` | Clic | Même effet que K10 ; « Confirmer : recommencer » en bibliothèque | — | — | Atelier › bloc de fin de la zone du bac → même modale de confirmation | ☑ |
 
 ## L. Notice PDF
 
@@ -278,12 +278,12 @@ Base : `origin/main` = `a1309a4` (09/11/2026). Inventaire établi en lisant `src
 
 | ID | Fonctionnalité | Emplacement actuel | Déclencheur | Ce qu'elle fait | Cas particuliers | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|---|---|
-| N1 | Écran d'accueil de l'atelier | `.home` dans la vue 3D | Aucun modèle | Titre, pitch, « Importer un modèle (.mpd / .ldr) » (`model-input`), lien LEGO.com | Pas de glisser-déposer ici | brick | Atelier › scène, écran d'accueil de l'atelier autonome (bouton d'import `model-input` + zone de dépôt) | ☐ |
-| N2 | Contrôles du fichier | `onModelFile` | Import | Refus > 8 Mo ; refus hors `.ldr`/`.mpd` (« pas .io ni .lxf ») | Messages dans le toast | — | Toast d'erreur (inchangé) | ☐ |
-| N3 | Analyse et chargement | `busy` : « Analyse du modèle… », « Chargement des géométries LDraw locales… » | Import | Texte sous le bouton | Pas de barre de progression | brick | Atelier › scène, écran de chargement avec indicateur d'activité | ☐ |
-| N4 | Sessions récentes | `section.recent` | Sauvegardes navigateur | « nom — x/y pièces · réimporte le fichier pour reprendre » | Pas de bouton ; il faut réimporter | brick | Atelier › écran d'accueil autonome, liste « Reprendre en réimportant » | ☐ |
-| N5 | Reprise par empreinte | `importText` → `restoreProgress` | Réimport du même fichier | « Progression restaurée : x/y pièces posées (dont N posée(s) librement). » | Mapping changé → étape recalculée ; synchro sans mapping → libre | brick, sync | Toast (inchangé) | ☐ |
-| N6 | Correspondances illisibles | Toast d'erreur | Mapping stocké corrompu | « Correspondances enregistrées illisibles, ignorées : … » | — | — | Toast d'erreur (inchangé) | ☐ |
+| N1 | Écran d'accueil de l'atelier | `.home` dans la vue 3D | Aucun modèle | Titre, pitch, « Importer un modèle (.mpd / .ldr) » (`model-input`), lien LEGO.com | Pas de glisser-déposer ici | brick | Atelier › scène, écran d'accueil autonome : « Importer un modèle » (`model-input`), « Essayer la démo », dépôt du fichier | ☑ |
+| N2 | Contrôles du fichier | `onModelFile` | Import | Refus > 8 Mo ; refus hors `.ldr`/`.mpd` (« pas .io ni .lxf ») | Messages dans le toast | — | Toast d'erreur (inchangé) | ☑ |
+| N3 | Analyse et chargement | `busy` : « Analyse du modèle… », « Chargement des géométries LDraw locales… » | Import | Texte sous le bouton | Pas de barre de progression | brick | Atelier › scène, écran de chargement avec indicateur d'activité | ☑ |
+| N4 | Sessions récentes | `section.recent` | Sauvegardes navigateur | « nom — x/y pièces · réimporte le fichier pour reprendre » | Pas de bouton ; il faut réimporter | brick | Atelier › écran d'accueil autonome, « Sessions récentes de ce navigateur » (réimporter pour reprendre) | ☑ |
+| N5 | Reprise par empreinte | `importText` → `restoreProgress` | Réimport du même fichier | « Progression restaurée : x/y pièces posées (dont N posée(s) librement). » | Mapping changé → étape recalculée ; synchro sans mapping → libre | brick, sync | Toast (inchangé) | ☑ |
+| N6 | Correspondances illisibles | Toast d'erreur | Mapping stocké corrompu | « Correspondances enregistrées illisibles, ignorées : … » | — | — | Toast d'erreur (inchangé) | ☑ |
 
 ## O. Raccourcis clavier (atelier)
 
@@ -291,27 +291,27 @@ Ignorés quand le focus est dans un `input` ou un `select` (pas dans un `textare
 
 | ID | Touche | Contexte | Effet | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|
-| O1 | ⌘Z / Ctrl+Z | Partie en cours | Annuler | fb, fh | Aide `?` › Partie ; bouton Annuler (⌘Z affiché) | ☐ |
-| O2 | R / Maj+R | Pièce en main | Quart de tour Y (+/−) | surf | Aide `?` › En main ; légende contextuelle | ☐ |
-| O3 | R / Maj+R | Libre, sélection, rien en main | Rotation Y de la sélection sur place | f3d | Aide `?` › Sélection ; infobulles X/Y/Z | ☐ |
-| O4 | X / Y / Z (Maj : −90°) | Libre, pièce en main ou sélection | Rotation ±90° autour de l'axe | f3d | Aide `?` › En main / Sélection ; infobulles de la barre contextuelle | ☐ |
-| O5 | O | Pièce en main (pas un groupe) | Orientation suivante | surf | Aide `?` › En main ; barre contextuelle | ☐ |
-| O6 | Échap | Pièce en main | Lâcher / laisser en place | fb | Aide `?` › En main ; légende | ☐ |
-| O7 | Échap | Libre, sélection | Désélectionner | fh | Aide `?` › Sélection ; légende | ☐ |
-| O8 | Échap | Glisser du gizmo | Annule le glisser | fg | Aide `?` › Manipulateur | ☐ |
-| O9 | Suppr / ⌫ | Libre, pièce reprise ou groupe en main | Remettre dans le stock | fb | Aide `?` › En main ; infobulle « Remettre au stock » | ☐ |
-| O10 | Suppr / ⌫ | Libre, sélection | Remettre la sélection dans le stock | fb | Aide `?` › Sélection ; infobulle « Au stock » | ☐ |
-| O11 | A | Pièce en main | Hauteur / niveau auto | surf | Aide `?` › En main ; infobulle « Hauteur auto » | ☐ |
-| O12 | PageUp / PageDown | Libre, pièce en main | Monter / descendre d'un pas (Maj : 1 LDU) | fh | Aide `?` › En main ; infobulles Monter/Descendre | ☐ |
-| O13 | PageUp / PageDown | Guidé/synchro, pièce en main | Niveau du modèle supérieur / inférieur | surf | Aide `?` › Guidé | ☐ |
-| O14 | G | Libre | Grille on/off | filet | Aide `?` › Scène ; infobulle du rail « Grille (G) » | ☐ |
-| O15 | W / E | Libre, sélection, rien en main | Gizmo flèches / anneaux | fg | Aide `?` › Sélection ; infobulles Flèches/Anneaux | ☐ |
-| O16 | Q | Libre, sélection, rien en main | Axes globaux ↔ locaux | filet | Aide `?` › Sélection ; infobulle Globaux/Locaux | ☐ |
-| O17 | M | Libre, sélection, rien en main | Déplacer la sélection | fh | Aide `?` › Sélection ; infobulle Déplacer | ☐ |
-| O18 | ⌥ maintenu | Libre, pièce en main / glisser du gizmo | Ignore l'aimant pièces / glisser sans pas | fc, fg | Aide `?` › En main / Manipulateur ; HUD « (⌥ : ignorer) » | ☐ |
-| O19 | Entrée | Champ de coordonnées | Appliquer les coordonnées | fg | Réglages de manipulation (popover) | ☐ |
-| O20 | ← → / Maj / Home / End / Entrée | Séparateur focalisé | Redimensionner / défaut | ux | Aide `?` › Panneaux ; infobulle du séparateur | ☐ |
-| O21 | Entrée | Champ numéro (`/ajouter`) | Rechercher | add | Ajouter › Étape 1 | ☐ |
+| O1 | ⌘Z / Ctrl+Z | Partie en cours | Annuler | fb, fh | Aide `?` › Partie ; bouton Annuler (⌘Z affiché) | ☑ |
+| O2 | R / Maj+R | Pièce en main | Quart de tour Y (+/−) | surf | Aide `?` › En main ; légende contextuelle | ☑ |
+| O3 | R / Maj+R | Libre, sélection, rien en main | Rotation Y de la sélection sur place | f3d | Aide `?` › Sélection ; infobulles X/Y/Z | ☑ |
+| O4 | X / Y / Z (Maj : −90°) | Libre, pièce en main ou sélection | Rotation ±90° autour de l'axe | f3d | Aide `?` › En main / Sélection ; infobulles de la barre contextuelle | ☑ |
+| O5 | O | Pièce en main (pas un groupe) | Orientation suivante | surf | Aide `?` › En main ; barre contextuelle | ☑ |
+| O6 | Échap | Pièce en main | Lâcher / laisser en place | fb | Aide `?` › En main ; légende | ☑ |
+| O7 | Échap | Libre, sélection | Désélectionner | fh | Aide `?` › Sélection ; légende | ☑ |
+| O8 | Échap | Glisser du gizmo | Annule le glisser | fg | Aide `?` › Manipulateur | ☑ |
+| O9 | Suppr / ⌫ | Libre, pièce reprise ou groupe en main | Remettre dans le stock | fb | Aide `?` › En main ; infobulle « Remettre au stock » | ☑ |
+| O10 | Suppr / ⌫ | Libre, sélection | Remettre la sélection dans le stock | fb | Aide `?` › Sélection ; infobulle « Au stock » | ☑ |
+| O11 | A | Pièce en main | Hauteur / niveau auto | surf | Aide `?` › En main ; infobulle « Hauteur auto » | ☑ |
+| O12 | PageUp / PageDown | Libre, pièce en main | Monter / descendre d'un pas (Maj : 1 LDU) | fh | Aide `?` › En main ; infobulles Monter/Descendre | ☑ |
+| O13 | PageUp / PageDown | Guidé/synchro, pièce en main | Niveau du modèle supérieur / inférieur | surf | Aide `?` › Guidé | ☑ |
+| O14 | G | Libre | Grille on/off | filet | Aide `?` › Scène ; infobulle du rail « Grille (G) » | ☑ |
+| O15 | W / E | Libre, sélection, rien en main | Gizmo flèches / anneaux | fg | Aide `?` › Sélection ; infobulles Flèches/Anneaux | ☑ |
+| O16 | Q | Libre, sélection, rien en main | Axes globaux ↔ locaux | filet | Aide `?` › Sélection ; infobulle Globaux/Locaux | ☑ |
+| O17 | M | Libre, sélection, rien en main | Déplacer la sélection | fh | Aide `?` › Sélection ; infobulle Déplacer | ☑ |
+| O18 | ⌥ maintenu | Libre, pièce en main / glisser du gizmo | Ignore l'aimant pièces / glisser sans pas | fc, fg | Aide `?` › En main / Manipulateur ; HUD « (⌥ : ignorer) » | ☑ |
+| O19 | Entrée | Champ de coordonnées | Appliquer les coordonnées | fg | Réglages de manipulation (popover) | ☑ |
+| O20 | ← → / Maj / Home / End / Entrée | Séparateur focalisé | Redimensionner / défaut | ux | Aide `?` › Panneaux ; infobulle du séparateur | ☑ |
+| O21 | Entrée | Champ numéro (`/ajouter`) | Rechercher | add | Ajouter › Étape 1 | ☑ |
 
 Aucune aide intégrée ne liste ces raccourcis : ils n'apparaissent que dans les toasts de consigne et les `title` des boutons.
 
@@ -319,54 +319,54 @@ Aucune aide intégrée ne liste ces raccourcis : ils n'apparaissent que dans les
 
 | ID | Geste | Contexte | Effet | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|
-| P1 | Glisser (vide) | Toujours | Orbite de la caméra (OrbitControls, sans inertie) | surf | Aide `?` › Caméra ; légende contextuelle | ☐ |
-| P2 | Molette / pincement | Toujours | Zoom | — | Aide `?` › Caméra | ☐ |
-| P3 | Clic droit glissé / deux doigts | Toujours | Panoramique (défaut OrbitControls) | — | Aide `?` › Caméra | ☐ |
-| P4 | Survol | Pièce en main | Aperçu de la pose (surface visée, fantôme compatible, sol) | surf | Aide `?` › En main ; HUD | ☐ |
-| P5 | Clic (≤ 4 px de glissement) | Pièce en main | Poser | surf | Aide `?` › En main ; légende | ☐ |
-| P6 | Clic sur pièce posée | Libre, rien en main | Sélectionner ; Maj+clic : ajouter/retirer | fh | Aide `?` › Libre ; légende | ☐ |
-| P7 | Clic dans le vide | Libre, rien en main | Vider la sélection | fh | Aide `?` › Libre | ☐ |
-| P8 | Double-clic sur une pièce | Libre | Sélectionner l'assemblage connecté | f3d | Aide `?` › Libre ; légende « Double-clic : assemblage » | ☐ |
-| P9 | Appui + glisser sur une pièce posée | Libre, rien en main | Glisser direct (caméra suspendue) ; Maj au départ : ajouter à la sélection | f3d | Aide `?` › Libre | ☐ |
-| P10 | Glisser une flèche / un anneau | Libre, sélection | Gizmo (voir J16) | fg | Aide `?` › Manipulateur | ☐ |
-| P11 | Clic sur pièce | Éditeur de correspondances | Affecter/retirer ; ⌥-clic : déplacer | sync | Aide `?` › Éditeur ; légende de l'éditeur | ☐ |
-| P12 | Repères visuels | Libre | Axes X/Y/Z sur la pièce en main ; points verts des connexions ; grille au sol | fc | Scène, inchangé ; Aide `?` les décrit | ☐ |
+| P1 | Glisser (vide) | Toujours | Orbite de la caméra (OrbitControls, sans inertie) | surf | Aide `?` › Caméra ; légende contextuelle | ☑ |
+| P2 | Molette / pincement | Toujours | Zoom | — | Aide `?` › Caméra | ☑ |
+| P3 | Clic droit glissé / deux doigts | Toujours | Panoramique (défaut OrbitControls) | — | Aide `?` › Caméra | ☑ |
+| P4 | Survol | Pièce en main | Aperçu de la pose (surface visée, fantôme compatible, sol) | surf | Aide `?` › En main ; HUD | ☑ |
+| P5 | Clic (≤ 4 px de glissement) | Pièce en main | Poser | surf | Aide `?` › En main ; légende | ☑ |
+| P6 | Clic sur pièce posée | Libre, rien en main | Sélectionner ; Maj+clic : ajouter/retirer | fh | Aide `?` › Libre ; légende | ☑ |
+| P7 | Clic dans le vide | Libre, rien en main | Vider la sélection | fh | Aide `?` › Libre | ☑ |
+| P8 | Double-clic sur une pièce | Libre | Sélectionner l'assemblage connecté | f3d | Aide `?` › Libre ; légende « Double-clic : assemblage » | ☑ |
+| P9 | Appui + glisser sur une pièce posée | Libre, rien en main | Glisser direct (caméra suspendue) ; Maj au départ : ajouter à la sélection | f3d | Aide `?` › Libre | ☑ |
+| P10 | Glisser une flèche / un anneau | Libre, sélection | Gizmo (voir J16) | fg | Aide `?` › Manipulateur | ☑ |
+| P11 | Clic sur pièce | Éditeur de correspondances | Affecter/retirer ; ⌥-clic : déplacer | sync | Aide `?` › Éditeur ; légende de l'éditeur | ☑ |
+| P12 | Repères visuels | Libre | Axes X/Y/Z sur la pièce en main ; points verts des connexions ; grille au sol | fc | Scène, inchangé ; Aide `?` les décrit | ☑ |
 
 ## Q. États transverses
 
 | ID | État | Où | Rendu actuel | E2E | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|---|
-| Q1 | Chargement d'une vue (chunk) | Toutes les routes | « Chargement… » brut (padding 24 px) | — | Squelette de page | ☐ |
+| Q1 | Chargement d'une vue (chunk) | Toutes les routes | « Chargement… » brut (padding 24 px) | — | Indicateur de chargement (spinner + texte) pendant le chargement de chaque vue | ☑ |
 | Q2 | Chargement de la collection | `/` | Rien jusqu'à la réponse (pas d'état vide ni de squelette) | — | Collection › squelettes de cartes | ☑ |
 | Q3 | Collection vide | `/` | B13 | lib, filet | Collection › écran d'accueil de premier lancement | ☑ |
 | Q4 | Erreur de bibliothèque | `/`, `/sets/…` | Bannière rouge role=alert | — | Bannière d'alerte avec « Réessayer » | ☐ |
-| Q5 | Chargement d'un modèle (atelier autonome) | `/atelier` | Texte `busy` | brick | Atelier › écran de chargement (indicateur + étape en cours) | ☐ |
-| Q6 | Chargement d'une construction | `/atelier/[id]` | E1 (texte) | lib | Atelier › écran de chargement (étapes listées) | ☐ |
-| Q7 | Modèle invalide | Atelier | Badge « Invalide », raisons, diagnostics, aucun bouton de démarrage | — | Atelier › onglet Démarrer : badge Invalide + raisons, aucune carte de mode active | ☐ |
-| Q8 | Modèle analysable, géométrie manquante | Atelier | Badge ambre, `missing-parts`, G14 | brick, filet | Atelier › onglet Démarrer : badge, alerte Pièces absentes, « Visualisation seulement » | ☐ |
-| Q9 | Modèle sans étapes | Atelier | Badge « Montage libre uniquement », G12 | brick | Atelier › onglet Démarrer : carte Guidé désactivée avec la raison | ☐ |
-| Q10 | **Bibliothèque LDraw absente ou mal configurée** | Atelier, aperçus | « Rendu indisponible : Variable LDRAW_LIBRARY_DIR absente. » / « LDConfig.ldr introuvable… » / « Dossier de bibliothèque illisible. » / « Serveur local injoignable. » en rouge dans la zone 3D et `render-status` ; aperçus : « Aperçu indisponible : … » | filet | Atelier › scène : écran « Bibliothèque de pièces introuvable » (raison, étapes d'installation, Réessayer) ; collection : carte d'accueil ; aperçus : même message | ☐ |
+| Q5 | Chargement d'un modèle (atelier autonome) | `/atelier` | Texte `busy` | brick | Atelier › écran de chargement (indicateur + étape en cours) | ☑ |
+| Q6 | Chargement d'une construction | `/atelier/[id]` | E1 (texte) | lib | Atelier › écran de chargement (étapes listées) | ☑ |
+| Q7 | Modèle invalide | Atelier | Badge « Invalide », raisons, diagnostics, aucun bouton de démarrage | — | Atelier › onglet Démarrer : badge Invalide + raisons, aucune carte de mode active | ☑ |
+| Q8 | Modèle analysable, géométrie manquante | Atelier | Badge ambre, `missing-parts`, G14 | brick, filet | Atelier › onglet Démarrer : badge, alerte Pièces absentes, « Visualisation seulement » | ☑ |
+| Q9 | Modèle sans étapes | Atelier | Badge « Montage libre uniquement », G12 | brick | Atelier › onglet Démarrer : carte Guidé désactivée avec la raison | ☑ |
+| Q10 | **Bibliothèque LDraw absente ou mal configurée** | Atelier, aperçus | « Rendu indisponible : Variable LDRAW_LIBRARY_DIR absente. » / « LDConfig.ldr introuvable… » / « Dossier de bibliothèque illisible. » / « Serveur local injoignable. » en rouge dans la zone 3D et `render-status` ; aperçus : « Aperçu indisponible : … » | filet | Atelier › scène : écran « Bibliothèque de pièces introuvable » (raison, étapes d'installation, Réessayer) ; collection : carte d'accueil ; aperçus : même message | ☑ |
 | Q11 | **Mode hors ligne** (`BRICK_LAB_ONLINE=0`) | `/ajouter` | Bouton « Chercher en ligne » absent, remplacé par « Accès Internet désactivé. » ; l'import local reste complet | filet | Ajouter › Étape 1 : note « Accès Internet désactivé. Recherche en ligne et téléchargements coupés (BRICK_LAB_ONLINE=0) ; l’import local reste complet. », icône Wi-Fi barré | ☑ |
 | Q12 | Rebrickable non configuré | `/ajouter` | Message dans `source-rebrickable` | add | Ajouter › Étape 1, source Rebrickable | ☑ |
 | Q13 | Source en ligne indisponible | `/ajouter` | `omr-status` (ex. 503) | add | Ajouter › Étape 1, source OMR (statut d'erreur) | ☑ |
-| Q14 | Sauvegarde en cours / enregistrée / erreur / conflit | Atelier bibliothèque | F7, F8 | lib | Atelier › Barre d'app (état de sauvegarde) + bannière de conflit | ☐ |
-| Q15 | Stockage navigateur plein | Atelier autonome | Toast « Sauvegarde locale des correspondances impossible… » | — | Toast d'erreur | ☐ |
+| Q14 | Sauvegarde en cours / enregistrée / erreur / conflit | Atelier bibliothèque | F7, F8 | lib | Atelier › Barre d'app (état de sauvegarde) + bannière de conflit | ☑ |
+| Q15 | Stockage navigateur plein | Atelier autonome | Toast « Sauvegarde locale des correspondances impossible… » | — | Toast d'erreur | ☑ |
 | Q16 | PDF trop gros / protégé / invalide | Panneau Notice | Erreur role=alert | — | Atelier › panneau Notice, alerte | ☐ |
-| Q17 | Partie terminée | Atelier | H6 / J29 | brick, fb | Atelier › panneau, écran de fin | ☐ |
+| Q17 | Partie terminée | Atelier | H6 / J29 | brick, fb | Atelier › bloc de fin dans la zone du bac | ☑ |
 | Q18 | Set inexistant | `/sets/…` | Texte + lien retour | — | Détail › état vide (« Ce set n'est pas (ou plus) dans ta collection ») | ☐ |
 
 ## R. Comportements invisibles à préserver (non UI mais déclenchés par l'UI)
 
 | ID | Comportement | Où | Note | Nouvel emplacement | Vérifié |
 |---|---|---|---|---|---|
-| R1 | Sauvegarde après chaque changement de partie ou de page PDF | `BrickLabApp` effet `saveProgress` | Dépend de `session`, `notice.view`, `mapping` | Inchangé | ☐ |
-| R2 | Flush à la sortie (`pagehide`, démontage) | `BrickLabApp` | — | Inchangé | ☐ |
-| R3 | Hooks de test `window.__brickLab*` | `BrickLabApp`, `BuildCanvas` (dev uniquement) | Indispensables au « joueur scripté » E2E | Inchangé (conservés) | ☐ |
-| R4 | Largeur du panneau mémorisée par contexte | `localStorage` `LAYOUT_STORAGE_KEY` | Préférence navigateur | Inchangé (+ état replié du panneau) | ☐ |
-| R5 | « Garder la bibliothèque » mémorisé par build | `localStorage` `brick-lab:library-kept:` | — | Inchangé | ☐ |
-| R6 | Le pointeur sur la vue 3D ne re-rend l'atelier que si l'aimant change | `updatePreview` (`snapInfoKey`) | Performance : à ne pas casser | Inchangé (aucun état d'UI ajouté au survol) | ☐ |
-| R7 | Taille fixe du bac (188 px) | CSS `.tray` | Un bac qui change de taille désynchronise le picking 3D (P5) | Inchangé (`--tray-h`) | ☐ |
-| R8 | Aucune requête sortante hors actions D6/D8 | — | Vérifié par `brick` (PDF) | Inchangé | ☐ |
+| R1 | Sauvegarde après chaque changement de partie ou de page PDF | `BrickLabApp` effet `saveProgress` | Dépend de `session`, `notice.view`, `mapping` | Inchangé | ☑ |
+| R2 | Flush à la sortie (`pagehide`, démontage) | `BrickLabApp` | — | Inchangé | ☑ |
+| R3 | Hooks de test `window.__brickLab*` | `BrickLabApp`, `BuildCanvas` (dev uniquement) | Indispensables au « joueur scripté » E2E | Inchangé (conservés) | ☑ |
+| R4 | Largeur du panneau mémorisée par contexte | `localStorage` `LAYOUT_STORAGE_KEY` | Préférence navigateur | Inchangé (+ état replié du panneau) | ☑ |
+| R5 | « Garder la bibliothèque » mémorisé par build | `localStorage` `brick-lab:library-kept:` | — | Inchangé | ☑ |
+| R6 | Le pointeur sur la vue 3D ne re-rend l'atelier que si l'aimant change | `updatePreview` (`snapInfoKey`) | Performance : à ne pas casser | Inchangé (aucun état d'UI ajouté au survol) | ☑ |
+| R7 | Taille fixe du bac (188 px) | CSS `.tray` | Un bac qui change de taille désynchronise le picking 3D (P5) | Inchangé (`--tray-h`) | ☑ |
+| R8 | Aucune requête sortante hors actions D6/D8 | — | Vérifié par `brick` (PDF) | Inchangé | ☑ |
 
 ---
 

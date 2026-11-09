@@ -78,8 +78,14 @@ test.describe('atelier sans collection', () => {
     await assistPlace(page);
     await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
     expect(await progressKeys(page)).toHaveLength(1);
-    // before the redesign: no confirmation in the standalone atelier (decision A5 adds one, this test follows)
+    // before the redesign there was no confirmation here; decision A5 adds one (cancel keeps everything)
     await page.getByRole('button', { name: 'Abandonner' }).click();
+    await expect(page.getByTestId('confirm-restart')).toContainText('La progression (1/4) sera retirée de cette partie et effacée de ce navigateur');
+    await page.getByTestId('confirm-restart').getByRole('button', { name: 'Annuler' }).click();
+    await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
+    expect(await progressKeys(page)).toHaveLength(1);
+    await page.getByRole('button', { name: 'Abandonner' }).click();
+    await page.getByTestId('confirm-restart').getByRole('button', { name: 'Confirmer l’abandon' }).click();
     await expect(page.getByTestId('progress')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Commencer — mode guidé' })).toBeVisible();
     expect(await progressKeys(page)).toHaveLength(0);
@@ -89,6 +95,41 @@ test.describe('atelier sans collection', () => {
     await expect(page.getByTestId('render-status')).toContainText('Géométrie LDraw', { timeout: 60_000 });
     await expect(page.getByRole('button', { name: 'Commencer — mode guidé' })).toBeVisible();
     await expect(page.getByTestId('message')).toHaveCount(0);
+  });
+
+  test('atelier (refonte) : modes expliqués, aide « ? », légende de la scène, panneau repliable', async ({ page }) => {
+    await openStandalone(page, MINI);
+    // before a game: one card per mode; the unavailable one says why and has no button
+    await expect(page.getByTestId('start-synced')).toContainText('aucune correspondance');
+    await expect(page.getByTestId('start-synced').getByRole('button')).toHaveCount(0);
+    await expect(page.getByTestId('start-guided').getByRole('button', { name: 'Commencer — mode guidé' })).toBeVisible();
+    await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+    // the mode switch shows the unavailable mode, disabled, with its reason
+    const synced = page.getByTestId('mode-select').locator('[data-value="synced"]');
+    await expect(synced).toHaveAttribute('aria-disabled', 'true');
+    await expect(synced).toHaveAttribute('data-tip', /indisponible/);
+    await expect(page.getByTestId('mode-select').locator('[data-value="guided"]')).toHaveAttribute('aria-checked', 'true');
+    // instructions in the scene legend, results in the toast
+    await expect(page.getByTestId('scene-hint')).toContainText('Mode guidé');
+    await page.locator('.tray-item').first().click();
+    await expect(page.getByTestId('scene-hint')).toContainText('Survole le modèle');
+    await expect(page.getByTestId('message')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    // « ? »: every shortcut, closed with Escape
+    await page.keyboard.press('?');
+    await expect(page.getByTestId('help-dialog')).toContainText('Double-clic');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-dialog')).toHaveCount(0);
+    // the side panel folds away and comes back; the 3D picking stays in sync with the canvas
+    await page.getByRole('button', { name: 'Replier le panneau' }).click();
+    await expect(page.locator('main.workspace')).toHaveAttribute('data-panel', 'collapsed');
+    await expect(page.locator('#panneau')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__brickLab!.sizeInSync())).toBe(true);
+    await page.getByRole('button', { name: 'Afficher le panneau' }).click();
+    await expect(page.locator('#panneau')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__brickLab!.sizeInSync())).toBe(true);
+    await assistPlace(page);
+    await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
   });
 
   test('montage libre : la touche G bascule la grille, Q les axes du manipulateur', async ({ page }) => {
@@ -156,6 +197,9 @@ test.describe('atelier sans collection', () => {
     await expect(page.getByTestId('quality')).toContainText('Analysable');
     await expect(page.getByText('Visualisation seulement tant que des pièces manquent.')).toBeVisible();
     await expect(page.getByTestId('build-canvas')).toHaveCount(0);
+    // redesign: the 3D area says what to do (installation steps), not only what is wrong
+    await expect(page.getByTestId('ldraw-setup')).toContainText('Bibliothèque de pièces introuvable');
+    await expect(page.getByTestId('ldraw-setup')).toContainText('npm run check:ldraw');
     for (const name of ['Commencer — mode guidé', 'Commencer — notice synchronisée', 'Montage libre (avec notice)']) {
       await expect(page.getByRole('button', { name })).toHaveCount(0);
     }

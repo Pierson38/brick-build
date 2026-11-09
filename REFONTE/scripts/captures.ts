@@ -161,7 +161,7 @@ async function normalRun() {
   await page.getByTestId('mapping-status').waitFor();
   await shot(page, '14-atelier-editeur-correspondances');
   await page.getByRole('button', { name: 'Terminer l’édition' }).click();
-  await page.getByTestId('mode-select').selectOption('freeManual');
+  await page.getByTestId('mode-select').locator('[data-value="freeManual"]').click();
   await page.locator('.tray-item').first().click();
   const f = await canvasCentre(page);
   await page.mouse.move(f.x + 60, f.y + 40);

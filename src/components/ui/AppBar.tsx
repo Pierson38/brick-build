@@ -13,7 +13,7 @@ export function ThemeToggle() {
   const next = nextTheme(choice);
   const label = `Thème : ${THEME_LABEL[choice]} (passer à ${THEME_LABEL[next]})`;
   return (
-    <button type="button" className="ghost icon" aria-label={label} data-tip={label} data-tip-side="bottom" data-testid="theme-toggle" onClick={() => choose(next)}>
+    <button type="button" className="ghost icon" aria-label={label} data-tip={label} data-tip-side="bottom" data-tip-align="end" data-testid="theme-toggle" onClick={() => choose(next)}>
       {THEME_ICON[choice]}
     </button>
   );

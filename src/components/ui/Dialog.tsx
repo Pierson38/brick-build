@@ -5,10 +5,15 @@ import { X } from 'lucide-react';
 
 /**
  * Modal dialog on the native <dialog>: focus trapped and Escape handled by the browser (same in
- * Chromium and WebKit), focus given back to the opener on close. `onClose` runs on Escape, on the
- * close button and on a click on the backdrop.
+ * Chromium and WebKit). Mounted only while open (a closed dialog leaves nothing in the page) and
+ * the focus goes back to what had it before. `onClose` runs on Escape, on the close button and on
+ * a click on the backdrop.
  */
-export function Dialog({ open, title, onClose, children, footer, wide = false, testId }: {
+export function Dialog(props: DialogProps) {
+  return props.open ? <OpenDialog {...props} /> : null;
+}
+
+interface DialogProps {
   open: boolean;
   title: ReactNode;
   onClose: () => void;
@@ -16,15 +21,20 @@ export function Dialog({ open, title, onClose, children, footer, wide = false, t
   footer?: ReactNode;
   wide?: boolean;
   testId?: string;
-}) {
+}
+
+function OpenDialog({ title, onClose, children, footer, wide = false, testId }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
     const d = ref.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
-  }, [open]);
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (d && !d.open) d.showModal();
+    return () => {
+      if (d?.open) d.close();
+      previous?.focus();
+    };
+  }, []);
   return (
     <dialog
       ref={ref}
@@ -34,17 +44,13 @@ export function Dialog({ open, title, onClose, children, footer, wide = false, t
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {open && (
-        <>
-          <div className="dialog-head">
-            <h2 id={titleId}>{title}</h2>
-            <span className="spacer" />
-            <button type="button" className="ghost icon small" aria-label="Fermer" onClick={onClose}><X size={16} aria-hidden /></button>
-          </div>
-          <div className="dialog-body">{children}</div>
-          {footer && <div className="dialog-foot">{footer}</div>}
-        </>
-      )}
+      <div className="dialog-head">
+        <h2 id={titleId}>{title}</h2>
+        <span className="spacer" />
+        <button type="button" className="ghost icon small" aria-label="Fermer" onClick={onClose}><X size={16} aria-hidden /></button>
+      </div>
+      <div className="dialog-body">{children}</div>
+      {footer && <div className="dialog-foot">{footer}</div>}
     </dialog>
   );
 }

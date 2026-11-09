@@ -158,3 +158,15 @@ Détail : [CORRECTION_BLOC_31039.md](CORRECTION_BLOC_31039.md).
 | La pose montrée et la pose enregistrée sont identiques | À 1e-14 près seulement : l'aperçu ajoutait le déplacement de l'aimant sans arrondi, la sauvegarde arrondit au centième. → Aperçu arrondi au centième ; repère d'un réceptacle en main arrondi comme les autres connecteurs. | E2E `free-sunk-studs`, unitaire « markers … rounded » |
 | Corriger le moteur réaligne les constructions | Non, et non voulu : les poses enregistrées ne changent pas. Les pièces décalées ne sont simplement plus comptées comme emboîtées. | rapport 31039 sur la copie (252 → 226) |
 
+## Journal — 09/11/2026, refonte de l'interface (branche `claude/brick-lab-ui-refonte-188be7`)
+
+Refonte de la présentation et des parcours, sans changer ce que fait l'application ; audit, inventaire et arbitrages dans `REFONTE/` (décisions A1 à A11 validées par le propriétaire le 09/11/2026, `REFONTE/proposition-design.md` § 9). Seuls les points ci-dessous modifient un comportement visible.
+
+| Hypothèse | Constat / décision | Preuve |
+|---|---|---|
+| « Abandonner » sans confirmation est acceptable dans l'atelier sans collection | Non : un clic effaçait la partie du navigateur sans retour (audit U1). → Confirmation dans une modale dans les deux ateliers (A5) ; « Annuler » garde tout. `surface-placement` et `filet-refonte` cliquent la confirmation. | E2E `filet-refonte`, `surface-placement` |
+| Un mode indisponible doit disparaître du sélecteur | Pour la lisibilité, il reste affiché, désactivé, avec sa raison (A3) ; il n'est jamais jouable. Les tests vérifient « non proposé » par `aria-disabled` au lieu de l'absence de l'option. | E2E `instructions-sync` (mode synchronisé non proposé) |
+| Les consignes de manipulation ont leur place dans le toast | Non : elles masquaient les résultats et vieillissaient (U10). → Consignes calculées dans une légende de la scène, toast réservé aux résultats ; textes inchangés (A6). Aucune assertion E2E ne portait sur les consignes déplacées. | E2E `filet-refonte` (légende / toast) |
+| La démo exige un fichier de l'utilisateur | « Essayer la démo » ouvre `fixtures/mini-4-pieces.mpd` (CC0) embarqué, dans l'atelier sans collection : rien n'est ajouté à la bibliothèque, aucune requête (A4). | unitaire `demo-model`, E2E `filet-refonte` |
+| Le fond de la scène 3D est une couleur du rendu | Le canvas est désormais transparent ; le fond vient du token `--scene-bg` du conteneur (thème clair/sombre). Les nouvelles vignettes sont capturées sans grille ni fond ; les vignettes existantes gardent leur ancien fond. | E2E `atelier-ux` (sizeInSync), perf inchangée |
+| Les couleurs de fantôme et de sélection suivent le thème | Pas encore : elles sont dans `src/infra/ldraw/part-catalog.ts`, hors du périmètre accordé (A8). | — |

@@ -187,7 +187,7 @@ test('3D picking stays exact after several resizes (guided, then free)', async (
     await dropAt(page, i);
     await expect(page.getByTestId('progress')).toHaveText(`${i + 1}/8 pièces posées`);
   }
-  await page.getByTestId('mode-select').selectOption('freeManual');
+  await page.getByTestId('mode-select').locator('[data-value="freeManual"]').click();
   await dragSplitter(page, -120);
   await page.setViewportSize({ width: 1280, height: 800 });
   for (const i of [4, 5]) await dropAt(page, i);
