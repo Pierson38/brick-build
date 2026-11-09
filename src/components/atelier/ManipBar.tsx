@@ -32,17 +32,34 @@ function Tool({ testId, icon, label, tip, onClick, pressed, disabled, tipAlign, 
   );
 }
 
-function Rotations({ onRotate }: { onRotate: (axis: Axis, dir: 1 | -1) => void }) {
+/** Rotation steps offered (degrees), from the quarter turn down to one degree. */
+const ROTATION_STEPS = [90, 45, 15, 5, 1] as const;
+
+interface RotationProps {
+  onRotate: (axis: Axis, dir: 1 | -1) => void;
+  /** Degrees per click / key press, shared with the rings of the manipulator. */
+  rotationStep: number;
+  onRotationStep: (deg: number) => void;
+}
+
+function Rotations({ onRotate, rotationStep, onRotationStep }: RotationProps) {
+  const d = rotationStep;
   return (
-    <span className="rotations" role="group" aria-label="Rotations d’un quart de tour">
-      <span className="rot-unit" aria-hidden>90°</span>
+    <span className="rotations" role="group" aria-label={`Rotations de ${d}°`}>
+      <span className="segmented rot-steps" role="group" aria-label="Pas de rotation">
+        {ROTATION_STEPS.map((deg) => (
+          <button key={deg} type="button" data-testid={`rot-step-${deg}`} aria-pressed={d === deg} aria-label={`Pas de ${deg}°`}
+            data-tip-side="bottom" data-tip={deg === 90 ? 'Quart de tour (boutons, touches X/Y/Z, anneaux)' : `Tourner par pas de ${deg}° (boutons, touches X/Y/Z, anneaux)`}
+            onClick={() => onRotationStep(deg)}>{deg}°</button>
+        ))}
+      </span>
       {(['x', 'y', 'z'] as const).map((axis) => {
         const A = axis.toUpperCase();
         return (
           <span key={axis} className={`axis axis-${axis}`}>
             <b aria-hidden>{A}</b>
-            <button type="button" data-testid={`rot-${axis}-minus`} aria-label={`−90° autour de ${A}`} data-tip-side="bottom" data-tip={`−90° autour de ${A} (Maj+${A})`} onClick={() => onRotate(axis, -1)}>−</button>
-            <button type="button" data-testid={`rot-${axis}-plus`} aria-label={`+90° autour de ${A}`} data-tip-side="bottom" data-tip={`+90° autour de ${A} (${A})`} onClick={() => onRotate(axis, 1)}>+</button>
+            <button type="button" data-testid={`rot-${axis}-minus`} aria-label={`−${d}° autour de ${A}`} data-tip-side="bottom" data-tip={`−${d}° autour de ${A} (Maj+${A})`} onClick={() => onRotate(axis, -1)}>−</button>
+            <button type="button" data-testid={`rot-${axis}-plus`} aria-label={`+${d}° autour de ${A}`} data-tip-side="bottom" data-tip={`+${d}° autour de ${A} (${A})`} onClick={() => onRotate(axis, 1)}>+</button>
           </span>
         );
       })}
@@ -52,8 +69,8 @@ function Rotations({ onRotate }: { onRotate: (axis: Axis, dir: 1 | -1) => void }
 
 const Sep = () => <span className="sep" aria-hidden />;
 
-/** Piece (or group) in hand: height, quarter turns, back to the stock, let go. */
-export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep, onAuto, onRotate, onRemove, onCancel }: {
+/** Piece (or group) in hand: height, rotations, back to the stock, let go. */
+export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep, onAuto, onRotate, rotationStep, onRotationStep, onRemove, onCancel }: RotationProps & {
   /** A placed piece or a group taken back (it can go back to the stock, Escape leaves it in place). */
   moving: boolean;
   autoHeight: boolean;
@@ -62,7 +79,6 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
   onLift: (dir: 1 | -1) => void;
   onStep: (ldu: number) => void;
   onAuto: () => void;
-  onRotate: (axis: Axis, dir: 1 | -1) => void;
   onRemove: () => void;
   onCancel: () => void;
 }) {
@@ -78,7 +94,7 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
         <Tool testId="height-auto" icon={<ArrowDownToLine size={16} aria-hidden />} label="Auto" tip="Hauteur auto : revenir à la surface visée (A)" onClick={onAuto} disabled={autoHeight} />
       </span>
       <Sep />
-      <Rotations onRotate={onRotate} />
+      <Rotations onRotate={onRotate} rotationStep={rotationStep} onRotationStep={onRotationStep} />
       <Sep />
       {moving && <Tool testId="remove-piece" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />}
       <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label={moving ? 'Laisser en place' : 'Lâcher'} tip={moving ? 'Laisser en place (Échap)' : 'Lâcher la pièce (Échap)'} onClick={onCancel} tipAlign="end" />
@@ -86,13 +102,12 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
   );
 }
 
-/** Selection: the manipulator (arrows or rings, axes), quarter turns, actions; the fine settings in a second row. */
-export function SelectionBar({ gizmoMode, gizmoSpace, onGizmoMode, onGizmoSpace, onRotate, onMove, onAssembly, onRemove, onClear, settingsOpen, onSettings, settings }: {
+/** Selection: the manipulator (arrows or rings, axes), rotations, actions; the fine settings in a second row. */
+export function SelectionBar({ gizmoMode, gizmoSpace, onGizmoMode, onGizmoSpace, onRotate, rotationStep, onRotationStep, onMove, onAssembly, onRemove, onClear, settingsOpen, onSettings, settings }: RotationProps & {
   gizmoMode: 'translate' | 'rotate';
   gizmoSpace: 'world' | 'local';
   onGizmoMode: (m: 'translate' | 'rotate') => void;
   onGizmoSpace: (s: 'world' | 'local') => void;
-  onRotate: (axis: Axis, dir: 1 | -1) => void;
   onMove: () => void;
   onAssembly: () => void;
   onRemove: () => void;
@@ -115,12 +130,12 @@ export function SelectionBar({ gizmoMode, gizmoSpace, onGizmoMode, onGizmoSpace,
         <Tool iconOnly testId="gizmo-local" icon={<Axis3d size={16} aria-hidden />} label="Locaux" tip="Axes de la pièce tournée (Q)" pressed={gizmoSpace === 'local'} onClick={() => onGizmoSpace('local')} />
       </span>
       <Sep />
-      <Rotations onRotate={onRotate} />
+      <Rotations onRotate={onRotate} rotationStep={rotationStep} onRotationStep={onRotationStep} />
       <Sep />
       <Tool testId="move-selection" icon={<Hand size={16} aria-hidden />} label="Déplacer" tip="Prendre la sélection en main (M)" onClick={onMove} />
       <Tool testId="select-assembly" icon={<Boxes size={16} aria-hidden />} label="Assemblage" tip="Toutes les pièces emboîtées, même cachées (double-clic)" onClick={onAssembly} />
       <Tool testId="remove-selection" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />
-      <button type="button" data-testid="manip-settings" aria-expanded={settingsOpen} aria-controls={settingsId} data-tip="Pas, angle et coordonnées" data-tip-side="bottom" data-tip-align="end" onClick={onSettings}>
+      <button type="button" data-testid="manip-settings" aria-expanded={settingsOpen} aria-controls={settingsId} data-tip="Pas des flèches et coordonnées" data-tip-side="bottom" data-tip-align="end" onClick={onSettings}>
         <span className="ico"><Settings2 size={16} aria-hidden /></span><span className="visually-hidden">Réglages</span>
       </button>
       <Tool iconOnly testId="clear-selection" icon={<X size={16} aria-hidden />} label="Désélectionner" tip="Désélectionner (Échap)" onClick={onClear} tipAlign="end" />

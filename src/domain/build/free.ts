@@ -404,17 +404,47 @@ export const sameRef = (a: PieceRef, b: PieceRef): boolean =>
   a.kind === b.kind && (a.kind === 'free' ? a.id === (b as { id: string }).id : a.occurrenceId === (b as { occurrenceId: string }).occurrenceId);
 
 // ---------------------------------------------------------------------------------------------
-// Rotations on the three axes (free mode): exact quarter turns, composed by matrix products
+// Rotations on the three axes (free mode): exact quarter turns, any whole number of degrees,
+// composed by matrix products and re-orthonormalized so that repeated small turns never drift
 // ---------------------------------------------------------------------------------------------
 
 export type Axis = 'x' | 'y' | 'z';
 
+/** Rotation steps offered to the player (degrees): quarter turns by default, down to one degree. */
+export const ROTATION_STEPS_DEG = [90, 45, 15, 5, 1] as const;
+export type RotationStepDeg = (typeof ROTATION_STEPS_DEG)[number];
+export const isRotationStep = (v: number): v is RotationStepDeg => (ROTATION_STEPS_DEG as readonly number[]).includes(v);
+
 /** Exact −1 / 0 / 1 when within 1e-9: quarter-turn compositions never drift. */
 const exact = (v: number) => (Math.abs(v) < 1e-9 ? 0 : Math.abs(v - 1) < 1e-9 ? 1 : Math.abs(v + 1) < 1e-9 ? -1 : v);
 
+type Col = [number, number, number];
+const colOf = (m: readonly number[], c: number): Col => [m[c * 4]!, m[c * 4 + 1]!, m[c * 4 + 2]!];
+const dotC = (a: Col, b: Col) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const minus = (a: Col, b: Col, k: number): Col => [a[0] - k * b[0], a[1] - k * b[1], a[2] - k * b[2]];
+const unit = (a: Col): Col => { const n = Math.hypot(...a); return [a[0] / n, a[1] / n, a[2] / n]; };
+
+/**
+ * Gram-Schmidt on the three columns when the rotation is ALREADY orthonormal within 1e-2: the float
+ * error of a product (and the 1e-6 rounding of storage) is wiped out, a mirror stays a mirror; a
+ * matrix far from a rotation (scaled part of a model) is returned untouched.
+ */
+function orthonormalized(m: Matrix4Tuple): Matrix4Tuple {
+  const [x, y, z] = [colOf(m, 0), colOf(m, 1), colOf(m, 2)];
+  const tol = 1e-2;
+  if ([x, y, z].some((v) => Math.abs(dotC(v, v) - 1) > tol)) return m;
+  if (Math.abs(dotC(x, y)) > tol || Math.abs(dotC(y, z)) > tol || Math.abs(dotC(x, z)) > tol) return m;
+  const ux = unit(x);
+  const uy = unit(minus(y, ux, dotC(y, ux)));
+  const uz = unit(minus(minus(z, ux, dotC(z, ux)), uy, dotC(z, uy)));
+  const out = [...m];
+  for (const [c, v] of [[0, ux], [1, uy], [2, uz]] as const) for (let r = 0; r < 3; r++) out[c * 4 + r] = v[r]!;
+  return out as unknown as Matrix4Tuple;
+}
+
 /** A pose whose rotation coefficients are cleaned (translation untouched). */
 export function cleanPose(m: Matrix4Tuple): Matrix4Tuple {
-  const out = [...m];
+  const out = [...orthonormalized(m)];
   for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) out[i] = exact(out[i]!);
   return out as unknown as Matrix4Tuple;
 }
@@ -428,9 +458,23 @@ export function quarterTurn(axis: Axis, steps: number): Matrix4Tuple {
   return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 }
 
-/** Orientation turned around a world axis through the piece origin (no translation). */
-export function rotateOrientation(orientation: Matrix4Tuple, axis: Axis, steps: number): Matrix4Tuple {
-  return cleanPose(withTranslation(multiply(quarterTurn(axis, steps), orientation), [0, 0, 0]));
+/**
+ * `degrees` around the LDraw axis, same sense as quarterTurn (+90° = quarterTurn(axis, 1)).
+ * A multiple of 90° is the exact quarter turn; any other angle is a plain cos / sin rotation.
+ */
+export function axisTurn(axis: Axis, degrees: number): Matrix4Tuple {
+  if (!Number.isFinite(degrees)) throw new RangeError('angle non fini');
+  if (degrees % 90 === 0) return quarterTurn(axis, degrees / 90);
+  const a = (degrees * Math.PI) / 180;
+  const c = Math.cos(a), s = Math.sin(a);
+  if (axis === 'y') return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1];
+  if (axis === 'x') return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1];
+  return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+}
+
+/** Orientation turned by `steps` × `stepDeg` around a world axis through the piece origin (no translation). */
+export function rotateOrientation(orientation: Matrix4Tuple, axis: Axis, steps: number, stepDeg = 90): Matrix4Tuple {
+  return cleanPose(withTranslation(multiply(axisTurn(axis, steps * stepDeg), orientation), [0, 0, 0]));
 }
 
 const DIRECTIONS: [string, readonly [number, number, number]][] = [['haut', [0, -1, 0]], ['bas', [0, 1, 0]], ['+X', [1, 0, 0]], ['−X', [-1, 0, 0]], ['+Z', [0, 0, 1]], ['−Z', [0, 0, -1]]];

@@ -5,6 +5,7 @@ import {
   FREE_TARGET_MAGNET, atModelCount, groupPoses, isRigidPose, isStockExhausted, liftedY, makeGroup, matchToModel, moveGroup, movePiece, occupiedView,
   placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
   groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace, snapAlong, applyDelta, shownCoords, deltaTo,
+  axisTurn, cleanPose, isRotationStep, ROTATION_STEPS_DEG,
 } from '@/domain/build/free';
 import { restoreProgress, serializeProgress } from '@/domain/build/progress';
 import { bottomExtent, type HeldState, type HoverHit, type Ray } from '@/domain/build/surface';
@@ -456,6 +457,90 @@ describe('A — rotations on X, Y and Z (free mode)', () => {
     // atomic, stock unchanged
     const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
     expect(r.ok && usedCount(r.session)).toBe(3);
+  });
+});
+
+describe('rotation to the degree (free mode)', () => {
+  const rot = (m: Matrix4Tuple) => [m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]];
+  const orthoError = (m: Matrix4Tuple) => {
+    const c = (i: number) => [m[i * 4]!, m[i * 4 + 1]!, m[i * 4 + 2]!];
+    const dot = (a: number[], b: number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!;
+    return Math.max(...[0, 1, 2].map((i) => Math.abs(dot(c(i), c(i)) - 1)), Math.abs(dot(c(0), c(1))), Math.abs(dot(c(1), c(2))), Math.abs(dot(c(0), c(2))));
+  };
+
+  it('the steps offered go from the quarter turn down to one degree; anything else is refused', () => {
+    expect([...ROTATION_STEPS_DEG]).toEqual([90, 45, 15, 5, 1]);
+    expect(isRotationStep(1)).toBe(true);
+    expect(isRotationStep(7)).toBe(false);
+    expect(isRotationStep(Number.NaN)).toBe(false);
+  });
+
+  it('a multiple of 90° is the exact quarter turn; any other angle turns by exactly that angle, in the same sense', () => {
+    for (const axis of ['x', 'y', 'z'] as const) {
+      expect(axisTurn(axis, 90)).toEqual(quarterTurn(axis, 1));
+      expect(axisTurn(axis, -270)).toEqual(quarterTurn(axis, 1));
+      expect(rotationAngleDeg(IDENTITY, axisTurn(axis, 1))).toBeCloseTo(1, 9);
+      expect(rotationAngleDeg(IDENTITY, axisTurn(axis, 37))).toBeCloseTo(37, 9);
+      // three times 30° = the quarter turn (same sense as the ± buttons had)
+      const thrice = multiply(axisTurn(axis, 30), multiply(axisTurn(axis, 30), axisTurn(axis, 30)));
+      rot(thrice).forEach((v, i) => expect(v).toBeCloseTo(rot(quarterTurn(axis, 1))[i]!, 12));
+    }
+    expect(() => axisTurn('y', Number.POSITIVE_INFINITY)).toThrow(RangeError);
+  });
+
+  it('turning 1° at a time: 37 steps = 37°, 360 steps come back to the start exactly', () => {
+    for (const axis of ['x', 'y', 'z'] as const) {
+      let m: Matrix4Tuple = IDENTITY;
+      for (let i = 0; i < 37; i++) m = rotateOrientation(m, axis, 1, 1);
+      expect(rotationAngleDeg(IDENTITY, m)).toBeCloseTo(37, 6);
+      for (let i = 37; i < 360; i++) m = rotateOrientation(m, axis, 1, 1);
+      expect(m).toEqual(IDENTITY);
+      expect(rotateOrientation(rotateOrientation(IDENTITY, axis, 1, 5), axis, -1, 5)).toEqual(IDENTITY);
+    }
+  });
+
+  it('no drift: 3 600 random 1° turns, each stored and read back, stay a rigid pose', () => {
+    let pose = at(100, -24, 40);
+    let seed = 11;
+    for (let i = 0; i < 3600; i++) {
+      seed = (seed * 48271) % 2147483647;
+      const turned = rotateOrientation(pose, (['x', 'y', 'z'] as const)[seed % 3]!, seed % 2 ? 1 : -1, 1);
+      const back = poseFromLDraw(poseToLDraw(withTranslation(turned, [100, -24, 40])));
+      expect(back).not.toBeNull();
+      pose = back!;
+    }
+    expect(isRigidPose(pose)).toBe(true);
+    expect(orthoError(pose)).toBeLessThan(1e-5);
+  });
+
+  it('cleaning a pose never turns a mirror into a rotation nor touches a scaled part of a model', () => {
+    const mirror: Matrix4Tuple = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1];
+    expect(cleanPose(mirror)).toEqual(mirror);
+    const scaled: Matrix4Tuple = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1];
+    expect(cleanPose(scaled)).toEqual(scaled);
+    // a slightly noisy rotation comes out orthonormal
+    const n: number[] = [...axisTurn('y', 1)];
+    n[0] = n[0]! + 1e-5;
+    const noisy = n as unknown as Matrix4Tuple;
+    expect(orthoError(cleanPose(noisy))).toBeLessThan(1e-12);
+  });
+
+  it('a group turned 1° in place keeps every distance and rests by its lowest point; the move is accepted', () => {
+    let s = placed(same, free(), '4', at(200, 0, 0));
+    s = placed(same, s, '4', at(260, 0, 0, 1));
+    const members = s.free!.map((f) => ({ ref: { kind: 'free' as const, id: f.id }, partKey: f.partKey, colorCode: f.colorCode, pose: f.pose, bottom: 24 }));
+    const g = makeGroup(members);
+    const box = [-40, -4, -20, 40, -4, -20, -40, 24, 20, 40, 24, 20, -40, 24, -20, 40, -4, 20];
+    const bottomFn = (_m: unknown, r: Matrix4Tuple) => bottomExtent(box, r);
+    const poses = rotatedInPlace(g, axisTurn('y', 1), bottomFn);
+    const d = (a: Matrix4Tuple, b: Matrix4Tuple) => Math.hypot(a[12] - b[12], a[13] - b[13], a[14] - b[14]);
+    expect(d(poses[0]!, poses[1]!)).toBeCloseTo(d(s.free![0]!.pose, s.free![1]!.pose), 9);
+    expect(rotationAngleDeg(s.free![0]!.pose, poses[0]!)).toBeCloseTo(1, 6);
+    const r = moveGroup(same, s, g.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
+    expect(r.ok).toBe(true);
+    // stored (coefficients at 1e-6): the yaw read back by atan2 is still 1° (acos is too blunt near 0°)
+    const yaw = (m: Matrix4Tuple) => (Math.atan2(m[8], m[0]) * 180) / Math.PI;
+    if (r.ok) expect(yaw(r.session.free![0]!.pose) - yaw(s.free![0]!.pose)).toBeCloseTo(1, 4);
   });
 });
 

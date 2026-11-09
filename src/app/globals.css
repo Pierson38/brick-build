@@ -289,7 +289,7 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 .viewport { container: scene / inline-size; }
 .manip-bar .ico { display: inline-flex; }
 .manip-bar .ico.narrow-only { display: none; }
-.manip-bar .rot-unit { font-size: var(--text-2xs); color: var(--color-ink-3); }
+.manip-bar .rot-steps > button { padding: 0 5px; font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 .manip-bar .axis button { min-width: 26px; justify-content: center; font-size: var(--text-md); }
 @container scene (max-width: 840px) {
   .manip-bar .ico.narrow-only { display: inline-flex; }

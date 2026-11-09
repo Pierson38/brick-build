@@ -38,7 +38,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
   {
     title: 'Montage libre — pièce ou groupe en main',
     items: [
-      ['X / Y / Z (Maj : −90°)', 'Tourner de 90° autour de l’axe'],
+      ['X / Y / Z (Maj : sens inverse)', 'Tourner d’un pas autour de l’axe (pas choisi dans la barre : 90° à 1°)'],
       ['Page ↑ / Page ↓ (Maj : 1 LDU)', 'Monter / descendre d’une plaque'],
       ['Suppr / ⌫', 'Remettre dans le stock (pièce reprise ou groupe)'],
       ['⌥ maintenu', 'Ignorer l’aimant entre pièces'],
