@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="fr" data-dir="a" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brick Lab — directions visuelles</title>
+<!-- Maquette statique de la phase 2 : aucune ressource externe, icônes SVG en ligne (tracés type Lucide). -->
+<style>
+/* ===== Direction A — « Établi » : clair d'abord, papier chaud, encre, vert outil ===== */
+[data-dir="a"][data-theme="light"] {
+  --bg: #f6f4f0; --surface: #ffffff; --surface-2: #efece6; --surface-3: #e7e3db; --border: #e2ddd4; --border-strong: #cfc8bc;
+  --ink: #1e1b16; --ink-2: #5c564c; --ink-3: #7d766a;
+  --accent: #1e6b5c; --accent-hover: #175549; --accent-ink: #ffffff; --accent-soft: #dcefe9; --accent-line: #9fd1c3;
+  --select: #c2410c; --focus: #1e6b5c;
+  --ok: #1b7a3d; --ok-soft: #e2f3e7; --warn: #8a5300; --warn-soft: #fbefd5; --err: #b42318; --err-soft: #fde8e6; --info: #2453a6; --info-soft: #e3ecfa;
+  --scene: #e9e6e0; --scene-grid: #d3cec5; --ghost: #1e6b5c;
+  --shadow-1: 0 1px 2px rgba(40, 30, 10, .06), 0 1px 1px rgba(40, 30, 10, .04);
+  --shadow-2: 0 6px 20px rgba(40, 30, 10, .10), 0 2px 6px rgba(40, 30, 10, .06);
+}
+[data-dir="a"][data-theme="dark"] {
+  --bg: #171614; --surface: #201e1b; --surface-2: #2a2723; --surface-3: #33302b; --border: #3a3631; --border-strong: #4d4841;
+  --ink: #f1eee8; --ink-2: #b4ada1; --ink-3: #8f887c;
+  --accent: #4fbfa5; --accent-hover: #6fd0b9; --accent-ink: #0d1f1a; --accent-soft: #183a33; --accent-line: #2d6b5d;
+  --select: #fb923c; --focus: #6fd0b9;
+  --ok: #5fcf85; --ok-soft: #173322; --warn: #f0b45a; --warn-soft: #3a2a10; --err: #ff8a7a; --err-soft: #3d1a16; --info: #8fb4ff; --info-soft: #1b2740;
+  --scene: #1c1b19; --scene-grid: #2e2b27; --ghost: #4fbfa5;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 8px 24px rgba(0, 0, 0, .45);
+}
+[data-dir="a"] {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --r-control: 7px; --r-card: 12px; --r-panel: 14px; --label-case: none; --label-track: 0; --control-h: 32px; --density: 1;
+}
+/* ===== Direction B — « Plan technique » : sombre d'abord, ardoise, ambre signal, Plex ===== */
+[data-dir="b"][data-theme="dark"] {
+  --bg: #0f1216; --surface: #161a20; --surface-2: #1d232b; --surface-3: #252c36; --border: #2a313b; --border-strong: #3a4350;
+  --ink: #e6eaf0; --ink-2: #9aa4b2; --ink-3: #758091;
+  --accent: #f2a900; --accent-hover: #ffbe2e; --accent-ink: #1a1300; --accent-soft: #3a2c05; --accent-line: #7a5a06;
+  --select: #38bdf8; --focus: #38bdf8;
+  --ok: #4ade80; --ok-soft: #10291a; --warn: #fbbf24; --warn-soft: #33270a; --err: #f87171; --err-soft: #3a1515; --info: #7dd3fc; --info-soft: #0e2a3a;
+  --scene: #12161b; --scene-grid: #222a33; --ghost: #38bdf8;
+  --shadow-1: none; --shadow-2: 0 0 0 1px var(--border-strong), 0 12px 32px rgba(0, 0, 0, .5);
+}
+[data-dir="b"][data-theme="light"] {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f4f6f8; --surface-3: #e8ecf1; --border: #d5dbe3; --border-strong: #b9c2ce;
+  --ink: #0f1720; --ink-2: #4b5563; --ink-3: #6b7280;
+  --accent: #f2a900; --accent-hover: #e09c00; --accent-ink: #1a1300; --accent-soft: #fff3cc; --accent-line: #e6c15c;
+  --select: #0284c7; --focus: #0284c7;
+  --ok: #15803d; --ok-soft: #dcfce7; --warn: #92400e; --warn-soft: #fef3c7; --err: #b91c1c; --err-soft: #fee2e2; --info: #0369a1; --info-soft: #e0f2fe;
+  --scene: #e6eaef; --scene-grid: #cfd6df; --ghost: #0284c7;
+  --shadow-1: none; --shadow-2: 0 0 0 1px var(--border-strong), 0 10px 28px rgba(15, 23, 32, .14);
+}
+[data-dir="b"] {
+  --font: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-display: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r-control: 4px; --r-card: 6px; --r-panel: 6px; --label-case: uppercase; --label-track: .06em; --control-h: 28px; --density: .85;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 24px 64px; display: flex; flex-direction: column; gap: 28px; }
+.switch { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+h1 { font: 600 28px/1.15 var(--font-display); margin: 0; letter-spacing: -.01em; }
+h2 { font: 600 18px/1.3 var(--font-display); margin: 0 0 12px; }
+.lead { color: var(--ink-2); max-width: 760px; margin: 6px 0 0; }
+.label { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: var(--label-case); letter-spacing: var(--label-track); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+section.block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-panel); padding: 20px; box-shadow: var(--shadow-1); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+svg.i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* swatches */
+.swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+.sw { border-radius: var(--r-control); border: 1px solid var(--border); overflow: hidden; font-size: 11px; }
+.sw div { height: 44px; }
+.sw span { display: block; padding: 4px 6px; color: var(--ink-2); }
+
+/* controls */
+.btn { height: var(--control-h); display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: var(--r-control); border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink); font: 500 13px var(--font); cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+.btn.icon { width: var(--control-h); padding: 0; justify-content: center; }
+.btn.focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn[disabled] { color: var(--ink-3); background: var(--surface-2); border-color: var(--border); cursor: default; }
+.seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: calc(var(--r-control) + 2px); }
+.seg button { height: calc(var(--control-h) - 6px); border: 0; background: transparent; color: var(--ink-2); padding: 0 10px; border-radius: var(--r-control); font: 500 13px var(--font); display: inline-flex; gap: 6px; align-items: center; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); outline: 1px solid var(--border); }
+.seg button[disabled] { color: var(--ink-3); opacity: .6; }
+.field { height: var(--control-h); border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--surface); color: var(--ink); padding: 0 10px; font: 13px var(--font); min-width: 220px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.b-ok { background: var(--ok-soft); color: var(--ok); } .b-warn { background: var(--warn-soft); color: var(--warn); } .b-err { background: var(--err-soft); color: var(--err); } .b-info { background: var(--info-soft); color: var(--info); } .b-neutral { background: var(--surface-2); color: var(--ink-2); }
+.toast { display: inline-flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-card); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-2); max-width: 420px; font-size: 13px; }
+.toast.ok svg { color: var(--ok); } .toast.err { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); } .toast.err svg { color: var(--err); }
+.tip { display: inline-block; background: var(--ink); color: var(--bg); padding: 5px 8px; border-radius: 6px; font-size: 12px; }
+kbd { font: 11px var(--font-mono); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border-strong); border-bottom-width: 2px; background: var(--surface-2); color: var(--ink-2); }
+.tip kbd { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg) 50%, transparent); }
+.progress { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progress > div { height: 100%; background: var(--accent); border-radius: 999px; }
+
+/* ===== atelier mockup ===== */
+.atelier { border: 1px solid var(--border); border-radius: var(--r-panel); overflow: hidden; box-shadow: var(--shadow-2); height: 720px; display: grid; grid-template-rows: 52px 1fr 156px; background: var(--bg); }
+.appbar { display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.appbar .title { display: flex; flex-direction: column; line-height: 1.15; }
+.appbar .title b { font-size: 14px; } .appbar .title span { font-size: 12px; color: var(--ink-2); }
+.appbar .prog { display: flex; align-items: center; gap: 8px; min-width: 200px; }
+.appbar .prog .progress { width: 120px; }
+.spacer { flex: 1; }
+.save { font-size: 12px; color: var(--ok); display: inline-flex; align-items: center; gap: 4px; }
+.work { display: grid; grid-template-columns: 1fr 6px 372px; min-height: 0; }
+.scene { position: relative; background: var(--scene); background-image: linear-gradient(var(--scene-grid) 1px, transparent 1px), linear-gradient(90deg, var(--scene-grid) 1px, transparent 1px); background-size: 40px 40px; background-position: center; overflow: hidden; }
+.scene svg.model { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); width: 460px; }
+.hud { position: absolute; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow-1); font-size: 12px; backdrop-filter: blur(6px); }
+.chip .ok { color: var(--ok); font-weight: 600; }
+.rail { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: calc(var(--r-control) + 4px); background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow-1); }
+.rail .btn { border-color: transparent; background: transparent; }
+.rail .btn.on { background: var(--accent-soft); color: var(--accent); }
+.rail hr { border: 0; border-top: 1px solid var(--border); margin: 2px 4px; }
+.ctx { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 5px; border-radius: calc(var(--r-control) + 6px); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-2); white-space: nowrap; }
+.ctx .grp { display: flex; align-items: center; gap: 2px; padding: 0 4px; }
+.ctx .grp + .grp { border-left: 1px solid var(--border); }
+.ctx .lab { font-size: 11px; color: var(--ink-3); margin-right: 4px; text-transform: var(--label-case); letter-spacing: var(--label-track); }
+.axis-x { color: #dc2626; } .axis-y { color: #16a34a; } .axis-z { color: #2563eb; }
+.legend { position: absolute; left: 12px; bottom: 16px; font-size: 12px; color: var(--ink-2); display: flex; gap: 10px; }
+.splitter { background: var(--surface); border-left: 1px solid var(--border); border-right: 1px solid var(--border); position: relative; }
+.splitter::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 28px; transform: translate(-50%, -50%); background: var(--border-strong); border-radius: 2px; }
+.panel { background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+.panel .tabs { display: flex; align-items: center; gap: 2px; padding: 8px 8px 0 12px; border-bottom: 1px solid var(--border); }
+.panel .tabs button { border: 0; background: transparent; color: var(--ink-2); font: 500 13px var(--font); padding: 8px 10px; border-bottom: 2px solid transparent; display: inline-flex; gap: 6px; align-items: center; }
+.panel .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.panel .body { padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.card { border: 1px solid var(--border); border-radius: var(--r-card); padding: 12px; background: var(--surface); }
+.card.step { background: var(--accent-soft); border-color: var(--accent-line); }
+.pdfpage { flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: calc(var(--r-card) - 4px); background: #fff; color: #222; padding: 18px; font: 13px system-ui; }
+.pdfbar { display: flex; align-items: center; gap: 4px; }
+.pdfbar .page { font-size: 12px; color: var(--ink-2); padding: 0 6px; }
+.trayzone { background: var(--surface); border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 12px; }
+.tiles { display: flex; gap: 8px; flex-wrap: wrap; align-content: flex-start; overflow: hidden; }
+.tile { position: relative; width: 92px; height: 64px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface-2); display: grid; grid-template-columns: 44px 1fr; align-items: center; padding: 4px 6px; gap: 4px; }
+.tile .n { font-weight: 700; font-size: 15px; } .tile .r { font: 11px var(--font-mono); color: var(--ink-3); }
+.tile.held { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.tile.held::after { content: "en main"; position: absolute; top: -9px; right: -4px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; }
+.trayact { display: flex; flex-direction: column; gap: 6px; align-items: stretch; justify-content: flex-start; width: 210px; }
+
+/* collection */
+.resume { display: grid; grid-template-columns: 220px 1fr auto; gap: 18px; align-items: center; padding: 14px; border-radius: var(--r-panel); background: linear-gradient(90deg, var(--accent-soft), var(--surface) 70%); border: 1px solid var(--accent-line); }
+.resume .thumb { height: 120px; }
+.thumb { border-radius: var(--r-card); background: var(--scene); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.setcard { border: 1px solid var(--border); border-radius: var(--r-panel); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-1); }
+.setcard .thumb { border-radius: 0; height: 168px; }
+.setcard .thumb .st { position: absolute; left: 10px; top: 10px; }
+.setcard .thumb .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.setcard .thumb .bar div { height: 100%; background: var(--accent); }
+.setcard .b { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.setcard .no { font: 600 12px var(--font-mono); color: var(--ink-3); }
+.setcard h3 { margin: 0; font-size: 16px; }
+.meta { display: flex; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.meta span { display: inline-flex; align-items: center; gap: 4px; }
+.warnline { font-size: 12px; color: var(--err); display: flex; gap: 6px; align-items: center; }
+.note { font-size: 12px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="switch">
+  <strong>Direction</strong>
+  <div class="seg" role="group" aria-label="Direction">
+    <button type="button" aria-pressed="true" data-set-dir="a">A · Établi</button>
+    <button type="button" aria-pressed="false" data-set-dir="b">B · Plan technique</button>
+  </div>
+  <strong>Thème</strong>
+  <div class="seg" role="group" aria-label="Thème">
+    <button type="button" aria-pressed="true" data-set-theme="light">Clair</button>
+    <button type="button" aria-pressed="false" data-set-theme="dark">Sombre</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="label" id="dir-label">Direction A — « Établi »</div>
+    <h1 id="dir-title">Un établi calme, la scène en lumière</h1>
+    <p class="lead" id="dir-lead"></p>
+  </header>
+
+  <section class="block">
+    <h2>Palette</h2>
+    <div class="swatches" id="swatches"></div>
+    <p class="note" style="margin-top:10px">Statuts : <span class="badge b-ok">Jouable avec étapes 3D</span> <span class="badge b-info">Montage libre uniquement</span> <span class="badge b-warn">Analysable (rendu incomplet)</span> <span class="badge b-err">Invalide</span> <span class="badge b-neutral">Jamais commencé</span></p>
+  </section>
+
+  <section class="block grid2">
+    <div>
+      <h2>Typographie</h2>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="label">Titre d'écran · 28/600</div><div style="font:600 28px/1.15 var(--font-display);letter-spacing:-.01em">Ma collection</div>
+        <div class="label">Titre de section · 18/600</div><div style="font:600 18px var(--font-display)">Compatibilité</div>
+        <div class="label">Texte · 14/400</div><div>Étapes lues dans les commandes 0 STEP du modèle principal.</div>
+        <div class="label">Secondaire · 12/400</div><div style="font-size:12px;color:var(--ink-2)">Géométrie LDraw : 4 combinaisons chargées, 0 manquante, 108 ms.</div>
+        <div class="label">Chiffres et références · mono tabulaire</div><div class="mono">3001 · 2/8 pièces · X 90 · Y 24 · Z 30 LDU</div>
+      </div>
+    </div>
+    <div>
+      <h2>Composants</h2>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="row">
+          <button class="btn primary">${i.play} Reprendre</button>
+          <button class="btn">${i.upload} Importer</button>
+          <button class="btn ghost">${i.crosshair} Centrer</button>
+          <button class="btn danger">${i.trash} Abandonner</button>
+          <button class="btn icon focus" aria-label="Aide">${i.help}</button>
+          <button class="btn" disabled>${i.target} Poser à la cible</button>
+        </div>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Mode"><button aria-pressed="false">${i.book} Notice synchro</button><button aria-pressed="true">${i.steps} Guidé</button><button aria-pressed="false">${i.hand} Libre</button></div>
+          <input class="field" value="31040" aria-label="Numéro">
+        </div>
+        <div class="row">
+          <div class="toast ok">${i.check}<div><b>Pièce posée</b> à sa place dans le modèle (3/8).</div></div>
+        </div>
+        <div class="row">
+          <div class="toast err">${i.alert}<div><b>Trop loin de l'emplacement.</b> Rapproche la pièce ou tourne-la (<kbd>R</kbd>).</div></div>
+          <span class="tip">Tourner autour de X <kbd>X</kbd></span>
+        </div>
+        <div style="max-width:320px"><div class="row" style="justify-content:space-between;font-size:12px"><span>Progression</span><span class="mono">30/65</span></div><div class="progress"><div style="width:46%"></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Atelier — montage libre, une pièce sélectionnée, notice ouverte (1280 px)</h2>
+    <div class="atelier">
+      <div class="appbar">
+        <button class="btn ghost icon" aria-label="Ma collection">${i.back}</button>
+        <div class="title"><b><span class="mono" style="font-size:12px;color:var(--ink-3)">90001-1</span> Maison de test</b><span>Modèle principal</span></div>
+        <div class="spacer"></div>
+        <div class="seg" role="group" aria-label="Mode"><button aria-pressed="false">${i.book} Notice synchro</button><button aria-pressed="false" disabled title="Pas d'étapes dans ce fichier">${i.steps} Guidé</button><button aria-pressed="true">${i.hand} Libre</button></div>
+        <div class="spacer"></div>
+        <div class="prog"><div class="progress"><div style="width:25%"></div></div><span class="mono" style="font-size:13px"><b>2</b>/8 pièces</span></div>
+        <span class="save">${i.check} Enregistré</span>
+        <button class="btn ghost icon" aria-label="Raccourcis (?)">${i.keyboard}</button>
+        <button class="btn ghost icon" aria-label="Thème">${i.moon}</button>
+      </div>
+      <div class="work">
+        <div class="scene">
+          <svg class="model" viewBox="0 0 460 260" id="bricks"></svg>
+          <div class="hud">
+            <span class="chip"><b>1 pièce sélectionnée</b> · Dessus : haut · Avant : −Z</span>
+            <span class="chip mono">X 90 · Y 24 · Z 30 LDU</span>
+          </div>
+          <div class="rail" aria-label="Outils de la scène">
+            <button class="btn icon" aria-label="Centrer">${i.crosshair}</button>
+            <button class="btn icon" aria-label="Montrer les emplacements">${i.ghost}</button>
+            <hr>
+            <button class="btn icon on" aria-label="Grille (G)">${i.grid}</button>
+            <button class="btn icon on" aria-label="Aimant pièces">${i.magnet}</button>
+            <button class="btn icon on" aria-label="Aimant modèle">${i.target}</button>
+            <hr>
+            <button class="btn icon" aria-label="Voir les connexions">${i.eye}</button>
+          </div>
+          <div class="ctx" role="toolbar" aria-label="Sélection">
+            <div class="grp"><div class="seg"><button aria-pressed="true" title="Flèches (W)">${i.move} Flèches</button><button aria-pressed="false" title="Anneaux (E)">${i.rotate} Anneaux</button></div><button class="btn ghost icon" aria-label="Réglages : pas, angle, coordonnées">${i.sliders}</button></div>
+            <div class="grp"><button class="btn ghost"><b class="axis-x">X</b></button><button class="btn ghost"><b class="axis-y">Y</b></button><button class="btn ghost"><b class="axis-z">Z</b></button></div>
+            <div class="grp"><button class="btn ghost" title="Déplacer (M)">${i.hand} Déplacer</button><button class="btn ghost">${i.link} Assemblage</button><button class="btn ghost">${i.package} Au stock</button><button class="btn ghost icon" aria-label="Désélectionner">${i.x}</button></div>
+          </div>
+          <div class="legend"><span>Glisser : orbite</span><span>Double-clic : assemblage</span><span><kbd>?</kbd> toutes les touches</span></div>
+        </div>
+        <div class="splitter"></div>
+        <div class="panel">
+          <div class="tabs" role="tablist"><button role="tab" aria-selected="false">${i.box} Modèle</button><button role="tab" aria-selected="true">${i.book} Notice</button><button role="tab" aria-selected="false">${i.link} Correspondances</button><span class="spacer"></span><button class="btn ghost icon" aria-label="Replier le panneau">${i.panel}</button></div>
+          <div class="body">
+            <div class="pdfbar"><button class="btn icon" aria-label="Page précédente">${i.left}</button><span class="page mono">PDF p. 2 / 3</span><button class="btn icon" aria-label="Page suivante">${i.right}</button><span class="spacer"></span><button class="btn icon" aria-label="Zoom arrière">${i.minus}</button><span class="page">Largeur</span><button class="btn icon" aria-label="Zoom avant">${i.plus}</button><button class="btn icon" aria-label="Ajouter / changer de livret">${i.upload}</button></div>
+            <div class="pdfpage"><b>Page de test 2</b><br><br><span style="color:#888">(page de la notice, rendue localement)</span></div>
+            <p class="note">notice-test.pdf — page PDF indépendante des étapes 3D.</p>
+          </div>
+        </div>
+      </div>
+      <div class="trayzone">
+        <div class="tiles" aria-label="Pièces à placer" id="tiles"></div>
+        <div class="trayact">
+          <div class="row" style="gap:6px"><button class="btn" style="flex:1">${i.undo} Annuler <kbd>⌘Z</kbd></button><button class="btn icon" aria-label="Plus d'actions">${i.more}</button></div>
+          <button class="btn" disabled>${i.target} Poser à la position cible</button>
+          <span class="note">⋯ : Réinitialiser l'étape, Abandonner (avec confirmation)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Collection — reprise en un clic, cartes visuelles</h2>
+    <div class="resume">
+      <div class="thumb"><svg viewBox="0 0 460 260" width="220" class="mini"></svg></div>
+      <div><div class="label">Reprendre là où tu t'es arrêté</div><div style="font:600 20px var(--font-display);margin:4px 0">Maison de test <span class="mono" style="font-size:13px;color:var(--ink-3)">90001-1</span></div><div class="note">Montage libre · 2/8 pièces · il y a 5 min</div><div class="progress" style="width:240px;margin-top:8px"><div style="width:25%"></div></div></div>
+      <button class="btn primary" style="height:40px;padding:0 18px">${i.play} Reprendre</button>
+    </div>
+    <div class="cards" style="margin-top:16px">
+      <article class="setcard"><div class="thumb"><svg viewBox="0 0 460 260" width="300" class="mini"></svg><span class="badge b-info st">En cours</span><div class="bar"><div style="width:25%"></div></div></div><div class="b"><span class="no">90001-1</span><h3>Maison de test</h3><div class="meta"><span>${i.box} 8 pièces</span><span>${i.book} 1 notice</span><span>${i.link} Correspondances ✓</span></div><div class="row" style="gap:6px"><span class="badge b-neutral">Notice synchro</span><span class="badge b-neutral">Guidé</span><span class="badge b-neutral">Libre</span></div><div class="row"><button class="btn primary">Reprendre</button><button class="btn ghost">Détails</button></div></div></article>
+      <article class="setcard"><div class="thumb"><svg viewBox="0 0 460 260" width="300" class="mini"></svg><span class="badge b-ok st">Terminé</span><div class="bar"><div style="width:100%"></div></div></div><div class="b"><span class="no">90002-1</span><h3>Mini 4 pièces</h3><div class="meta"><span>${i.box} 4 pièces</span><span>Pas de notice</span></div><div class="row" style="gap:6px"><span class="badge b-neutral">Guidé</span><span class="badge b-neutral">Libre</span></div><div class="row"><button class="btn primary">Revoir</button><button class="btn ghost">Détails</button></div></div></article>
+      <article class="setcard"><div class="thumb"><svg viewBox="0 0 460 260" width="300" class="mini"></svg><span class="badge b-err st">Fichier à réparer</span></div><div class="b"><span class="no">90009-1</span><h3>Copie du dossier de données</h3><div class="meta"><span>${i.box} 4 pièces</span></div><div class="warnline">${i.alert} Modèle 3D : empreinte SHA-256 différente</div><div class="row"><button class="btn primary">Réparer</button><button class="btn ghost">Détails</button></div></div></article>
+    </div>
+  </section>
+</div>
+
+<script>
+const P = (d) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const i = {
+  back: P('<path d="M19 12H5M12 19l-7-7 7-7"/>'), play: P('<path d="M7 4l12 8-12 8z"/>'), upload: P('<path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>'),
+  crosshair: P('<circle cx="12" cy="12" r="9"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>'), trash: P('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+  help: P('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/>'), target: P('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'),
+  book: P('<path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h13"/>'), steps: P('<path d="M4 20h5v-5h5v-5h6"/>'), hand: P('<path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-3l-2-4a1.5 1.5 0 0 1 2.5-1.6L8 13"/>'),
+  check: P('<path d="M5 12l5 5 9-10"/>'), alert: P('<path d="M12 3l10 18H2zM12 10v4M12 17.5v.01"/>'), keyboard: P('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+  moon: P('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'), ghost: P('<rect x="4" y="8" width="16" height="10" rx="1" stroke-dasharray="3 2"/><path d="M8 8V6M12 8V6M16 8V6"/>'), grid: P('<path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><rect x="3" y="3" width="18" height="18" rx="2"/>'),
+  magnet: P('<path d="M6 3v8a6 6 0 0 0 12 0V3M6 7h4M14 7h4"/>'), eye: P('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'), move: P('<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>'),
+  rotate: P('<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>'), sliders: P('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'), link: P('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+  package: P('<path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/>'), x: P('<path d="M6 6l12 12M18 6L6 18"/>'), box: P('<rect x="3" y="8" width="18" height="12" rx="1"/><path d="M7 8V5h4v3M13 8V5h4v3"/>'), panel: P('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>'),
+  left: P('<path d="M15 18l-6-6 6-6"/>'), right: P('<path d="M9 18l6-6-6-6"/>'), minus: P('<path d="M5 12h14"/>'), plus: P('<path d="M12 5v14M5 12h14"/>'), undo: P('<path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/>'), more: P('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'),
+};
+// ${i.x} placeholders in the static markup become icons
+document.body.innerHTML = document.body.innerHTML.replace(/\$\{i\.(\w+)\}/g, (_, k) => i[k] ?? '');
+
+// isometric 2×4 bricks
+function brick(x, y, z, colour, opts = {}) {
+  const W = 4, D = 2, H = 1.2, s = 22;
+  const iso = (px, py, pz) => [230 + (px - pz) * s * 0.866, 150 + (px + pz) * s * 0.5 - py * s];
+  const shade = (c, k) => { const n = parseInt(c.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+  const poly = (pts, fill) => `<polygon points="${pts.map((p) => iso(...p).join(',')).join(' ')}" fill="${fill}" stroke="${opts.stroke ?? 'rgba(0,0,0,.35)'}" stroke-width="${opts.sw ?? 1}" ${opts.dash ? 'stroke-dasharray="4 3"' : ''} fill-opacity="${opts.alpha ?? 1}"/>`;
+  let out = poly([[x, y + H, z], [x + W, y + H, z], [x + W, y + H, z + D], [x, y + H, z + D]], shade(colour, 1.12));
+  out += poly([[x, y, z + D], [x + W, y, z + D], [x + W, y + H, z + D], [x, y + H, z + D]], shade(colour, .82));
+  out += poly([[x + W, y, z], [x + W, y, z + D], [x + W, y + H, z + D], [x + W, y + H, z]], shade(colour, .64));
+  for (let a = 0; a < W; a++) for (let b = 0; b < D; b++) { const [cx, cy] = iso(x + a + .5, y + H, z + b + .5); out += `<ellipse cx="${cx}" cy="${cy - 3}" rx="7" ry="4" fill="${shade(colour, 1.2)}" stroke="rgba(0,0,0,.3)" fill-opacity="${opts.alpha ?? 1}"/>`; }
+  return out;
+}
+const MODEL = () => {
+  const ghost = getComputedStyle(document.documentElement).getPropertyValue('--ghost').trim();
+  const sel = getComputedStyle(document.documentElement).getPropertyValue('--select').trim();
+  return brick(0, 0, 0, '#c91a09') + brick(4.2, 0, 1, '#0055bf') + brick(0, 1.25, 0, '#f2cd37', { alpha: .3, stroke: ghost, dash: true, sw: 1.5 }) + brick(-1, 0, 3.2, '#237841', { stroke: sel, sw: 2.5 });
+};
+const TILES = [['#f2cd37', 2], ['#237841', 2, true], ['#f4f4f4', 1], ['#1b2a34', 1]];
+function render() {
+  document.getElementById('bricks').innerHTML = MODEL() + `<g stroke-width="2.5"><path d="M105 205 l40 0" stroke="#dc2626"/><path d="M105 205 l0 -40" stroke="#16a34a"/><path d="M105 205 l-28 16" stroke="#2563eb"/></g>`;
+  document.querySelectorAll('svg.mini').forEach((s) => { s.innerHTML = brick(0, 0, 0, '#c91a09') + brick(4.2, 0, 1, '#0055bf') + brick(0, 1.25, 0, '#f2cd37') + brick(-1, 0, 3.2, '#237841'); });
+  document.getElementById('tiles').innerHTML = TILES.map(([c, n, held]) => `<div class="tile${held ? ' held' : ''}"><svg viewBox="125 95 215 125" width="44">${brick(0, 0, 0, c)}</svg><div><div class="n">×${n}</div><div class="r">3001</div></div></div>`).join('');
+  const names = ['--bg', '--surface', '--surface-2', '--border', '--ink', '--ink-2', '--accent', '--accent-soft', '--select', '--scene', '--ok', '--warn', '--err', '--info', '--ghost', '--focus'];
+  const cs = getComputedStyle(document.documentElement);
+  document.getElementById('swatches').innerHTML = names.map((n) => `<div class="sw"><div style="background:var(${n})"></div><span>${n}<br><span class="mono" style="padding:0">${cs.getPropertyValue(n).trim()}</span></span></div>`).join('');
+  const a = document.documentElement.dataset.dir === 'a';
+  document.getElementById('dir-label').textContent = a ? 'Direction A — « Établi »' : 'Direction B — « Plan technique »';
+  document.getElementById('dir-title').textContent = a ? 'Un établi calme, la scène en lumière' : 'Un outil de précision, la scène sur fond de nuit';
+  document.getElementById('dir-lead').textContent = a
+    ? 'Clair par défaut, neutres chauds de papier et d’ardoise, un seul accent vert « outil » pour l’action principale et la progression ; la sélection en orange brûlé. Police système (SF Pro) : 0 Ko ajouté. Rayons doux, ombres légères. Les briques colorées et les pages blanches de la notice ressortent sans éblouir.'
+    : 'Sombre par défaut, ardoise froide façon logiciel de CAO, accent ambre signal et sélection cyan. IBM Plex Sans et Plex Mono auto-hébergées (chiffres, références, coordonnées). Rayons serrés, filets plutôt qu’ombres, libellés en petites capitales, densité plus forte.';
+}
+document.querySelectorAll('[data-set-dir]').forEach((b) => b.addEventListener('click', () => { document.documentElement.dataset.dir = b.dataset.setDir; document.querySelectorAll('[data-set-dir]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); }));
+document.querySelectorAll('[data-set-theme]').forEach((b) => b.addEventListener('click', () => { document.documentElement.dataset.theme = b.dataset.setTheme; document.querySelectorAll('[data-set-theme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); }));
+const q = new URLSearchParams(location.search);
+if (q.get('dir')) document.querySelector(`[data-set-dir="${q.get('dir')}"]`)?.click();
+if (q.get('theme')) document.querySelector(`[data-set-theme="${q.get('theme')}"]`)?.click();
+render();
+</script>
+</body>
+</html>
