@@ -4,7 +4,7 @@ import { ArrowDown, ArrowDownToLine, ArrowUp, Axis3d, Boxes, Globe, Hand, Move3d
 import { useId, type ReactNode } from 'react';
 
 /**
- * Free mode, top of the 3D view (the far background, never the ground near the camera where pieces
+ * Top of the 3D view (free mode; guided modes only get the piece-in-hand bar) (the far background, never the ground near the camera where pieces
  * are put): the commands for the piece in hand or for the selection, one row, shown only while there
  * is one. The readouts live in the HUD just below, so a changing text never moves a button. Actions
  * are named in words; in a narrow scene the words fold into icons (still named for assistive
@@ -39,20 +39,23 @@ interface RotationProps {
   onRotate: (axis: Axis, dir: 1 | -1) => void;
   /** Degrees per click / key press, shared with the rings of the manipulator. */
   rotationStep: number;
-  onRotationStep: (deg: number) => void;
+  /** Absent: the step is fixed (guided modes: quarter turns only), no step picker. */
+  onRotationStep?: (deg: number) => void;
 }
 
 function Rotations({ onRotate, rotationStep, onRotationStep }: RotationProps) {
   const d = rotationStep;
   return (
     <span className="rotations" role="group" aria-label={`Rotations de ${d}°`}>
-      <span className="segmented rot-steps" role="group" aria-label="Pas de rotation">
-        {ROTATION_STEPS.map((deg) => (
-          <button key={deg} type="button" data-testid={`rot-step-${deg}`} aria-pressed={d === deg} aria-label={`Pas de ${deg}°`}
-            data-tip-side="bottom" data-tip={deg === 90 ? 'Quart de tour (boutons, touches X/Y/Z, anneaux)' : `Tourner par pas de ${deg}° (boutons, touches X/Y/Z, anneaux)`}
-            onClick={() => onRotationStep(deg)}>{deg}°</button>
-        ))}
-      </span>
+      {onRotationStep && (
+        <span className="segmented rot-steps" role="group" aria-label="Pas de rotation">
+          {ROTATION_STEPS.map((deg) => (
+            <button key={deg} type="button" data-testid={`rot-step-${deg}`} aria-pressed={d === deg} aria-label={`Pas de ${deg}°`}
+              data-tip-side="bottom" data-tip={deg === 90 ? 'Quart de tour (boutons, touches X/Y/Z, anneaux)' : `Tourner par pas de ${deg}° (boutons, touches X/Y/Z, anneaux)`}
+              onClick={() => onRotationStep(deg)}>{deg}°</button>
+          ))}
+        </span>
+      )}
       {(['x', 'y', 'z'] as const).map((axis) => {
         const A = axis.toUpperCase();
         return (
@@ -98,6 +101,20 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
       <Sep />
       {moving && <Tool testId="remove-piece" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />}
       <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label={moving ? 'Laisser en place' : 'Lâcher'} tip={moving ? 'Laisser en place (Échap)' : 'Lâcher la pièce (Échap)'} onClick={onCancel} tipAlign="end" />
+    </div>
+  );
+}
+
+/**
+ * Guided modes (LDraw steps, synchronised booklet), piece in hand: quarter turns around the three
+ * axes (the targets are the model's poses, so finer steps would never fit one), let go.
+ */
+export function GuidedHeldBar({ onRotate, onCancel }: { onRotate: RotationProps['onRotate']; onCancel: () => void }) {
+  return (
+    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label="Pièce en main">
+      <Rotations onRotate={onRotate} rotationStep={90} />
+      <Sep />
+      <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label="Lâcher" tip="Lâcher la pièce (Échap)" onClick={onCancel} tipAlign="end" />
     </div>
   );
 }

@@ -200,6 +200,25 @@ export function orientationChoices(ctx: BuildContext, partKey: string, colorCode
   return choices;
 }
 
+/**
+ * Which orientation choice (and how many R quarter turns) `rotation` is, up to a symmetry of the part,
+ * or null when it is none of the model's: after a turn around X or Z the held brick may land on one
+ * of them (then the O / R counters follow) or on an orientation the model never uses.
+ */
+export function matchOrientation(
+  choices: readonly Matrix4Tuple[],
+  rotation: Matrix4Tuple,
+  symmetries: readonly number[] = [0],
+): { readonly index: number; readonly quarterTurns: number } | null {
+  const r = withTranslation(rotation, [0, 0, 0]);
+  for (let index = 0; index < choices.length; index++) {
+    for (let q = 0; q < 4; q++) {
+      if (equivalentTargets(multiply(rotationY(q), choices[index]!), symmetries).some((t) => rotationAngleDeg(r, t) < 1)) return { index, quarterTurns: q };
+    }
+  }
+  return null;
+}
+
 /** Pose of the held brick: orientation choice, then `quarterTurns` × 90° around world Y, at `position`. */
 export function heldPose(orientation: Matrix4Tuple, quarterTurns: number, position: readonly [number, number, number]): Matrix4Tuple {
   return withTranslation(multiply(rotationY(quarterTurns), orientation), position);
@@ -244,7 +263,7 @@ export function describeFailure(f: PlaceFailure): string {
     case 'COMPLETE': return 'Le modèle est déjà terminé.';
     case 'NO_COMPATIBLE_TARGET': return 'Aucun emplacement restant pour cette pièce (référence/couleur) dans l’étape en cours.';
     case 'TOO_FAR': return `Trop loin de l’emplacement le plus proche (${Math.round(f.distanceLdu)} LDU).`;
-    case 'WRONG_ROTATION': return `Bonne position mais mauvaise orientation (écart ${Math.round(f.angleDeg)}°). Tourne la pièce avec R.`;
+    case 'WRONG_ROTATION': return `Bonne position mais mauvaise orientation (écart ${Math.round(f.angleDeg)}°). Tourne la pièce (R, X, Z) ou passe à l’orientation suivante (O).`;
     case 'AMBIGUOUS': return 'Plusieurs emplacements possibles à égale distance : rapproche la pièce de l’un d’eux.';
     case 'NOT_A_CANDIDATE': return 'Cette pièce n’est pas disponible maintenant.';
   }

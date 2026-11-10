@@ -36,6 +36,7 @@ Avant chaque navigateur : repartir d'une progression vide. Si la page d'accueil 
 | Tourner la caméra | glisser bouton gauche | clic-glisser à un doigt / trois doigts |
 | Zoom | molette | pincer / deux doigts |
 | Tourner la pièce de 90° | `R` (`Maj+R` sens inverse) | — |
+| Basculer la pièce d'un quart de tour sur un autre axe | `X` / `Y` / `Z` (`Maj` : sens inverse) | boutons X / Y / Z − + de la barre en haut de la vue 3D |
 | Changer d'orientation (pièce couchée, retournée…) | `O` | — |
 | Niveau manuel (secours) | `PageUp` / `PageDown` (sur MacBook : `Fn+↑` / `Fn+↓`) ; `A` revient à l'automatique | — |
 | Lâcher la pièce | `Échap` | — |
