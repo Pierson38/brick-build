@@ -33,6 +33,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     title: 'Mode guidé et notice synchronisée',
     items: [
       ['Page ↑ / Page ↓', 'Niveau du modèle au-dessus / en dessous'],
+      ['X / Y / Z (Maj : sens inverse)', 'Quart de tour de la pièce en main autour de l’axe'],
     ],
   },
   {

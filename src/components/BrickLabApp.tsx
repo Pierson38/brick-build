@@ -3,7 +3,7 @@
 import { BookOpen, Box, Check, CircleAlert, Crosshair, FlaskConical, Ghost, Grid3x3, Link2, LoaderCircle, Magnet, PanelRightClose, PanelRightOpen, RotateCcw, RotateCw, ScanEye, Target, Trash2, Undo2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import {
-  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, orientationChoices, placeExact,
+  activeStepIndex, availableModes, candidates, createSession, describeFailure, isComplete, isStepped, matchOrientation, orientationChoices, placeExact,
   resetActiveStep, rewindToStep, switchMode, tray, trayKey, tryPlace, undo, type BuildContext, type BuildMode, type BuildSession, type TrayItem,
 } from '@/domain/build/engine';
 import {
@@ -33,7 +33,7 @@ import { browserStore, type BuildStore, type SaveState } from '@/infra/persisten
 import { downloadMapping } from '@/infra/persistence/local-mapping';
 import { listRecentSessions, type RecentSession } from '@/infra/persistence/local-progress';
 import { HelpButton } from './atelier/HelpDialog';
-import { HeldBar, SelectionBar } from './atelier/ManipBar';
+import { GuidedHeldBar, HeldBar, SelectionBar } from './atelier/ManipBar';
 import { ModeSwitch } from './atelier/ModeSwitch';
 import { StartPanel } from './atelier/StartPanel';
 import { PartsTray } from './build/PartsTray';
@@ -633,9 +633,22 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const heldRotation = (h: HeldBrick) => withTranslation(multiply(rotationY(h.quarterTurns), h.orientation), [0, 0, 0]);
   const memberBottom = (m: GroupMember, rotation: Matrix4Tuple) => bottomOf(m.partKey, m.colorCode, rotation);
 
-  /** Free mode: ± one rotation step around X, Y or Z — the piece or group in hand, else the selection turned in place. */
+  /**
+   * Guided modes: ± a quarter turn of the piece in hand around X, Y or Z. When it lands on one of the
+   * model's orientations, the O / R counters follow; otherwise it is "off the model" (index −1).
+   */
+  const turnHeldGuided = (axis: Axis, steps: number) => {
+    if (!held || !ctx) return;
+    const rotation = rotateOrientation(heldRotation(held), axis, steps, 90);
+    const m = matchOrientation(heldOrientations, rotation, ctx.symmetries?.get(held.partKey));
+    setOrientationIdx(m ? m.index : -1);
+    setHeld(m ? { ...held, orientation: heldOrientations[m.index]!, quarterTurns: m.quarterTurns } : { ...held, orientation: rotation, quarterTurns: 0 });
+  };
+
+  /** ± one rotation step around X, Y or Z. Free mode: the piece or group in hand, else the selection turned in place. */
   const rotate = (axis: Axis, steps: number) => {
-    if (!session || session.mode !== 'freeManual' || !ctx) return;
+    if (!session || !ctx) return;
+    if (session.mode !== 'freeManual') return turnHeldGuided(axis, steps);
     if (held) {
       setHeld({ ...held, orientation: rotateOrientation(heldRotation(held), axis, steps, rotationStep), quarterTurns: 0 });
       return;
@@ -878,8 +891,9 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       }
       const free = session?.mode === 'freeManual';
       if ((e.key === 'g' || e.key === 'G') && free) return setSnap((v) => ({ ...v, grid: !v.grid }));
-      // free mode: ± one rotation step around X / Y / Z (Shift: the other way); R = Y as in the other modes
-      const axisKey = free && !e.metaKey && !e.ctrlKey && !e.altKey ? ({ x: 'x', y: 'y', z: 'z' } as Record<string, Axis>)[e.key.toLowerCase()] : undefined;
+      // ± one rotation step around X / Y / Z (Shift: the other way); R = Y as in the other modes.
+      // Guided modes: quarter turns of the piece in hand only.
+      const axisKey = (free || held) && !e.metaKey && !e.ctrlKey && !e.altKey ? ({ x: 'x', y: 'y', z: 'z' } as Record<string, Axis>)[e.key.toLowerCase()] : undefined;
       if (axisKey && (held || selection.length > 0)) return rotate(axisKey, e.shiftKey ? -1 : 1);
       // R: a quarter turn around Y, as in the other modes (the piece in hand), or the selection in place
       if ((e.key === 'r' || e.key === 'R') && free && !held && selection.length > 0) return rotate('y', e.shiftKey ? -1 : 1);
@@ -1146,7 +1160,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     <span className="small muted" data-testid="held-info">
       {held.moving ? 'Pièce reprise · ' : held.group ? `Groupe de ${held.group.members.length} pièces · ` : ''}
       {held.layerMode === 'auto' ? 'Niveau auto (surface)' : freeMode ? 'Hauteur manuelle (A : auto)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
-      {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · orientation {orientationIdx + 1}/{heldOrientations.length}
+      {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · {orientationIdx < 0 ? 'orientation hors modèle (O : revenir à celles du modèle)' : `orientation ${orientationIdx + 1}/${heldOrientations.length}`}
       {snapInfo?.proposal
         ? <strong className="ok" data-testid="snap-info"> · aimant : {connectionsLabel(snapInfo.proposal)} sur {snapInfo.proposal.targets.length} pièce(s) (⌥ : ignorer)</strong>
         : preview?.targetId
@@ -1304,6 +1318,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             </div>
           )}
           <div className="scene-top">
+            {!freeMode && !editing && held && <GuidedHeldBar onRotate={rotate} onCancel={cancelHeld} />}
             {freeMode && !editing && held && (
               <HeldBar moving={Boolean(held.moving || held.group)} autoHeight={held.layerMode === 'auto'} heightStep={heightStep} steps={[HEIGHT_STEP_LDU, FINE_HEIGHT_STEP_LDU]}
                 onLift={lift} onStep={setHeightStep} onAuto={autoHeight} onRotate={rotate} rotationStep={rotationStep} onRotationStep={onRotationStep} onRemove={removeHeld} onCancel={cancelHeld} />

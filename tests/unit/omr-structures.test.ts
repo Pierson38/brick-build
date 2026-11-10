@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, heldPose, orientationChoices, tryPlace } from '@/domain/build/engine';
+import { createSession, heldPose, matchOrientation, orientationChoices, tryPlace } from '@/domain/build/engine';
+import { rotateOrientation } from '@/domain/build/free';
 import { analyzeModel } from '@/domain/import/analyze';
 import { classifyRotation, equivalentTargets, yQuarterTurnSymmetries } from '@/domain/ldraw/symmetry';
 import { rotationAngleDeg, rotationY, withTranslation } from '@/domain/ldraw/matrix';
@@ -115,5 +116,25 @@ describe('engine: equivalent rotations and orientation choices', () => {
       const reachable = choices.some((c) => [0, 1, 2, 3].some((q) => tryPlace(sym, createSession('freeManual'), brick, heldPose(c, q, pos)).ok));
       expect(reachable, o.occurrenceId).toBe(true);
     }
+  });
+
+  it('guided X / Z quarter turns: land on a model orientation when there is one, else off the model', () => {
+    const choices = orientationChoices(sym, '3001.dat', '4');
+    const symmetries = sym.symmetries?.get('3001.dat');
+    const upsideDown = choices.findIndex((c) => rotationAngleDeg(c, rotationY(0)) > 170);
+    expect(upsideDown).toBeGreaterThan(0);
+    // upright, then two quarter turns around X or Z: the model's upside-down orientation
+    for (const axis of ['x', 'z'] as const) {
+      const turned = rotateOrientation(choices[0]!, axis, 2);
+      const m = matchOrientation(choices, turned, symmetries);
+      expect(m?.index, axis).toBe(upsideDown);
+      // the choice + R turns found is the same pose as the turned brick (up to the part symmetry)
+      const pose = heldPose(choices[m!.index]!, m!.quarterTurns, [0, 0, 0]);
+      expect(Math.min(rotationAngleDeg(pose, turned), rotationAngleDeg(heldPose(pose, 2, [0, 0, 0]), turned))).toBeLessThan(1e-6);
+    }
+    // one quarter turn: the brick lies on its side, an orientation this model never uses
+    expect(matchOrientation(choices, rotateOrientation(choices[0]!, 'x', 1), symmetries)).toBeNull();
+    // a Y turn of a choice is that choice with R turns
+    expect(matchOrientation(choices, rotateOrientation(choices[0]!, 'y', -1), symmetries)).toMatchObject({ index: 0 });
   });
 });
