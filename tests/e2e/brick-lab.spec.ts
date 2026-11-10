@@ -179,3 +179,64 @@ test('local PDF: navigation and zoom independent from 3D steps, no request leave
   await expect(page.locator('.pdf-panel [role=alert]')).toContainText('PDF');
   expect(external).toEqual([]);
 });
+
+test('guided mode: the piece in hand turns around X, Y and Z (quarter turns), off-model orientations are refused', async ({ page }) => {
+  await importModel(page, 'mini-4-pieces.mpd');
+  await page.getByRole('button', { name: 'Commencer — mode guidé' }).click();
+  await expect(page.getByTestId('step-indicator')).toHaveText('Étape 1 / 2');
+  await expect(page.getByTestId('manip-bar')).toHaveCount(0);
+
+  await page.getByTestId('tray-3001.dat-4').click();
+  const bar = page.getByTestId('manip-bar');
+  await expect(bar).toBeVisible();
+  // quarter turns only: no step picker in the guided modes
+  await expect(page.getByTestId('rot-step-1')).toHaveCount(0);
+  await expect(page.getByTestId('rot-x-plus')).toHaveAttribute('aria-label', '+90° autour de X');
+  await expect(page.getByTestId('held-info')).toContainText('orientation 1/1');
+
+  const up = async () => {
+    const h = await page.evaluate(() => window.__brickLabGame!.held() as unknown as { orientation: number[]; quarterTurns: number });
+    // local −Y (the top of the brick) in world coordinates, after the R quarter turns (around Y: Y unchanged)
+    return [-h.orientation[4]!, -h.orientation[5]!, -h.orientation[6]!].map((v) => Math.round(v) || 0);
+  };
+  expect(await up()).toEqual([0, -1, 0]); // top up (LDraw −Y)
+
+  // X: the brick lies on its side, an orientation the model never uses
+  await page.getByTestId('rot-x-plus').click();
+  await expect(page.getByTestId('held-info')).toContainText('orientation hors modèle');
+  expect((await up())[1]).toBe(0);
+  // key Z twice (keyboard), then Shift+Z twice: back to where it was
+  await page.keyboard.press('z');
+  await page.keyboard.press('z');
+  await page.keyboard.press('Shift+Z');
+  await page.keyboard.press('Shift+Z');
+  expect((await up())[1]).toBe(0);
+  // −X: upright again, the counters follow the model's orientation
+  await page.getByTestId('rot-x-minus').click();
+  await expect(page.getByTestId('held-info')).toContainText('orientation 1/1');
+  expect(await up()).toEqual([0, -1, 0]);
+
+  // upside down (X twice): off the model; O brings back the model's orientation
+  await page.keyboard.press('x');
+  await page.keyboard.press('x');
+  expect(await up()).toEqual([0, 1, 0]);
+  await expect(page.getByTestId('held-info')).toContainText('orientation hors modèle');
+  await page.keyboard.press('o');
+  await expect(page.getByTestId('held-info')).toContainText('orientation 1/1');
+  expect(await up()).toEqual([0, -1, 0]);
+  // key Y = a quarter turn as R: dropped on its spot, refused as a wrong orientation, with the hint
+  await page.keyboard.press('y');
+  await expect(page.getByTestId('held-info')).toContainText('rotation 90° · orientation 1/1');
+  await dropAt(page, [0, 0, 0]);
+  await expect(page.getByTestId('progress')).toHaveText('0/4 pièces posées');
+  await expect(page.getByTestId('message')).toContainText('(R, X, Z)');
+  await page.keyboard.press('Shift+Y');
+  await dropAt(page, [0, 0, 0]);
+  await expect(page.getByTestId('progress')).toHaveText('1/4 pièces posées');
+
+  // the bar's « Lâcher » lets the next piece go
+  await page.getByTestId('tray-3001.dat-1').click();
+  await page.getByTestId('cancel-held').click();
+  await expect(page.getByTestId('manip-bar')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/proof-guided-rotations.png' });
+});
