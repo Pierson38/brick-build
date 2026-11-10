@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { activeStepIndex, createSession, heldPose, switchMode, tray, tryPlace, type BuildContext, type BuildSession } from '@/domain/build/engine';
 import {
   FREE_TARGET_MAGNET, atModelCount, groupPoses, isRigidPose, isStockExhausted, liftedY, makeGroup, matchToModel, moveGroup, movePiece, occupiedView,
-  placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
+  addToSelection, placeFree, poseFromLDraw, poseToLDraw, removeLast, removePiece, removePieces, resolveFreeHover, stockLeft, toStepped, usedCount,
   groupBottom, orientationLabel, quarterTurn, rotateOrientation, rotatedInPlace, snapAlong, applyDelta, shownCoords, deltaTo,
   axisTurn, cleanPose, isRotationStep, ROTATION_STEPS_DEG,
 } from '@/domain/build/free';
@@ -541,6 +541,18 @@ describe('rotation to the degree (free mode)', () => {
     // stored (coefficients at 1e-6): the yaw read back by atan2 is still 1° (acos is too blunt near 0°)
     const yaw = (m: Matrix4Tuple) => (Math.atan2(m[8], m[0]) * 180) / Math.PI;
     if (r.ok) expect(yaw(r.session.free![0]!.pose) - yaw(s.free![0]!.pose)).toBeCloseTo(1, 4);
+  });
+});
+
+describe('selection: one more assembly (Shift + double-click)', () => {
+  const f = (id: string) => ({ kind: 'free' as const, id });
+  const a = (occurrenceId: string) => ({ kind: 'anchored' as const, occurrenceId });
+  it('keeps the current selection, in order, and adds only the pieces it does not hold', () => {
+    expect(addToSelection([f('f1'), a('o2')], [a('o2'), f('f3'), f('f1'), a('o4')])).toEqual([f('f1'), a('o2'), f('f3'), a('o4')]);
+    expect(addToSelection([], [f('f3')])).toEqual([f('f3')]);
+    expect(addToSelection([f('f1')], [])).toEqual([f('f1')]);
+    // a free piece and an anchored occurrence with the same name are different pieces
+    expect(addToSelection([f('x')], [a('x')])).toEqual([f('x'), a('x')]);
   });
 });
 

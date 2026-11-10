@@ -8,7 +8,7 @@ import {
 } from '@/domain/build/engine';
 import {
   FINE_HEIGHT_STEP_LDU, FREE_TARGET_MAGNET, HEIGHT_STEP_LDU, freePiecesOf, groupPoses, isStockExhausted, liftedY, makeGroup, matchToModel, movePiece, moveGroup,
-  occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece, removePieces, resolveFreeHover, sameRef, stockLeft, toStepped, usedCount, atModelCount,
+  occupiedView, pieceKind, placeFree, poseOf, removeLast, removePiece, removePieces, resolveFreeHover, sameRef, addToSelection, stockLeft, toStepped, usedCount, atModelCount,
   groupBottom, orientationLabel, axisTurn, isRotationStep, rotateOrientation, rotatedInPlace, applyDelta, deltaTo, shownCoords,
   type Axis, type FreeResult, type GroupMember, type PieceRef, type RotationStepDeg,
 } from '@/domain/build/free';
@@ -539,12 +539,24 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
 
   /**
    * The connected assembly of the selected pieces: every piece joined to them by a recognised
-   * connection (stud in a receptor, pin in a pin hole), directly or through others.
+   * connection (stud in a receptor, pin in a pin hole), directly or through others. `add` (Shift +
+   * double-click): that assembly joins the current selection instead of replacing it.
    */
-  const selectAssembly = (start: readonly PieceRef[] = selection) => {
+  const selectAssembly = (start: readonly PieceRef[] = selection, { add = false }: { add?: boolean } = {}) => {
     if (!session || session.mode !== 'freeManual' || start.length === 0) return;
     const graph = connectionGraph(connectorIndex() ?? new ConnectorIndex(placedPieces(), peekConnectors));
     const keys = connectedAssembly(graph, start.map(refKey));
+    if (add) {
+      const next = addToSelection(selection, keys.map(refOf));
+      setSelection(next);
+      setMessage({
+        kind: 'info',
+        text: keys.length > start.length
+          ? `Assemblage ajouté (${keys.length} pièces) : ${next.length} pièces sélectionnées en tout. Maj + double-clic sur un autre pour l’ajouter aussi.`
+          : `Aucune autre pièce reliée à celle-ci : ajoutée seule, ${next.length} pièces sélectionnées en tout.`,
+      });
+      return;
+    }
     setSelection(keys.map(refOf));
     setMessage({
       kind: 'info',
@@ -1214,7 +1226,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               onHover={(ray, hit) => { liftXZ.current = null; updatePreview(ray, hit); }}
               onDrop={drop}
               {...(editing ? { onPick: pickInEditor } : {})}
-              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef) => selectAssembly([ref]), snapPoints: snapInfo?.engaged.points ?? null, xray: xray && selection.length > 0 && !held,
+              {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef, { shift }: { shift: boolean }) => selectAssembly([ref], { add: shift }), snapPoints: snapInfo?.engaged.points ?? null, xray: xray && selection.length > 0 && !held,
                 gizmo, onGizmoLive: setGizmoLive, onGizmoCommit: (d: Matrix4Tuple) => transformSelection(d, gizmoMode === 'rotate' ? 'tournée' : 'déplacée') } : {})}
               groundY={groundY}
               {...(freeMode && held && preview ? { axesAt: [preview.previewPose[12], preview.previewPose[13], preview.previewPose[14]] as const } : {})}

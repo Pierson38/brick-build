@@ -51,6 +51,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
       ['Clic sur une pièce posée', 'La sélectionner (clic dans le vide : tout désélectionner)'],
       ['Maj clic', 'Ajouter ou retirer de la sélection'],
       ['Double-clic', 'Sélectionner tout l’assemblage relié'],
+      ['Maj double-clic', 'Ajouter un autre assemblage à la sélection'],
       ['Glisser une pièce posée', 'La déplacer (avec la sélection) ; Échap annule'],
       ['W / E', 'Manipulateur : flèches / anneaux'],
       ['Q', 'Axes globaux ↔ axes de la pièce'],

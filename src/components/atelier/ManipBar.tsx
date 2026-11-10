@@ -133,7 +133,7 @@ export function SelectionBar({ gizmoMode, gizmoSpace, onGizmoMode, onGizmoSpace,
       <Rotations onRotate={onRotate} rotationStep={rotationStep} onRotationStep={onRotationStep} />
       <Sep />
       <Tool testId="move-selection" icon={<Hand size={16} aria-hidden />} label="Déplacer" tip="Prendre la sélection en main (M)" onClick={onMove} />
-      <Tool testId="select-assembly" icon={<Boxes size={16} aria-hidden />} label="Assemblage" tip="Toutes les pièces emboîtées, même cachées (double-clic)" onClick={onAssembly} />
+      <Tool testId="select-assembly" icon={<Boxes size={16} aria-hidden />} label="Assemblage" tip="Toutes les pièces emboîtées, même cachées (double-clic ; Maj + double-clic : en ajouter un autre)" onClick={onAssembly} />
       <Tool testId="remove-selection" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />
       <button type="button" data-testid="manip-settings" aria-expanded={settingsOpen} aria-controls={settingsId} data-tip="Pas des flèches et coordonnées" data-tip-side="bottom" data-tip-align="end" onClick={onSettings}>
         <span className="ico"><Settings2 size={16} aria-hidden /></span><span className="visually-hidden">Réglages</span>
