@@ -55,8 +55,8 @@ interface Props {
    */
   readonly onDragStart?: (ref: PieceRef, modifiers: { readonly shift: boolean }) => void;
   readonly onDragEnd?: () => void;
-  /** Free mode: double click on a placed piece (select its connected assembly). */
-  readonly onDoublePick?: (ref: PieceRef) => void;
+  /** Free mode: double click on a placed piece (select its connected assembly; Shift: add it to the selection). */
+  readonly onDoublePick?: (ref: PieceRef, modifiers: { readonly shift: boolean }) => void;
   /**
    * Free mode: the transform gizmo on the selection (arrows to move along X / Y / Z, rings to turn),
    * on a proxy at the pivot; the pieces follow it during a drag; the release commits the transform.
@@ -185,7 +185,7 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
   const justDragged = useRef(false);
   // the pointer is on a gizmo handle (set by the gizmo on hover): a press there belongs to it
   const gizmoHover = useRef(false);
-  const lastClick = useRef<{ key: string; at: number } | null>(null);
+  const lastClick = useRef<{ key: string; at: number; shift: boolean } | null>(null);
   const dragHandlers = useRef({ onDragStart, onDragEnd });
   dragHandlers.current = { onDragStart, onDragEnd };
   useEffect(() => {
@@ -283,17 +283,18 @@ function Scene({ occurrences, templates, solidIds, ghostIds, highlightIds, held,
             onPick(brick.occurrenceId, { alt: e.altKey });
           } else if (onSelect) {
             // free mode: select a placed piece (Shift: add / remove), or nothing to clear the selection;
-            // a second click on the same piece within DOUBLE_MS is a double click (its assembly)
+            // a second click on the same piece within DOUBLE_MS is a double click (its assembly; with
+            // Shift, added to the selection: the first Shift+click toggled the piece, the union fixes it)
             e.stopPropagation();
             const ref: PieceRef | null = brick ? (brick.pieceId ? { kind: 'free', id: brick.pieceId } : { kind: 'anchored', occurrenceId: brick.occurrenceId }) : null;
             const key = ref ? (ref.kind === 'free' ? `f:${ref.id}` : `a:${ref.occurrenceId}`) : null;
             // the time of the click itself, not of its handling (a slow frame must not split a double click)
             const now = e.nativeEvent.timeStamp;
-            if (ref && onDoublePick && !e.shiftKey && lastClick.current?.key === key && now - lastClick.current.at < DOUBLE_MS) {
+            if (ref && onDoublePick && lastClick.current?.key === key && lastClick.current.shift === e.shiftKey && now - lastClick.current.at < DOUBLE_MS) {
               lastClick.current = null;
-              onDoublePick(ref);
+              onDoublePick(ref, { shift: e.shiftKey });
             } else {
-              lastClick.current = key ? { key, at: now } : null;
+              lastClick.current = key ? { key, at: now, shift: e.shiftKey } : null;
               onSelect(ref, { shift: e.shiftKey });
             }
           }

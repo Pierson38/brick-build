@@ -277,6 +277,41 @@ test('C — the whole connected assembly selected from one piece (button, double
   await expect(page.getByTestId('message')).toContainText('Aucune autre pièce reliée');
 });
 
+test('C2 — Shift + double-click adds another assembly to the selection; a plain double-click replaces it', async ({ page }) => {
+  const aligned = OWNER.map((f) => (f.partKey === '30157.dat' ? { ...f, pose: [f.pose[0]!, 17.41, ...f.pose.slice(2)] } : f));
+  // a second assembly: two red bricks stacked (studs in the tubes), apart from the owner's
+  await open(page, [...aligned,
+    P('f20', '3001.dat', '4', [130, 9.41, -10, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
+    P('f21', '3001.dat', '4', [130, -14.59, -10, 1, 0, 0, 0, 1, 0, 0, 0, 1])]);
+  await page.waitForFunction(() => (window.__brickLabGame!.connectors('3001.dat') ?? []).length > 0, null, { timeout: 30_000 });
+  const ids = async () => (await selected(page)).map((r) => r.id).sort();
+  const dbl = async (at: [number, number, number], shift: boolean) => {
+    const q = await point(page, at);
+    if (shift) await page.keyboard.down('Shift');
+    await page.mouse.dblclick(q.x, q.y);
+    if (shift) await page.keyboard.up('Shift');
+  };
+  const OWNER_IDS = ['f10', 'f11', 'f12', 'f6', 'f7', 'f8', 'f9'];
+
+  await dbl([70, 17.41, -70], false); // a grey plate: the owner's assembly
+  await expect(page.getByTestId('selection-info')).toHaveText('7 pièce(s) sélectionnée(s)');
+  await dbl([130, -14.59, -10], true); // top of the stacked bricks, Shift held: added
+  await expect(page.getByTestId('selection-info')).toHaveText('9 pièce(s) sélectionnée(s)');
+  expect(await ids()).toEqual([...OWNER_IDS, 'f20', 'f21'].sort());
+  await expect(page.getByTestId('message')).toContainText('Assemblage ajouté (2 pièces) : 9 pièces sélectionnées en tout');
+  // Shift + double-click on an assembly already selected: nothing removed
+  await dbl([70, 17.41, -70], true);
+  await expect(page.getByTestId('selection-info')).toHaveText('9 pièce(s) sélectionnée(s)');
+  expect(await ids()).toEqual([...OWNER_IDS, 'f20', 'f21'].sort());
+  // a plain double-click still replaces the selection
+  await dbl([130, -14.59, -10], false);
+  await expect(page.getByTestId('selection-info')).toHaveText('2 pièce(s) sélectionnée(s)');
+  expect(await ids()).toEqual(['f20', 'f21']);
+  // a Shift+click still adds / removes a single piece (a grey plate, visible on top)
+  await clickAt(page, [70, 17.41, -70], true);
+  await expect(page.getByTestId('selection-info')).toHaveText('3 pièce(s) sélectionnée(s)');
+});
+
 test('WebKit (Safari engine): rotation X, direct drag with the magnet, assembly selection', async () => {
   const safari = await webkit.launch().catch(() => null);
   test.skip(!safari, 'WebKit de Playwright indisponible');

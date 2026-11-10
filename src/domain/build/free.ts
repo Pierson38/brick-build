@@ -403,6 +403,13 @@ export function removePieces(session: BuildSession, refs: readonly PieceRef[]): 
 export const sameRef = (a: PieceRef, b: PieceRef): boolean =>
   a.kind === b.kind && (a.kind === 'free' ? a.id === (b as { id: string }).id : a.occurrenceId === (b as { occurrenceId: string }).occurrenceId);
 
+/** `current` then the pieces of `added` it does not hold yet, in order (Shift + double-click: one more assembly). */
+export function addToSelection(current: readonly PieceRef[], added: readonly PieceRef[]): PieceRef[] {
+  const out = [...current];
+  for (const r of added) if (!out.some((c) => sameRef(c, r))) out.push(r);
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rotations on the three axes (free mode): exact quarter turns, any whole number of degrees,
 // composed by matrix products and re-orthonormalized so that repeated small turns never drift
