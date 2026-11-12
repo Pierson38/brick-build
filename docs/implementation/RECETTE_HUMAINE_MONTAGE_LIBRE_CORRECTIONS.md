@@ -1,60 +1,60 @@
-# Recette humaine ciblée — hauteur libre et groupes (Chrome puis Safari)
+# Targeted manual acceptance test — free height and groups (Chrome then Safari)
 
-> Les deux points du NO-GO du 06/11/2026 : (1) descendre / monter librement une pièce, (2) déplacer plusieurs pièces ensemble. Corrections : [MONTAGE_LIBRE_CORRECTIONS.md](MONTAGE_LIBRE_CORRECTIONS.md).
-> Critère : assembler plusieurs pièces, les déplacer ensemble et ajuster librement leur hauteur avec précision.
+> The two points of the 2026-11-06 NO-GO: (1) freely lower / raise a part, (2) move several parts together. Corrections: [MONTAGE_LIBRE_CORRECTIONS.md](MONTAGE_LIBRE_CORRECTIONS.md).
+> Criterion: assemble several parts, move them together and freely adjust their height with precision.
 
-Durée estimée : 20 min (Chrome 15, Safari 5). Sur l'écran du MacBook, au trackpad de préférence.
+Estimated duration: 20 min (Chrome 15, Safari 5). On the MacBook screen, preferably with the trackpad.
 
-## 0. Avant de commencer (préparé par Claude)
+## 0. Before starting (prepared by Claude)
 
-- Serveur de production depuis le worktree `true-free-building` (tête de la PR #7), http://127.0.0.1:3000, à l'écoute sur 127.0.0.1 seulement.
-- Sauvegarde vérifiée de `library` + `mappings` faite juste avant (archive extraite et comparée fichier par fichier) ; inventaire SHA-256.
-- Ta construction 31039 (12 pièces libres de ta première recette) est restée telle quelle : tu repars d'elle.
-- Format : inchangé depuis ta première recette (v3 dès qu'il y a des pièces libres) ; la version actuelle de `main` ne sait pas reprendre une partie v3 — si tu ne fusionnes pas, je restaure la sauvegarde sur ta demande.
+- Production server from the `true-free-building` worktree (head of PR #7), http://127.0.0.1:3000, listening on 127.0.0.1 only.
+- Verified backup of `library` + `mappings` made just before (archive extracted and compared file by file); SHA-256 inventory.
+- Your 31039 build (12 free parts from your first acceptance test) was left as is: you start from it.
+- Format: unchanged since your first acceptance test (v3 as soon as there are free parts); the current version of `main` cannot resume a v3 game — if you do not merge, I restore the backup at your request.
 
-## 1. Hauteur libre — ta pièce grise sur 31039
+## 1. Free height — your gray part on 31039
 
-1. 31039 → **Reprendre** : tes 12 pièces, aux mêmes endroits.
-2. **Clic** sur la pièce grise (30157) : elle est **sélectionnée** (surlignée) ; une barre apparaît au-dessus de la vue 3D. **« Déplacer la sélection »** (ou M) : elle est en main.
-3. Amène-la au-dessus de ton assemblage orange et vert. **« ▼ Descendre »** (pas « 8 LDU ») : elle descend d'une plaque à chaque clic, **sur place**, même à travers d'autres pièces. Choisis **« 1 LDU »** et ajuste au millimètre (▲ / ▼). L'indication « bas à N LDU du sol » suit.
-4. Déplace la souris : la pièce garde la hauteur choisie en suivant le pointeur. Vise la pièce montrée et **clique** : elle est posée exactement là.
-5. **« Hauteur auto »** (ou A) avec une autre pièce en main : retour au placement automatique sur la surface visée.
-6. Clavier (facultatif) : PageUp / PageDown = le pas choisi ; Maj + PageUp / PageDown = 1 LDU.
-7. Essaie aussi une pièce **longue**, une pièce **à axe latéral** (goupille Technic) et une **petite** pièce.
+1. 31039 → **Reprendre** (Resume): your 12 parts, at the same places.
+2. **Click** on the gray part (30157): it is **selected** (highlighted); a bar appears above the 3D view. **"Déplacer la sélection"** (Move selection) (or M): it is in hand.
+3. Bring it above your orange and green assembly. **"▼ Descendre"** (Lower) (step "8 LDU"): it goes down one plate per click, **in place**, even through other parts. Choose **"1 LDU"** and adjust to the millimeter (▲ / ▼). The indication "bas à N LDU du sol" (bottom at N LDU from the ground) follows.
+4. Move the mouse: the part keeps the chosen height while following the pointer. Aim at the part shown and **click**: it is placed exactly there.
+5. **"Hauteur auto"** (Auto height) (or A) with another part in hand: back to automatic placement on the aimed surface.
+6. Keyboard (optional): PageUp / PageDown = the chosen step; Shift + PageUp / PageDown = 1 LDU.
+7. Also try a **long** part, a **side-axle** part (Technic pin) and a **small** part.
 
-## 2. Groupes — un petit assemblage déplacé d'un bloc
+## 2. Groups — a small assembly moved as a block
 
-1. Construis un petit assemblage de 3 ou 4 pièces (ou prends le tien).
-2. **Clic** sur une pièce, puis **Maj + clic** sur les autres : elles sont toutes surlignées ; « N pièce(s) sélectionnée(s) ». Maj + clic sur une pièce déjà sélectionnée la retire. Un clic sans glisser ne fait pas bouger la caméra ; un glisser la fait toujours tourner.
-3. **« Déplacer la sélection »** : le groupe est en main, montré à sa nouvelle position avant de le poser.
-4. Déplace-le, **R** (ou « ⟳ Tourner ») : il tourne d'un quart de tour autour de son centre, sans se déformer. **Monter / Descendre** : tout le groupe.
-5. **Clic** : posé. Les pièces gardent exactement leurs écarts et orientations ; les quantités de la barre ne changent pas.
-6. **Annuler** (ou ⌘Z) : **une seule fois** suffit, tout le groupe revient où il était.
-7. Recommence le déplacement, puis **⌘R** : le groupe est à sa nouvelle place. (Redémarrage du serveur : Ctrl-C dans l'onglet du serveur puis `npm run start`, ou demande-le-moi.)
-8. Clic dans le vide, Échap ou « Désélectionner » : sélection vidée. « Remettre dans le stock » : toute la sélection revient dans la barre (Annuler la remet).
+1. Build a small assembly of 3 or 4 parts (or take yours).
+2. **Click** on one part, then **Shift + click** on the others: they are all highlighted; "N pièce(s) sélectionnée(s)" (N part(s) selected). Shift + click on an already selected part removes it. A click without drag does not move the camera; a drag still rotates it.
+3. **"Déplacer la sélection"**: the group is in hand, shown at its new position before placing it.
+4. Move it, **R** (or "⟳ Tourner" (Rotate)): it rotates a quarter turn around its center, without deforming. **Monter / Descendre** (Raise / Lower): the whole group.
+5. **Click**: placed. The parts keep exactly their spacings and orientations; the tray quantities do not change.
+6. **Annuler** (Undo) (or ⌘Z): **once** is enough, the whole group returns to where it was.
+7. Redo the move, then **⌘R**: the group is at its new place. (Server restart: Ctrl-C in the server's tab then `npm run start`, or ask me.)
+8. Click in empty space, Esc or "Désélectionner" (Deselect): selection emptied. "Remettre dans le stock" (Put back in stock): the whole selection goes back to the tray (Undo puts it back).
 
-## 3. Rien n'a changé ailleurs
+## 3. Nothing has changed elsewhere
 
-1. 31040 → **Reprendre** (notice synchronisée, 25/65) : pas de barre de hauteur, un clic sur une brique posée ne la sélectionne pas, une pose loin de sa place est refusée. Ne pose rien (ou Annuler).
+1. 31040 → **Reprendre** (synchronized instructions, 25/65): no height bar, a click on a placed brick does not select it, a placement far from its place is refused. Do not place anything (or Undo).
 
 ## 4. Safari
 
-Dans **Safari** : refais **1.2 à 1.4** et **2.2 à 2.6**.
+In **Safari**: redo **1.2 to 1.4** and **2.2 to 2.6**.
 
-## 5. Résultats (à remplir par le propriétaire)
+## 5. Results (to be filled in by the owner)
 
-| Point | Chrome | Safari | Remarques |
+| Item | Chrome | Safari | Remarks |
 |---|---|---|---|
-| 1. Hauteur libre : 8 LDU, 1 LDU, aperçu, conservée, auto, pose exacte | | | |
-| 1.7 Pièces longues, à axe latéral, petites | | — | |
-| 2. Groupe : sélection (clic, Maj+clic), déplacement, rotation, hauteur | | | |
-| 2.5–2.6 Écarts conservés, stock inchangé, annulation en une fois | | | |
-| 2.7 Groupe après rechargement / redémarrage | | — | |
-| 3. 31040 synchronisé inchangé | | — | |
-| Critère : assembler, déplacer ensemble, ajuster la hauteur avec précision | | | |
+| 1. Free height: 8 LDU, 1 LDU, preview, kept, auto, exact placement | | | |
+| 1.7 Long, side-axle, small parts | | — | |
+| 2. Group: selection (click, Shift+click), move, rotation, height | | | |
+| 2.5–2.6 Spacings kept, stock unchanged, undo in one go | | | |
+| 2.7 Group after reload / restart | | — | |
+| 3. Synchronized 31040 unchanged | | — | |
+| Criterion: assemble, move together, adjust height with precision | | | |
 
-Dis-moi ce que tu laisses posé : je comparerai tes données avec l'inventaire d'avant cette recette et te dirai exactement ce qui a changé.
+Tell me what you leave placed: I will compare your data with the inventory from before this acceptance test and tell you exactly what changed.
 
-## 6. Résultat de la recette du propriétaire (07/11/2026)
+## 6. Result of the owner's acceptance test (2026-11-07)
 
-**NO-GO** pour fusionner la PR #7 en l'état ; **GO** pour compléter le moteur. Quatre nouveaux problèmes sur 31039 (deux captures annoncées, non reçues par Claude) : une pièce rouge impossible à mettre à la verticale (axe 32062) ; un assemblage gris, orange et vert mal aligné (plaques 30157 à 2 LDU au-dessus des tenons) ; obligation de passer par M pour déplacer ; pas de sélection d'un assemblage complet ni d'aimant entre pièces. Données : seule la construction 31039 a changé (14 pièces libres, révision 40), 31040 et 31009 inchangés. Suite : [MONTAGE_LIBRE_3D_RAPPORT.md](MONTAGE_LIBRE_3D_RAPPORT.md), recette [RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md).
+**NO-GO** to merge PR #7 as is; **GO** to complete the engine. Four new problems on 31039 (two announced screenshots, not received by Claude): a red part impossible to put upright (axle 32062); a gray, orange and green assembly misaligned (plates 30157 2 LDU above the studs); having to go through M to move; no selection of a whole assembly nor magnet between parts. Data: only the 31039 build changed (14 free parts, revision 40), 31040 and 31009 unchanged. Follow-up: [MONTAGE_LIBRE_3D_RAPPORT.md](MONTAGE_LIBRE_3D_RAPPORT.md), acceptance test [RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md).

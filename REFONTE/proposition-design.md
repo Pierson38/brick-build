@@ -1,199 +1,199 @@
-# Phase 2 — Proposition de design
+# Phase 2 — Design proposal
 
-Base `3e91174` (audit validé le 09/11/2026). Rien n'est encore modifié dans `src/`.
+Base `3e91174` (audit validated on 2026-11-09). Nothing in `src/` has been modified yet.
 
-Fichiers :
+Files:
 
-- `proposition/directions.html` : maquette statique locale, sans aucune ressource externe ; bascules Direction A/B et Clair/Sombre en haut de la page.
-- `proposition/direction-{a,b}-{clair,sombre}.png` : les quatre rendus.
-- `proposition/tokens.css` : tokens de la direction recommandée (A), prêts à devenir `src/app/tokens.css`.
-- Colonne « Nouvel emplacement » remplie dans `inventaire-fonctionnalites.md` : aucune ligne vide.
+- `proposition/directions.html`: local static mockup, with no external resources; Direction A/B and Light/Dark toggles at the top of the page.
+- `proposition/direction-{a,b}-{clair,sombre}.png`: the four renderings.
+- `proposition/tokens.css`: tokens of the recommended direction (A), ready to become `src/app/tokens.css`.
+- "Nouvel emplacement" (New location) column filled in `inventaire-fonctionnalites.md`: no empty row.
 
 ---
 
-## 1. Deux directions visuelles
+## 1. Two visual directions
 
-Les deux gardent la même architecture (§ 4) : elles ne diffèrent que par l'habillage. La scène 3D reste la plus grande surface de l'écran, sur un fond neutre et sans motif. Les contrôles flottants y sont translucides et regroupés sur les bords.
+Both keep the same architecture (§ 4): they differ only in styling. The 3D scene remains the largest surface on screen, on a neutral, pattern-free background. Floating controls there are translucent and grouped along the edges.
 
-| | **A — « Établi »** (recommandée) | **B — « Plan technique »** |
+| | **A — "Établi" (Workbench)** (recommended) | **B — "Plan technique" (Technical drawing)** |
 |---|---|---|
-| Intention | Un établi calme et lumineux, où l'on travaille longtemps avec la notice papier à côté | Un outil de précision façon CAO, sur fond de nuit |
-| Thème par défaut | Clair (sombre via `prefers-color-scheme` ou bascule) | Sombre (clair disponible) |
-| Neutres | Papier chaud `#f6f4f0`, encre `#1e1b16`, ardoise `#5c564c` | Ardoise froide `#0f1216`, `#161a20`, texte `#e6eaf0` |
-| Accent | Vert « outil » `#1e6b5c` (clair) / `#4fbfa5` (sombre) : action principale, progression, onglet actif | Ambre signal `#f2a900` (texte foncé dessus) |
-| Sélection 3D / UI | Orange brûlé `#c2410c` | Cyan `#38bdf8` |
-| Typographie | Police système (SF Pro Text/Display, SF Mono) : **0 Ko**, rendu natif identique Chromium/WebKit | IBM Plex Sans + Plex Mono auto-hébergées (`@fontsource`, OFL) : **≈ 100 Ko** woff2 (4 graisses latines) |
-| Échelle | 11 / 12 / 13 / 14 / 16 / 18 / 22 / 28 px | Même échelle, libellés en petites capitales espacées |
-| Espacements | Grille de 4 px, densité confortable (contrôles de 32 px) | Grille de 4 px, dense (contrôles de 28 px) |
-| Rayons | 7 px (contrôles), 12 px (cartes), 14 px (panneaux) | 4 px / 6 px / 6 px |
-| Ombres | Douces et chaudes, à 3 niveaux | Quasi absentes : filets de 1 px |
-| Iconographie | Lucide, trait 1,75, 16 px, toujours accompagnées d'un libellé sauf dans le rail d'outils (infobulle + `aria-label`) | Lucide, trait 1,5, 16 px |
-| Ce qui ressort | Les briques colorées et les **pages blanches de la notice**, qui ne tranchent pas | Les briques sur fond sombre ; la notice blanche éblouit à côté |
-| Risque | Peut paraître sage | Fatigue visuelle avec un PDF blanc ; 100 Ko de polices ; plus éloigné de l'existant (plus de changements visuels à valider) |
+| Intent | A calm, bright workbench, where you work for a long time with the paper instructions next to you | A precision CAD-style tool, on a night background |
+| Default theme | Light (dark via `prefers-color-scheme` or toggle) | Dark (light available) |
+| Neutrals | Warm paper `#f6f4f0`, ink `#1e1b16`, slate `#5c564c` | Cool slate `#0f1216`, `#161a20`, text `#e6eaf0` |
+| Accent | "Tool" green `#1e6b5c` (light) / `#4fbfa5` (dark): main action, progress, active tab | Signal amber `#f2a900` (dark text on top) |
+| 3D / UI selection | Burnt orange `#c2410c` | Cyan `#38bdf8` |
+| Typography | System font (SF Pro Text/Display, SF Mono): **0 KB**, identical native rendering in Chromium/WebKit | Self-hosted IBM Plex Sans + Plex Mono (`@fontsource`, OFL): **≈ 100 KB** woff2 (4 Latin weights) |
+| Scale | 11 / 12 / 13 / 14 / 16 / 18 / 22 / 28 px | Same scale, labels in spaced small caps |
+| Spacing | 4 px grid, comfortable density (32 px controls) | 4 px grid, dense (28 px controls) |
+| Radii | 7 px (controls), 12 px (cards), 14 px (panels) | 4 px / 6 px / 6 px |
+| Shadows | Soft and warm, 3 levels | Nearly absent: 1 px hairlines |
+| Iconography | Lucide, 1.75 stroke, 16 px, always accompanied by a label except in the tool rail (tooltip + `aria-label`) | Lucide, 1.5 stroke, 16 px |
+| What stands out | The colored bricks and the **white instruction pages**, which don't clash | The bricks on a dark background; the white instructions dazzle next to it |
+| Risk | May look tame | Eye strain with a white PDF; 100 KB of fonts; further from the existing look (more visual changes to validate) |
 
-**Recommandation : A.** L'usage principal se fait avec une notice PDF à fond blanc ouverte en permanence à côté de la scène : un thème clair chaud la fait cohabiter sans contraste violent, et le sombre reste disponible. La police système ne coûte rien, ne fait aucune requête et rend à l'identique dans Chromium et WebKit sur Mac. Elle se distingue d'un template générique par le papier chaud au lieu du gris bleuté, l'unique accent vert et les chiffres en mono tabulaire. **Emprunt à B** : la mono tabulaire pour les chiffres, références et coordonnées.
+**Recommendation: A.** The main use is with a white-background PDF open permanently next to the scene: a warm light theme lets them coexist without harsh contrast, and dark remains available. The system font costs nothing, makes no request and renders identically in Chromium and WebKit on Mac. It stands apart from a generic template through the warm paper instead of blue-gray, the single green accent and the tabular mono digits. **Borrowed from B**: tabular mono for digits, references and coordinates.
 
-Si tu choisis B, les tokens restent les mêmes noms ; seules les valeurs de `tokens.css` changent (elles sont dans `directions.html`), et j'ajoute les deux paquets `@fontsource`.
+If you choose B, the tokens keep the same names; only the values in `tokens.css` change (they are in `directions.html`), and I add the two `@fontsource` packages.
 
-## 2. Dépendances proposées
+## 2. Proposed dependencies
 
-| Paquet | Version | Licence | Poids | Pourquoi |
+| Package | Version | License | Weight | Why |
 |---|---|---|---|---|
-| `lucide-react` | **1.61.0** (21/10/2026, > 2 semaines) | ISC | 38 Mo dans `node_modules` ; **≈ 0,5 Ko par icône dans le bundle** (import nommé, tree-shaking), soit ≈ 20 Ko min / ≈ 7 Ko gzip pour la quarantaine d'icônes prévues | Exigé par la mission (icônes embarquées via npm) ; dépendance de `react` uniquement |
-| `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono` | 5.3.0 | OFL-1.1 | ≈ 100 Ko woff2 servis par Next depuis le bundle | **Seulement si direction B** |
+| `lucide-react` | **1.61.0** (2026-10-21, > 2 weeks) | ISC | 38 MB in `node_modules`; **≈ 0.5 KB per icon in the bundle** (named import, tree-shaking), i.e. ≈ 20 KB min / ≈ 7 KB gzip for the forty or so planned icons | Required by the brief (icons embedded via npm); depends on `react` only |
+| `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono` | 5.3.0 | OFL-1.1 | ≈ 100 KB woff2 served by Next from the bundle | **Only if direction B** |
 
-Rien d'autre : pas de Radix, shadcn ni Tailwind. Les modales utilisent `<dialog>` natif (focus piégé et Échap gérés par le navigateur, identiques dans Chromium et WebKit). Infobulles, menus et popovers sont de petits composants maison (< 150 lignes chacun) testés au clavier.
+Nothing else: no Radix, shadcn or Tailwind. Modals use the native `<dialog>` (focus trapping and Escape handled by the browser, identical in Chromium and WebKit). Tooltips, menus and popovers are small in-house components (< 150 lines each) tested by keyboard.
 
 ## 3. Design tokens (direction A)
 
-Source unique : `proposition/tokens.css`, qui deviendra `src/app/tokens.css`. `globals.css` ne contiendra plus aucune couleur, aucun rayon ni aucune durée en dur.
+Single source: `proposition/tokens.css`, which will become `src/app/tokens.css`. `globals.css` will no longer contain any hardcoded color, radius or duration.
 
-- **Familles** : `--font-*`, `--text-*` (11→28 px), `--space-*` (4 px), `--radius-*`, tailles fixes (`--control-h` 32, `--appbar-h` 52, **`--tray-h` 188 conservé**, `--splitter-w` 8 = `SPLITTER` du domaine), `--z-*`, `--duration-*` 150/200/250 ms, mises à 0 sous `prefers-reduced-motion`.
-- **Couleurs** : `--color-bg/surface/surface-2/surface-3/border/border-strong/border-control/ink/ink-2/ink-3`, `--color-accent*`, `--color-focus`, statuts `ok/warn/danger/info` (+ `-soft`), qualité d'import `--quality-*`, scène `--scene-bg/grid/grid-center/ghost/select/snap/overlay-bg`, axes `--axis-x/y/z` (inchangés).
-- **Thème** : clair dans `:root` ; sombre sous `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` et sous `:root[data-theme="dark"]`. La bascule écrit `data-theme` sur `<html>` et la mémorise dans `localStorage` (`brick-lab:theme` = `system | light | dark`), comme la largeur du panneau. Un petit script inline dans `layout.tsx` l'applique **avant le premier rendu** (pas de flash).
-- **Scène 3D** : `BuildCanvas` lit `--scene-bg` et `--scene-grid*` une fois au montage et à chaque changement de thème (un `MutationObserver` sur `data-theme` + la media query). Seuls `<color attach>` et la grille changent ; les briques ne sont pas recréées.
-- **Contrastes vérifiés** (WCAG AA, calculés) :
+- **Families**: `--font-*`, `--text-*` (11→28 px), `--space-*` (4 px), `--radius-*`, fixed sizes (`--control-h` 32, `--appbar-h` 52, **`--tray-h` 188 kept**, `--splitter-w` 8 = the domain's `SPLITTER`), `--z-*`, `--duration-*` 150/200/250 ms, set to 0 under `prefers-reduced-motion`.
+- **Colors**: `--color-bg/surface/surface-2/surface-3/border/border-strong/border-control/ink/ink-2/ink-3`, `--color-accent*`, `--color-focus`, statuses `ok/warn/danger/info` (+ `-soft`), import quality `--quality-*`, scene `--scene-bg/grid/grid-center/ghost/select/snap/overlay-bg`, axes `--axis-x/y/z` (unchanged).
+- **Theme**: light in `:root`; dark under `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` and under `:root[data-theme="dark"]`. The toggle writes `data-theme` on `<html>` and stores it in `localStorage` (`brick-lab:theme` = `system | light | dark`), like the panel width. A small inline script in `layout.tsx` applies it **before the first render** (no flash).
+- **3D scene**: `BuildCanvas` reads `--scene-bg` and `--scene-grid*` once on mount and on each theme change (a `MutationObserver` on `data-theme` + the media query). Only `<color attach>` and the grid change; the bricks are not recreated.
+- **Verified contrast** (WCAG AA, computed):
 
-| Paire | Clair | Sombre |
+| Pair | Light | Dark |
 |---|---|---|
-| texte / fond | 15,6 | 15,6 |
-| secondaire `ink-2` / fond | 6,6 | 7,5 |
-| tertiaire `ink-3` / `surface-2` (le cas le plus défavorable) | 5,0 | 5,3 |
-| texte sur accent | 6,3 | 7,6 |
-| statuts sur leur fond `-soft` (ok, warn, danger, info) | 4,7 · 5,6 · 5,6 · 6,2 | 7,0 · 7,5 · 6,8 · 7,2 |
-| bord des champs `border-control` (≥ 3:1) | 3,6 | 3,5 |
-| focus / fond (≥ 3:1) | 5,8 | 9,8 |
+| text / background | 15.6 | 15.6 |
+| secondary `ink-2` / background | 6.6 | 7.5 |
+| tertiary `ink-3` / `surface-2` (the worst case) | 5.0 | 5.3 |
+| text on accent | 6.3 | 7.6 |
+| statuses on their `-soft` background (ok, warn, danger, info) | 4.7 · 5.6 · 5.6 · 6.2 | 7.0 · 7.5 · 6.8 · 7.2 |
+| field border `border-control` (≥ 3:1) | 3.6 | 3.5 |
+| focus / background (≥ 3:1) | 5.8 | 9.8 |
 
-- **Focus** : `:focus-visible` global = anneau de 2 px `--color-focus`, décalé de 2 px, sur tous les éléments interactifs.
+- **Focus**: global `:focus-visible` = 2 px `--color-focus` ring, offset by 2 px, on all interactive elements.
 
-## 4. Architecture d'information
+## 4. Information architecture
 
-Les routes ne changent pas (`/`, `/ajouter`, `/sets/[id]`, `/atelier`, `/atelier/[buildId]`) : les liens, les tests et la reprise en dépendent.
+The routes do not change (`/`, `/ajouter`, `/sets/[id]`, `/atelier`, `/atelier/[buildId]`): links, tests and resume depend on them.
 
-**Barre d'app commune** à toutes les pages (52 px). À gauche, la marque « Brick Lab » (lien vers la collection) puis le fil d'Ariane (*Ma collection › 90001-1 Maison de test › Atelier*). À droite, l'action de la page, le bouton Aide `?` et la bascule de thème (Système / Clair / Sombre). Le libellé « ← Ma collection » et `data-testid="back-to-collection"` sont conservés sur le premier lien du fil d'Ariane.
+**Shared app bar** on all pages (52 px). On the left, the "Brick Lab" brand (link to the collection) then the breadcrumb (*Ma collection › 90001-1 Maison de test › Atelier*). On the right, the page action, the Help `?` button and the theme toggle (System / Light / Dark). The "← Ma collection" label (← My collection) and `data-testid="back-to-collection"` are kept on the first breadcrumb link.
 
 ### 4.1 Collection `/`
 
-| Avant | Après | Gain |
+| Before | After | Gain |
 |---|---|---|
-| Titre + recherche + filtres, puis grille de cartes égales ; détection du dossier de données en lien jaune replié ; parties du navigateur en encadré gris en bas | **Bandeau « Reprendre »** en tête : la construction en cours modifiée en dernier, grande vignette, progression, un bouton. Barre d'outils compacte (recherche, filtres en segmenté, « Ajouter un set » en primaire). Cartes à **vignette dominante** : badge d'état en surimpression, barre de progression au bas de la vignette, puis n°, nom, une ligne d'icônes (pièces, notices, correspondances) et les modes en puces neutres. **Problème toujours affiché** en rouge sous le titre, et « Réparer » remplace « Construire » quand aucun mode n'est disponible (lien vers le détail). Détection et parties du navigateur : sections repliables avec compteur, sous la grille. Collection vide : écran d'accueil (§ 5.1). Chargement : squelettes de cartes. | Reprendre = **1 clic** depuis l'accueil ; l'état se lit sur la vignette ; les problèmes restent aussi visibles qu'aujourd'hui (rouge, `role=note`) |
+| Title + search + filters, then a grid of equal cards; data folder detection as a collapsed yellow link; browser sessions in a gray box at the bottom | **"Reprendre" (Resume) banner** at the top: the in-progress build modified last, large thumbnail, progress, one button. Compact toolbar (search, segmented filters, "Ajouter un set" (Add a set) as primary). Cards with a **dominant thumbnail**: status badge overlaid, progress bar at the bottom of the thumbnail, then number, name, a row of icons (parts, instructions, mappings) and the modes as neutral chips. **Problem always shown** in red under the title, and "Réparer" (Repair) replaces "Construire" (Build) when no mode is available (link to the detail). Detection and browser sessions: collapsible sections with a counter, below the grid. Empty collection: welcome screen (§ 5.1). Loading: card skeletons. | Resuming = **1 click** from the home page; the state reads from the thumbnail; problems stay as visible as today (red, `role=note`) |
 
-### 4.2 Ajouter un set `/ajouter` : parcours par étapes, sur une seule page
+### 4.2 Ajouter un set `/ajouter`: step-by-step flow, on a single page
 
-| Avant | Après | Gain |
+| Before | After | Gain |
 |---|---|---|
-| 5 panneaux qui apparaissent au fil de l'eau ; le bouton final loin sous le pli | **Indicateur d'étapes** en haut : *1. Fichiers → 2. Vérification → 3. Confirmation → 4. Prêt*. L'étape en cours est mise en avant, les étapes passées sont résumées et rouvrables, les suivantes grisées. **1. Fichiers** : deux voies côte à côte, « Par numéro » (recherche locale puis sources, avec « Chercher en ligne » marqué d'une icône globe et de la mention *contacte l'OMR*) et « Depuis mes fichiers » (grande zone de dépôt). **2. Vérification** : fichiers retenus et diagnostic de compatibilité, une fiche par construction (badge de qualité, modes disponibles, raisons). **3. Confirmation** : numéro, nom, cible (nouveau set / set existant). **Barre d'action collante en bas** : ce qui manque (`confirm-blocker`) et le bouton principal, toujours visible. **4. Prêt** : « Construire « … » » en primaire. | On sait où l'on en est et ce qui manque ; l'action principale ne bouge plus. Tout reste sur une route, sans perte d'état. |
+| 5 panels that appear as you go; the final button far below the fold | **Step indicator** at the top: *1. Fichiers (Files) → 2. Vérification (Check) → 3. Confirmation → 4. Prêt (Ready)*. The current step is highlighted, past steps are summarized and reopenable, following ones grayed out. **1. Files**: two paths side by side, "Par numéro" (By number) (local search then sources, with "Chercher en ligne" (Search online) marked with a globe icon and the note *contacte l'OMR* (contacts the OMR)) and "Depuis mes fichiers" (From my files) (large drop zone). **2. Check**: retained files and compatibility diagnostic, one card per build (quality badge, available modes, reasons). **3. Confirmation**: number, name, target (new set / existing set). **Sticky action bar at the bottom**: what is missing (`confirm-blocker`) and the main button, always visible. **4. Ready**: "Construire '…'" as primary. | You know where you are and what is missing; the main action no longer moves. Everything stays on one route, with no state loss. |
 
-Hors ligne (`BRICK_LAB_ONLINE=0`) : la voie « Par numéro » affiche à la place du bouton « Recherche en ligne désactivée (`BRICK_LAB_ONLINE=0`) », avec une icône globe barrée. L'import local reste complet.
+Offline (`BRICK_LAB_ONLINE=0`): the "Par numéro" path shows "Recherche en ligne désactivée (`BRICK_LAB_ONLINE=0`)" (Online search disabled) in place of the button, with a crossed-out globe icon. Local import remains complete.
 
-### 4.3 Détail d'un set `/sets/[id]`
+### 4.3 Set detail `/sets/[id]`
 
-| Avant | Après | Gain |
+| Before | After | Gain |
 |---|---|---|
-| En-tête éditable, puis par construction : aperçu 3D + une colonne de ~15 sections | En-tête : n° et nom éditables (crayon au survol, Entrée / Échap). Par construction, une **carte Construction** : aperçu 3D, nom, statut, progression, modes ✓/✗ **avec raisons**, **problèmes en tête** (alerte rouge), bouton principal. Puis des **sections repliables** : Fichiers (modèle, empreintes, réparation), Notices, Correspondances, Compatibilité et diagnostics, et enfin une **zone de danger** séparée. Sauvegarde du navigateur : bandeau d'alerte en haut de la carte quand elle diffère. | Une lecture en 5 secondes, la réparation à portée, le destructif isolé |
+| Editable header, then per build: 3D preview + a column of ~15 sections | Header: editable number and name (pencil on hover, Enter / Escape). Per build, a **Construction card**: 3D preview, name, status, progress, ✓/✗ modes **with reasons**, **problems first** (red alert), main button. Then **collapsible sections**: Files (model, fingerprints, repair), Notices (Instructions), Mappings, Compatibility and diagnostics, and finally a separate **danger zone**. Browser save: alert banner at the top of the card when it differs. | Readable in 5 seconds, repair within reach, destructive actions isolated |
 
-### 4.4 Atelier `/atelier/[id]` et `/atelier`
+### 4.4 Workshop `/atelier/[id]` and `/atelier`
 
 ```
-┌ Barre d'app ─────────────────────────────────────────────────────────────────┐
+┌ App bar ─────────────────────────────────────────────────────────────────────┐
 │ ← Ma collection › 90001-1 Maison de test    [Notice synchro|Guidé|Libre]    ▰▰▱▱ 2/8 pièces  ✓ Enregistré  ⌨ ◐ │
 ├──────────────────────────────────────────────┬─┬────────────────────────────┤
-│ HUD (état de la pièce en main / sélection)    │ │ [Étape|Modèle] [Notice] [Corresp.]  ⇥ │
-│                                  Rail d'outils │ │                              │
-│              SCÈNE 3D                ⌖ ▢ ▦ ⊃ ◎ 👁 │ │ panneau repliable          │
+│ HUD (state of the part in hand / selection)   │ │ [Étape|Modèle] [Notice] [Corresp.]  ⇥ │
+│                                    Tool rail  │ │                              │
+│              3D SCENE                ⌖ ▢ ▦ ⊃ ◎ 👁 │ │ collapsible panel          │
 │                                               │ │                              │
-│        Barre contextuelle (main / sélection)   │ │                              │
-│ Légende : clic poser · R tourner · ? aide      │ │                              │
+│        Contextual bar (hand / selection)      │ │                              │
+│ Caption: clic poser · R tourner · ? aide      │ │                              │
 ├──────────────────────────────────────────────┴─┴────────────────────────────┤
-│ Bac de pièces (188 px fixes)                                 [↶ Annuler] [⋯] │
+│ Parts tray (fixed 188 px)                                    [↶ Annuler] [⋯] │
 │                                                              [◎ Poser à la cible] │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Zone | Avant | Après | Gain |
+| Area | Before | After | Gain |
 |---|---|---|---|
-| Barre d'app | Texte en vrac à droite | Fil d'Ariane ; **sélecteur de mode segmenté au centre** (les modes indisponibles sont grisés, avec la raison en infobulle) ; **barre de progression** et « x/y pièces » ; étape « Étape 1 / 2 » ou « Notice : Étape 2, p. 2 » sous le compteur ; état de sauvegarde (icône + texte, rouge si erreur) ; aide `?` ; thème | Mode et progression toujours visibles ; la bascule guidé/libre devient évidente |
-| Démarrage | Fiche du modèle puis 3 boutons empilés | Onglet **« Démarrer »** du panneau tant qu'aucune partie n'est lancée : résumé (badge de qualité, chiffres), puis **trois cartes de mode** avec une phrase d'explication chacune ; les modes indisponibles restent affichés avec leur raison (« Étapes non disponibles dans ce fichier : aucune séquence n'est inventée »). Diagnostic détaillé repliable dessous. | On comprend la différence entre les modes ; un modèle non constructible ne montre aucun bouton actif |
-| HUD | Ligne `held-info` dans le bac (guidé) ou dans la barre (libre) | Puce translucide en haut à gauche de la scène, dans tous les modes : niveau/hauteur, rotation, orientation, aimant (« 4 tenons emboîtés », en vert), raison d'un refus (en ambre) | Un seul endroit à regarder, près de la pièce |
-| Rail d'outils | Cases dans le bac + « Centrer » | Colonne d'icônes à droite de la scène : Centrer, Montrer les emplacements, Grille (G), Aimant pièces, Aimant modèle, Voir les connexions, chacun avec infobulle et raccourci, `aria-pressed` | Les réglages de scène sont près de la scène |
-| Barre contextuelle | `manip-bar` de 20 contrôles sur 3 lignes en haut | Une barre en bas de la scène, **seulement quand il y a quelque chose en main ou sélectionné**. Pièce en main : Monter / Descendre / pas 8–1 LDU / Hauteur auto · X Y Z ±90° · Remettre au stock · Lâcher. Sélection : Flèches / Anneaux · Globaux / Locaux · X Y Z · Déplacer · Assemblage · Au stock · Désélectionner. **Réglages ⚙** (popover) : pas, angle, coordonnées X/Y/Z + Appliquer. À < 1200 px, les libellés passent en icônes avec infobulle. | La scène récupère ~90 px en haut ; l'essentiel en un coup d'œil ; les réglages fins restent à un clic |
-| Bac | Bac + 8 à 12 contrôles en vrac | Bac (hauteur fixe inchangée) + colonne d'actions : **Annuler** (⌘Z), **Poser à la position cible**, **menu ⋯** (Réinitialiser l'étape, Abandonner → confirmation) | Une action principale par zone ; le destructif sort du chemin |
-| Panneau latéral | 3 onglets, non repliable | Onglets *Démarrer/Étape*, *Notice*, *Correspondances* ; **bouton de repli** (⇥) qui rend toute la largeur à la scène, mémorisé ; séparateur avec poignée visible. Pendant une partie, l'onglet « Étape » montre l'étape en cours (guidé, synchro) ou le stock et la fin (libre) ; la fiche du modèle reste en section repliable. | La scène peut prendre toute la place ; le panneau montre la partie, plus le diagnostic d'import |
-| Toasts | Bas-gauche, persistants, longues consignes | Pile en bas à gauche, au-dessus de la légende : les **résultats** (posée, refusée, déplacée) restent comme aujourd'hui ; les **consignes** (« Pointe où tu veux… ») passent dans la **légende contextuelle** du bas de la scène. Bouton de fermeture ; erreurs en `role=alert`. | Moins de texte qui masque la scène |
-| Aide | Aucune | Touche **`?`** ou bouton ⌨ : modale « Raccourcis et gestes », par contexte (en main / sélection / guidé / éditeur), qui reprend les 21 raccourcis et 12 gestes de l'inventaire | Découvrabilité (U16) |
-| LDraw absent | Écran d'accueil + texte rouge | **Écran « Bibliothèque de pièces introuvable »** dans la scène : raison exacte, les 3 étapes du README (télécharger `complete.zip`, créer `.env.local`, `npm run check:ldraw`) avec commandes copiables, et « Réessayer » ; le panneau garde le diagnostic et précise « cause : bibliothèque LDraw, pas le fichier » | U39 corrigé, sans masquer le diagnostic |
+| App bar | Loose text on the right | Breadcrumb; **segmented mode selector in the center** (unavailable modes are grayed out, with the reason in a tooltip); **progress bar** and "x/y pièces" (x/y parts); step "Étape 1 / 2" (Step 1 / 2) or "Notice : Étape 2, p. 2" (Instructions: Step 2, p. 2) under the counter; save state (icon + text, red on error); `?` help; theme | Mode and progress always visible; the guided/free toggle becomes obvious |
+| Start | Model card then 3 stacked buttons | **"Démarrer" (Start) tab** of the panel as long as no session is started: summary (quality badge, figures), then **three mode cards** with one explanatory sentence each; unavailable modes stay displayed with their reason ("Étapes non disponibles dans ce fichier : aucune séquence n'est inventée" (Steps not available in this file: no sequence is invented)). Detailed diagnostic collapsible below. | You understand the difference between modes; a non-buildable model shows no active button |
+| HUD | `held-info` line in the tray (guided) or in the bar (free) | Translucent chip at the top left of the scene, in all modes: level/height, rotation, orientation, magnet ("4 tenons emboîtés" (4 studs snapped), in green), reason for a refusal (in amber) | A single place to look, near the part |
+| Tool rail | Checkboxes in the tray + "Centrer" (Center) | Column of icons to the right of the scene: Center, Show slots, Grid (G), Part magnet, Model magnet, View connections, each with tooltip and shortcut, `aria-pressed` | Scene settings are near the scene |
+| Contextual bar | 20-control `manip-bar` on 3 rows at the top | A bar at the bottom of the scene, **only when something is in hand or selected**. Part in hand: Up / Down / 8–1 LDU step / Auto height · X Y Z ±90° · Return to stock · Drop. Selection: Arrows / Rings · Global / Local · X Y Z · Move · Assembly · To stock · Deselect. **Settings ⚙** (popover): step, angle, X/Y/Z coordinates + Apply. Below 1200 px, labels become icons with a tooltip. | The scene gains ~90 px at the top; the essentials at a glance; fine settings one click away |
+| Tray | Tray + 8 to 12 loose controls | Tray (unchanged fixed height) + action column: **Annuler** (Undo) (⌘Z), **Poser à la position cible** (Place at target position), **⋯ menu** (Reset the step, Abandon → confirmation) | One main action per area; the destructive action gets out of the way |
+| Side panel | 3 tabs, not collapsible | Tabs *Démarrer/Étape*, *Notice*, *Correspondances* (Mappings); **collapse button** (⇥) that gives the full width back to the scene, remembered; splitter with visible handle. During a session, the "Étape" tab shows the current step (guided, synced) or the stock and the end (free); the model card remains as a collapsible section. | The scene can take all the space; the panel shows the session, no longer the import diagnostic |
+| Toasts | Bottom left, persistent, long instructions | Stack at the bottom left, above the caption: **results** (placed, refused, moved) stay as today; **instructions** ("Pointe où tu veux…" (Point wherever you want…)) move to the **contextual caption** at the bottom of the scene. Close button; errors as `role=alert`. | Less text hiding the scene |
+| Help | None | **`?`** key or ⌨ button: "Raccourcis et gestes" (Shortcuts and gestures) modal, by context (in hand / selection / guided / editor), which covers the 21 shortcuts and 12 gestures of the inventory | Discoverability (U16) |
+| LDraw missing | Home screen + red text | **"Bibliothèque de pièces introuvable" (Parts library not found) screen** in the scene: exact reason, the 3 README steps (download `complete.zip`, create `.env.local`, `npm run check:ldraw`) with copyable commands, and "Réessayer" (Retry); the panel keeps the diagnostic and states "cause : bibliothèque LDraw, pas le fichier" (cause: LDraw library, not the file) | U39 fixed, without hiding the diagnostic |
 
-### 4.5 Notice PDF et éditeur de correspondances
+### 4.5 PDF instructions and mapping editor
 
-| Avant | Après | Gain |
+| Before | After | Gain |
 |---|---|---|
-| Barre de boutons texte (◀ ▶ − + ↔), livret en select | Barre d'icônes compacte : livret (select) · ◀ « p. 2 / 3 » ▶ · − Largeur + ↔ · « Ajouter un livret » ; la légende contextuelle (« page indépendante des étapes 3D » / « pilotée par l'étape ») sous la page en petit ; mode synchro : **carte d'étape** au-dessus de la page (étape, page, progression de l'étape, consultation en ambre, « Reprendre depuis cette étape » → confirmation) | Moins de bruit, la page prend la hauteur |
-| Éditeur : 7 champs inline, sections empilées | En-tête (statut, couverture, Terminer) ; **navigation d'étapes** ◀ select ▶ + « Nouvelle étape » ; **formulaire en grille à deux colonnes** avec libellés alignés (Livret, Page, N° imprimé, Encadré, ×, Vérifiée, Note) ; pièces de l'étape et non affectées en puces avec pastille de couleur ; Livrets, Validation et Import/Export en sections repliables ; « Tout effacer » dans un menu avec confirmation | Saisie plus rapide et lisible |
+| Bar of text buttons (◀ ▶ − + ↔), booklet in a select | Compact icon bar: booklet (select) · ◀ "p. 2 / 3" ▶ · − Width + ↔ · "Ajouter un livret" (Add a booklet); the contextual caption ("page indépendante des étapes 3D" (page independent of the 3D steps) / "pilotée par l'étape" (driven by the step)) under the page in small type; sync mode: **step card** above the page (step, page, step progress, viewing in amber, "Reprendre depuis cette étape" (Resume from this step) → confirmation) | Less noise, the page takes the height |
+| Editor: 7 inline fields, stacked sections | Header (status, coverage, Finish); **step navigation** ◀ select ▶ + "Nouvelle étape" (New step); **two-column grid form** with aligned labels (Livret (Booklet), Page, N° imprimé (Printed no.), Encadré (Boxed), ×, Vérifiée (Verified), Note); step and unassigned parts as chips with a color dot; Booklets, Validation and Import/Export as collapsible sections; "Tout effacer" (Clear all) in a menu with confirmation | Faster, more readable input |
 
-## 5. Parcours
+## 5. Flows
 
-### 5.1 Premier lancement
-Collection vide, en trois cas :
-- **Bibliothèque LDraw configurée** : accueil avec deux cartes, *Ajouter mon premier set* (lien `/ajouter`) et *Essayer la démo* (voir arbitrage A4).
-- **Bibliothèque absente** : la carte *Bibliothèque de pièces* passe en premier, avec les étapes d'installation et « Réessayer ». L'ajout de set reste possible, et son diagnostic signalera « rendu indisponible ».
-- **Fichiers trouvés dans le dossier de données** : troisième carte, *N sets trouvés dans ton dossier*, qui déplie la détection.
+### 5.1 First launch
+Empty collection, in three cases:
+- **LDraw library configured**: home with two cards, *Ajouter mon premier set* (Add my first set) (link `/ajouter`) and *Essayer la démo* (Try the demo) (see decision A4).
+- **Library missing**: the *Bibliothèque de pièces* (Parts library) card comes first, with the installation steps and "Réessayer". Adding a set remains possible, and its diagnostic will report "rendu indisponible" (rendering unavailable).
+- **Files found in the data folder**: third card, *N sets trouvés dans ton dossier* (N sets found in your folder), which expands the detection.
 
 ### 5.2 Import
-Collection → Ajouter un set → 1. numéro ou dépôt → 2. vérification (fiche de compatibilité lisible) → 3. confirmation → 4. **Construire** → atelier sur l'onglet *Démarrer*, où le mode recommandé est pré-mis en avant.
+Collection → Add a set → 1. number or drop → 2. check (readable compatibility card) → 3. confirmation → 4. **Construire** → workshop on the *Démarrer* tab, where the recommended mode is pre-highlighted.
 
-### 5.3 Construction guidée
-*Démarrer* → carte « Guidé » → le panneau passe sur *Étape* → on prend une pièce dans le bac (le HUD et la légende s'affichent) → l'aimant indique la cible (HUD vert) → clic → toast « Pièce posée (1/4) » → la barre d'app avance → fin : écran de fin dans le panneau, « Recommencer » (confirmé).
+### 5.3 Guided building
+*Démarrer* → "Guidé" (Guided) card → the panel switches to *Étape* → you pick a part from the tray (the HUD and the caption appear) → the magnet indicates the target (green HUD) → click → toast "Pièce posée (1/4)" (Part placed (1/4)) → the app bar advances → end: end screen in the panel, "Recommencer" (Start over) (confirmed).
 
-### 5.4 Montage libre
-Sélecteur de mode → *Libre* (si des pièces sont hors modèle : la confirmation actuelle, en modale) → on prend une pièce (la barre contextuelle « en main » apparaît) → clic → on clique une pièce posée (barre contextuelle « sélection » et gizmo) → double-clic : assemblage → glisser.
+### 5.4 Free building
+Mode selector → *Libre* (Free) (if parts are outside the model: the current confirmation, in a modal) → you pick a part (the "in hand" contextual bar appears) → click → you click a placed part ("selection" contextual bar and gizmo) → double-click: assembly → drag.
 
-### 5.5 Notice et correspondances
-Onglet *Notice* → importer un PDF → *Correspondances* (le panneau s'élargit au contexte « éditeur ») → … → *Terminer* → sur la carte *Démarrer*, « Notice synchronisée » devient disponible.
+### 5.5 Instructions and mappings
+*Notice* tab → import a PDF → *Correspondances* (the panel widens to the "editor" context) → … → *Terminer* (Finish) → on the *Démarrer* card, "Notice synchronisée" (Synced instructions) becomes available.
 
-## 6. Points à arbitrer avant la phase 3
+## 6. Points to decide before phase 3
 
-| # | Sujet | Proposition | Impact |
+| # | Topic | Proposal | Impact |
 |---|---|---|---|
-| **A1** | Direction visuelle | **A « Établi »** | — |
-| **A2** | Dépendance d'icônes | `lucide-react@1.61.0` | +1 dépendance (≈ 7 Ko gzip au bundle) |
-| **A3** | **Sélecteur de mode** : contrôle segmenté (`role=radiogroup`) à la place du `<select data-testid="mode-select">` | Segmenté, avec le même `data-testid` sur le groupe et des `data-value` ; les ~30 `selectOption(...)` des tests passent par un helper `chooseMode(page, mode)`, mis à jour dans le même commit | Modifie des tests (pas leurs assertions). Alternative : garder un `<select>` natif restylé (0 test touché, moins lisible) |
-| **A4** | **« Essayer la démo »** au premier lancement | Embarquer `fixtures/mini-4-pieces.mpd` (CC0) comme constante dans `src/components/demo/`, avec un test unitaire qui vérifie l'égalité octet par octet avec la fixture ; ouvre `/atelier?demo=mini-4` (import local, rien d'écrit dans la bibliothèque) | Petit ajout fonctionnel ; aucune route API, aucun accès réseau |
-| **A5** | **Confirmation d'« Abandonner » dans l'atelier autonome** (aujourd'hui effacement immédiat) et de **« Reprendre depuis cette étape »** | Confirmation dans les deux cas (exigence transverse de la mission) | Change un comportement : `surface-placement.spec.ts:67` clique « Abandonner » et attend l'effacement ; ajout du clic de confirmation dans le même commit |
-| **A6** | **Consignes hors du toast** : les consignes de prise (`pick`, `take`, `moveSelection`, glisser), de sélection (`select`) et d'entrée dans un mode (`MODE_HINT`) vont dans la légende contextuelle ; le toast garde les résultats, y compris les messages *info* qui en sont (assemblage sélectionné ou non, pièces reconnues au changement de mode, progression restaurée, « Pièce laissée où elle était. ») | Oui ; les textes ne changent pas | Vérifié par `grep` : aucune assertion E2E ne porte sur les consignes déplacées ; les messages info assertés (« visibles ou cachées », « Aucune autre pièce reliée », « reconnue(s) à leur place », « Pièce laissée où elle était. ») restent dans `message` |
-| **A7** | **Fermeture automatique des toasts de succès** (5 s) | Non pour l'instant : fermeture manuelle (×), le dernier message remplace le précédent comme aujourd'hui | Évite des tests instables ; à rediscuter après la phase 4 |
-| **A8** | **Couleurs des fantômes, de la sélection et du mode « voir les connexions »** : elles sont définies dans `src/infra/ldraw/part-catalog.ts` (interdit) | Soit ton accord pour y lire les tokens `--scene-ghost` / `--scene-select` (3 constantes), soit les garder telles quelles (bleu `#3b82f6`, ambre émissif) | Sans accord, le rose pâle de la sélection (U42) reste |
-| **A9** | **Dépôt de fichiers sur la collection** (drop global qui ouvre `/ajouter` avec les fichiers) | Reporter : un nouveau point d'entrée, pas indispensable | — |
-| **A10** | **Bouton « Réparer »** sur une carte sans mode (lien vers le détail) | Oui (aujourd'hui la carte n'a que « Détails ») | Ajout de présentation |
-| **A11** | Fonctions à l'utilité douteuse (signalées en phase 1) : sessions récentes non cliquables (N4), atelier autonome (A5) | Conservées. N4 devient une liste « Reprendre en réimportant » avec la zone de dépôt à côté | — |
+| **A1** | Visual direction | **A "Établi"** | — |
+| **A2** | Icon dependency | `lucide-react@1.61.0` | +1 dependency (≈ 7 KB gzip in the bundle) |
+| **A3** | **Mode selector**: segmented control (`role=radiogroup`) in place of the `<select data-testid="mode-select">` | Segmented, with the same `data-testid` on the group and `data-value` attributes; the ~30 `selectOption(...)` calls in the tests go through a `chooseMode(page, mode)` helper, updated in the same commit | Modifies tests (not their assertions). Alternative: keep a restyled native `<select>` (0 tests touched, less readable) |
+| **A4** | **"Essayer la démo"** on first launch | Embed `fixtures/mini-4-pieces.mpd` (CC0) as a constant in `src/components/demo/`, with a unit test that checks byte-for-byte equality with the fixture; opens `/atelier?demo=mini-4` (local import, nothing written to the library) | Small functional addition; no API route, no network access |
+| **A5** | **Confirmation for "Abandonner" in the standalone workshop** (today immediate erasure) and for **"Reprendre depuis cette étape"** | Confirmation in both cases (cross-cutting requirement of the brief) | Changes a behavior: `surface-placement.spec.ts:67` clicks "Abandonner" and expects the erasure; confirmation click added in the same commit |
+| **A6** | **Instructions out of the toast**: pick-up instructions (`pick`, `take`, `moveSelection`, drag), selection (`select`) and mode entry (`MODE_HINT`) go into the contextual caption; the toast keeps results, including the *info* messages that are results (assembly selected or not, parts recognized on mode change, progress restored, "Pièce laissée où elle était." (Part left where it was.)) | Yes; the texts do not change | Checked by `grep`: no E2E assertion targets the moved instructions; the asserted info messages ("visibles ou cachées", "Aucune autre pièce reliée", "reconnue(s) à leur place", "Pièce laissée où elle était.") stay in `message` |
+| **A7** | **Automatic dismissal of success toasts** (5 s) | Not for now: manual dismissal (×), the last message replaces the previous one as today | Avoids unstable tests; to revisit after phase 4 |
+| **A8** | **Colors of the ghosts, the selection and the "voir les connexions" mode**: they are defined in `src/infra/ldraw/part-catalog.ts` (forbidden) | Either your approval to read the `--scene-ghost` / `--scene-select` tokens there (3 constants), or keep them as is (blue `#3b82f6`, emissive amber) | Without approval, the pale pink of the selection (U42) remains |
+| **A9** | **File drop on the collection** (global drop that opens `/ajouter` with the files) | Postpone: a new entry point, not essential | — |
+| **A10** | **"Réparer" button** on a card without a mode (link to the detail) | Yes (today the card only has "Détails" (Details)) | Presentation addition |
+| **A11** | Features of doubtful usefulness (flagged in phase 1): non-clickable recent sessions (N4), standalone workshop (A5) | Kept. N4 becomes a "Reprendre en réimportant" (Resume by re-importing) list with the drop zone next to it | — |
 
-## 7. Garde-fous techniques
+## 7. Technical safeguards
 
-- **Canvas R3F** : aucun nouveau contexte React au-dessus de `BrickLabApp`. Le thème passe par CSS et un unique observateur dans `BuildCanvas`. Les nouveaux sous-composants (barre d'app, HUD, rail, barre contextuelle, actions du bac) sont des enfants frères du `<Canvas>`, donc leurs rendus ne recréent pas la scène ; les props passées à `BuildCanvas` restent les mêmes. `npm run perf` après chaque écran.
-- **Picking** : le bac garde 188 px ; le HUD, le rail et la barre contextuelle sont des **superpositions** (position absolue) qui ne redimensionnent jamais le canvas ; le repli du panneau passe par la même grille que le séparateur (un `ResizeObserver` et `sizeInSync` sont déjà testés).
-- **Tests** : tous les `data-testid`, noms accessibles et textes listés dans `dependances-e2e.md` sont conservés. Les boutons à icône gardent leur nom par `aria-label` (« Centrer », « Page suivante »…), et `.tray-item`, `.count`, `.ref`, `.held-badge`, `data-thumb`, `main.workspace[data-side-width]`, `.pdf-scroll` et `aside input[accept=".ldr,.mpd"]` restent.
-- **1024 px** : panneau à 280 px minimum, barre contextuelle en icônes, fil d'Ariane tronqué avec infobulle ; rien ne passe à la ligne dans la barre d'app.
-- **WebKit** : `color-mix()` et `backdrop-filter` sont pris en charge par Safari ≥ 16.4 et 18 ; un repli opaque est prévu.
+- **R3F canvas**: no new React context above `BrickLabApp`. The theme goes through CSS and a single observer in `BuildCanvas`. The new sub-components (app bar, HUD, rail, contextual bar, tray actions) are sibling children of the `<Canvas>`, so their renders do not recreate the scene; the props passed to `BuildCanvas` stay the same. `npm run perf` after each screen.
+- **Picking**: the tray keeps 188 px; the HUD, the rail and the contextual bar are **overlays** (absolute position) that never resize the canvas; panel collapse goes through the same grid as the splitter (a `ResizeObserver` and `sizeInSync` are already tested).
+- **Tests**: all `data-testid` attributes, accessible names and texts listed in `dependances-e2e.md` are kept. Icon buttons keep their name via `aria-label` ("Centrer", "Page suivante"…), and `.tray-item`, `.count`, `.ref`, `.held-badge`, `data-thumb`, `main.workspace[data-side-width]`, `.pdf-scroll` and `aside input[accept=".ldr,.mpd"]` remain.
+- **1024 px**: panel at 280 px minimum, contextual bar in icons, breadcrumb truncated with a tooltip; nothing wraps in the app bar.
+- **WebKit**: `color-mix()` and `backdrop-filter` are supported by Safari ≥ 16.4 and 18; an opaque fallback is planned.
 
-## 8. Suite (phases 3 et 4)
+## 8. Next (phases 3 and 4)
 
-1. **Phase 3, filet** (avant toute UI) : E2E pour le hors-ligne dans `/ajouter` (Q11), la bibliothèque LDraw absente (Q10), l'abandon autonome et en bibliothèque (K10), retirer une construction ou un set (C19), vérifier les empreintes (C11), raccourcis G et Q (O14, O16), éditeur monter/descendre/supprimer et tout effacer/restaurer (M8, M18, M19). Ils doivent passer sur la version actuelle.
-2. **Phase 4, fondations** : `tokens.css`, thème et bascule, `:focus-visible`, composants `Button`, `IconButton`, `Segmented`, `Field`, `Badge`/`QualityBadge`, `Card`, `Section` (repliable), `Dialog`, `Toast`, `Tooltip`, `Menu`, `EmptyState`, `Skeleton`, `Kbd`, `ProgressBar`, `AppBar`.
-3. Puis les écrans dans l'ordre : collection → ajouter → atelier (démarrage, guidé, libre) → notice et éditeur. Un commit par écran, avec `npm test`, `test:e2e` et `perf` à chaque fois.
+1. **Phase 3, safety net** (before any UI): E2E for offline in `/ajouter` (Q11), LDraw library missing (Q10), standalone and library abandon (K10), removing a build or a set (C19), verifying fingerprints (C11), G and Q shortcuts (O14, O16), editor move up/down/delete and clear all/restore (M8, M18, M19). They must pass on the current version.
+2. **Phase 4, foundations**: `tokens.css`, theme and toggle, `:focus-visible`, components `Button`, `IconButton`, `Segmented`, `Field`, `Badge`/`QualityBadge`, `Card`, `Section` (collapsible), `Dialog`, `Toast`, `Tooltip`, `Menu`, `EmptyState`, `Skeleton`, `Kbd`, `ProgressBar`, `AppBar`.
+3. Then the screens in order: collection → add → workshop (start, guided, free) → instructions and editor. One commit per screen, with `npm test`, `test:e2e` and `perf` each time.
 
-## 9. Décisions validées (09/11/2026)
+## 9. Decisions validated (2026-11-09)
 
-Le propriétaire a validé la proposition telle quelle (« Approve A as proposed ») :
+The owner approved the proposal as is ("Approve A as proposed"):
 
-| # | Décision |
+| # | Decision |
 |---|---|
-| A1 | Direction **A « Établi »** ; tokens de `proposition/tokens.css` |
-| A2 | `lucide-react@1.61.0`, aucune autre bibliothèque d'UI ; pas de police ajoutée |
-| A3 | Sélecteur de mode **segmenté** ; tests via un helper `chooseMode`, assertions inchangées |
-| A4 | « Essayer la démo » avec la fixture CC0 embarquée et un test d'égalité avec `fixtures/mini-4-pieces.mpd` |
-| A5 | Confirmation pour « Abandonner » (atelier autonome compris) et « Reprendre depuis cette étape » ; `surface-placement.spec.ts` et `filet-refonte.spec.ts` suivent dans le même commit |
-| A6 | Consignes dans la légende contextuelle, résultats dans le toast |
-| A7 | Pas de fermeture automatique des toasts pour l'instant |
-| A8 | **Pas de modification de `src/infra/`** : la proposition offrait deux options sans en choisir une, donc on garde les matériaux actuels (fantôme bleu, sélection ambre) tant que l'accord n'est pas donné explicitement |
-| A9 | Dépôt de fichiers sur la collection reporté |
-| A10 | Bouton « Réparer » sur les cartes sans mode |
-| A11 | Fonctions signalées conservées |
+| A1 | Direction **A "Établi"**; tokens from `proposition/tokens.css` |
+| A2 | `lucide-react@1.61.0`, no other UI library; no font added |
+| A3 | **Segmented** mode selector; tests via a `chooseMode` helper, assertions unchanged |
+| A4 | "Essayer la démo" with the embedded CC0 fixture and an equality test against `fixtures/mini-4-pieces.mpd` |
+| A5 | Confirmation for "Abandonner" (standalone workshop included) and "Reprendre depuis cette étape"; `surface-placement.spec.ts` and `filet-refonte.spec.ts` follow in the same commit |
+| A6 | Instructions in the contextual caption, results in the toast |
+| A7 | No automatic toast dismissal for now |
+| A8 | **No modification of `src/infra/`**: the proposal offered two options without choosing one, so the current materials (blue ghost, amber selection) are kept until approval is explicitly given |
+| A9 | File drop on the collection postponed |
+| A10 | "Réparer" button on cards without a mode |
+| A11 | Flagged features kept |

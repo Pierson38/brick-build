@@ -1,61 +1,61 @@
-# P7 — Bibliothèque personnelle de sets : rapport
+# P7 — Personal set library: report
 
-**Date :** 05/11/2026. Branche `feat/p7-personal-library`, worktree dédié, base `origin/main` = `7f2e670` (P6 fusionné).
-**Machine :** Mac Apple M2 Pro, macOS 26.6.2, Node 24.5.0, Chromium et WebKit (Playwright 1.64.1).
+**Date:** 2026-11-05. Branch `feat/p7-personal-library`, dedicated worktree, base `origin/main` = `7f2e670` (P6 merged).
+**Machine:** Mac Apple M2 Pro, macOS 26.6.2, Node 24.5.0, Chromium and WebKit (Playwright 1.64.1).
 
-Architecture, sécurité, sauvegarde et restauration : [P7_ARCHITECTURE_BIBLIOTHEQUE.md](P7_ARCHITECTURE_BIBLIOTHEQUE.md). Décisions : [JOURNAL_DECISIONS.md](JOURNAL_DECISIONS.md#journal--05112026-lot-p7-bibliothèque-personnelle). Recette humaine : [RECETTE_HUMAINE_P7.md](RECETTE_HUMAINE_P7.md).
+Architecture, security, backup and restore: [P7_ARCHITECTURE_BIBLIOTHEQUE.md](P7_ARCHITECTURE_BIBLIOTHEQUE.md). Decisions: [JOURNAL_DECISIONS.md](JOURNAL_DECISIONS.md#journal--2026-11-05-batch-p7-personal-library). Manual acceptance test: [RECETTE_HUMAINE_P7.md](RECETTE_HUMAINE_P7.md).
 
-> Aucun contenu LEGO n'est ajouté au dépôt : ni MPD de set, ni PDF, ni mapping réel, ni capture de notice. Les fixtures des tests de stockage sont originales (CC0). Les preuves réelles restent dans `~/Documents/brick-lab-data/proofs/p7/`.
+> No LEGO content is added to the repository: no set MPD, no PDF, no real mapping, no instruction screenshot. The fixtures of the storage tests are original (CC0). The real evidence stays in `~/Documents/brick-lab-data/proofs/p7/`.
 
-## 1. Ce qui est livré
+## 1. What is delivered
 
-| Besoin | Livré |
+| Need | Delivered |
 |---|---|
-| Arriver sur « Ma collection » | `/` : grille de sets (miniature 3D locale, numéro, nom, pièces, fichiers, modes, progression, statut), recherche numéro/nom (accents ignorés), filtres En cours / Terminés / Non commencés, « Construire » / « Reprendre ». L'atelier P5/P6 sans collection reste sur `/atelier`. |
-| Stockage durable sur le Mac, partagé Chrome/Safari | Serveur Next.js local (Node `fs`), `~/Documents/brick-lab-data/library/` : index JSON validé, fichiers adressés par SHA-256, progression et mapping par construction, écritures atomiques, historique, corbeille. |
-| Ajouter un set | Dialogue : un ou plusieurs modèles `.mpd`/`.ldr` (un par construction, modèle principal choisissable), une ou plusieurs notices PDF, un mapping JSON (rejeté s'il concerne un autre modèle), numéro et nom. Doublons détectés par empreinte. |
-| Modèles alternatifs | Un set contient plusieurs constructions distinctes (chacune : modèle, modèle principal, notices, mapping, progression). |
-| Gérer | Détail du set : aperçu 3D, renommer (set et construction) sans toucher la progression, associer / remplacer / dissocier des notices, importer ou remplacer un mapping, exporter, vérifier les empreintes, réparer un fichier, ajouter une construction, retirer (corbeille). |
-| Fichiers existants | Détection en lecture seule de `models/`, `instructions/`, `mappings/` ; ajout **sans copie** ; mapping reconnu par l'empreinte du modèle, le plus vérifié présélectionné. |
-| Reprendre | Ouverture depuis la collection : empreintes recalculées, modèle et notices chargés sans sélection, progression validée (P5/P6), mode restauré, mapping revalidé, mode synchronisé seulement si mapping valide **et** notice attendue associée, page et étape restaurées. Fichier manquant/modifié : erreur claire, rien d'autre chargé, réparation depuis le détail. |
-| Compatibilité P5/P6 | Atelier P5/P6 inchangé (`BuildStore` injecté). Progressions v1/v2 acceptées telles quelles. Sauvegardes `localStorage` reprises à l'ouverture (jamais effacées) ; choix demandé si elles divergent et sont plus récentes. |
+| Land on "Ma collection" (My collection) | `/`: grid of sets (local 3D thumbnail, number, name, parts, files, modes, progress, status), number/name search (accents ignored), filters "En cours" (In progress) / "Terminés" (Completed) / "Non commencés" (Not started), "Construire" (Build) / "Reprendre" (Resume). The P5/P6 workshop without a collection stays on `/atelier`. |
+| Durable storage on the Mac, shared Chrome/Safari | Local Next.js server (Node `fs`), `~/Documents/brick-lab-data/library/`: validated JSON index, files addressed by SHA-256, progress and mapping per build, atomic writes, history, trash. |
+| Add a set | Dialog: one or more `.mpd`/`.ldr` models (one per build, main model selectable), one or more PDF instructions, a JSON mapping (rejected if it concerns another model), number and name. Duplicates detected by fingerprint. |
+| Alternate models | A set contains several distinct builds (each: model, main model, instructions, mapping, progress). |
+| Manage | Set detail: 3D preview, rename (set and build) without touching the progress, associate / replace / dissociate instructions, import or replace a mapping, export, verify fingerprints, repair a file, add a build, remove (trash). |
+| Existing files | Read-only detection of `models/`, `instructions/`, `mappings/`; adding **without copying**; mapping recognized by model fingerprint, most verified one preselected. |
+| Resume | Opening from the collection: fingerprints recomputed, model and instructions loaded without selection, progress validated (P5/P6), mode restored, mapping revalidated, mode synchronized only if mapping valid **and** expected instructions associated, page and step restored. Missing/modified file: clear error, nothing else loaded, repair from the detail. |
+| P5/P6 compatibility | P5/P6 workshop unchanged (`BuildStore` injected). v1/v2 progress accepted as is. `localStorage` saves picked up on opening (never erased); choice asked if they diverge and are newer. |
 
-## 2. Recette réelle 31040 / 31009 (dossier de données réel)
+## 2. Real acceptance test 31040 / 31009 (real data folder)
 
-Serveur de **production** (`npm run build && npm run start`), dossier `~/Documents/brick-lab-data/`.
+**Production** server (`npm run build && npm run start`), folder `~/Documents/brick-lab-data/`.
 
-1. Collection vide → bandeau « 8 set(s) trouvé(s) » (découverte : 130 ms). 31040 : notice 6145903 cochée, `31040-1.brick-mapping.json` **24/24 vérifiées** présélectionné (la version préparée 0/24 est proposée mais non choisie). 31009 : 3 notices ; seule 6038244 (livret du modèle principal) a été gardée.
-2. Ajout via l'interface : « 31040-1 Desert Racers » et « 31009-1 Small Cottage ». Miniatures rendues localement. Fichiers laissés en place ; seuls le mapping (7 Ko) et l'index sont écrits sous `library/`.
-3. 31040 → « Construire » → « Commencer — notice synchronisée » : livret ouvert **sans sélection**, p. 2, étape 1. 12 pièces posées (aide de pose) → étape 6, p. 4, « Enregistré dans la bibliothèque ».
-4. Page fermée, **serveur arrêté puis relancé**, nouvelle page : carte « 12/65 pièces posées », « En cours », « Reprendre » → « Progression restaurée : 12/65 », mode Notice synchronisée, Étape 6, p. 4, livret ouvert.
-5. 31009 : ouverture depuis la collection, 270 pièces, 92 combinaisons pièce/couleur, avertissement d'inventaire « indéterminé » conservé, notice 84 p. ouverte, mode synchronisé non proposé (aucun mapping).
-6. Empreintes et dates de modification des fichiers tiers (`models/`, `instructions/`, `mappings/`) **identiques** avant/après.
+1. Empty collection → banner "8 set(s) trouvé(s)" (8 set(s) found) (discovery: 130 ms). 31040: instructions 6145903 checked, `31040-1.brick-mapping.json` **24/24 verified** preselected (the prepared 0/24 version is offered but not chosen). 31009: 3 instruction booklets; only 6038244 (booklet of the main model) was kept.
+2. Added via the interface: "31040-1 Desert Racers" and "31009-1 Small Cottage". Thumbnails rendered locally. Files left in place; only the mapping (7 KB) and the index are written under `library/`.
+3. 31040 → "Construire" → "Commencer — notice synchronisée" (Start — synchronized instructions): booklet opened **without selection**, p. 2, step 1. 12 parts placed (placement aid) → step 6, p. 4, "Enregistré dans la bibliothèque" (Saved in the library).
+4. Page closed, **server stopped then restarted**, new page: card "12/65 pièces posées" (12/65 parts placed), "En cours", "Reprendre" → "Progression restaurée : 12/65" (Progress restored: 12/65), Notice synchronisée (synchronized instructions) mode, Step 6, p. 4, booklet open.
+5. 31009: opened from the collection, 270 parts, 92 part/color combinations, "indeterminate" inventory warning kept, 84-page instructions opened, synchronized mode not offered (no mapping).
+6. Fingerprints and modification dates of the third-party files (`models/`, `instructions/`, `mappings/`) **identical** before/after.
 
-Essai automatisé équivalent sur copie isolée (`tests/e2e/library-omr.spec.ts`, joueur scripté P5, pointeur et clavier) :
+Equivalent automated run on an isolated copy (`tests/e2e/library-omr.spec.ts`, scripted P5 player, pointer and keyboard):
 
-| Mesure (31040, mode synchronisé) | Résultat |
+| Measurement (31040, synchronized mode) | Result |
 |---|---|
-| Découverte, mapping vérifié présélectionné, aucun fichier copié | OK |
-| Pièces posées | **65/65**, 0 refus, 0 secours PageUp/PageDown |
-| Interruption à 30/65, retour collection, **navigateur fermé** (nouveau contexte) | Reprise : 30/65, Notice synchronisée, Étape 11, p. 7, livret ouvert sans import |
-| Ouverture depuis la collection (modèle + notice + géométrie) | 5,1 s à froid (serveur de dev), 3,5 s à la reprise |
-| Statut final dans la collection | « Terminé » |
-| 31009 : ouverture, notice, 5 pièces en guidé enregistrées | OK |
+| Discovery, verified mapping preselected, no file copied | OK |
+| Parts placed | **65/65**, 0 refusals, 0 PageUp/PageDown fallbacks |
+| Interruption at 30/65, back to collection, **browser closed** (new context) | Resume: 30/65, Notice synchronisée, Step 11, p. 7, booklet open without import |
+| Opening from the collection (model + instructions + geometry) | 5.1 s cold (dev server), 3.5 s on resume |
+| Final status in the collection | "Terminé" (Completed) |
+| 31009: opening, instructions, 5 parts in guided mode saved | OK |
 
-Captures (hors dépôt) : `proofs/p7/collection.png`, `proofs/p7/31040-1-resumed-30.png`.
+Screenshots (outside the repository): `proofs/p7/collection.png`, `proofs/p7/31040-1-resumed-30.png`.
 
 ## 3. Tests
 
-Nouveaux :
-- **unitaires** `library-store.test.ts` (24) : ajout et relecture par un nouveau store **et par un autre processus Node** (redémarrage), doublons (fichier, modèle, numéro), types et tailles refusés, plusieurs PDF (ordre, remplacement, progression conservée), mapping ajouté plus tard / mapping d'un autre modèle ou d'un autre nombre de pièces refusé / conflit de révision / historique, modèles alternatifs (même fichier avec un autre modèle principal, progression non transférable), progression (révisions, conflit, progression étrangère refusée, remise à zéro avec confirmation), P5 v1 et P6 v2, fichiers modifiés (même taille), redimensionnés, manquants, réparation, écriture interrompue (index intact, aucun temporaire), index abîmé (aucune écriture) ou supprimé avec sauvegardes, dossier en lecture seule, progression corrompue conservée, chemins hostiles, index pointant hors du dossier, `__proto__`, liens symboliques ignorés, renommage sans perte, corbeille, découverte et adoption sans copie, recherche/filtres ;
-- **unitaires** `library-api.test.ts` (11) : garde HTTP (DNS rebinding, cross-site, same-site, autre origine, sans origine, sans en-tête, origine `null`), parcours complet par les handlers, requêtes malformées ;
-- **E2E** `library.spec.ts` (9, fixtures originales) : ajout complet + mapping incompatible + doublon, construction synchronisée → collection → **navigateur fermé** → reprise (page, étape, notice sans import), deux onglets (pas d'écrasement), renommage + notices, mapping ajouté plus tard / refusé, modèles alternatifs, reprise d'une sauvegarde P5 du navigateur, fichier modifié/manquant + réparation, requêtes non autorisées (dont une iframe d'une autre origine : « blocked ») ;
-- **E2E** `library-webkit.spec.ts` (1) : partie commencée dans Chromium, reprise dans **WebKit**, puis de nouveau dans Chromium ;
-- **E2E** `library-omr.spec.ts` (3, réels, ignorés sans les fichiers).
+New:
+- **unit** `library-store.test.ts` (24): add and re-read by a new store **and by another Node process** (restart), duplicates (file, model, number), rejected types and sizes, several PDFs (order, replacement, progress kept), mapping added later / mapping of another model or another part count rejected / revision conflict / history, alternate models (same file with another main model, progress not transferable), progress (revisions, conflict, foreign progress rejected, reset with confirmation), P5 v1 and P6 v2, modified files (same size), resized, missing, repair, interrupted write (index intact, no temporary file), damaged index (no write) or deleted with backups, read-only folder, corrupted progress kept, hostile paths, index pointing outside the folder, `__proto__`, symbolic links ignored, rename without loss, trash, discovery and adoption without copy, search/filters;
+- **unit** `library-api.test.ts` (11): HTTP guard (DNS rebinding, cross-site, same-site, other origin, no origin, no header, `null` origin), full flow through the handlers, malformed requests;
+- **E2E** `library.spec.ts` (9, original fixtures): full add + incompatible mapping + duplicate, synchronized build → collection → **browser closed** → resume (page, step, instructions without import), two tabs (no overwrite), rename + instructions, mapping added later / rejected, alternate models, resume of a P5 browser save, modified/missing file + repair, unauthorized requests (including an iframe from another origin: "blocked");
+- **E2E** `library-webkit.spec.ts` (1): game started in Chromium, resumed in **WebKit**, then again in Chromium;
+- **E2E** `library-omr.spec.ts` (3, real, skipped without the files).
 
-Les 6 specs existantes ne changent que d'URL (`/` → `/atelier`).
+The 6 existing specs change only by URL (`/` → `/atelier`).
 
-## 4. Sortie de la recette (05/11/2026, après revue, `npm run recette`, sortie 0)
+## 4. Acceptance test output (2026-11-05, after review, `npm run recette`, exit 0)
 
 ```
 check:spec   15 OK, 2 DÉCLARÉ (écarts P5 inchangés), 0 écart nouveau
@@ -73,65 +73,65 @@ playwright   43 passed (15.7m), 0 ignoré
 npm run build   OK (production, 0 avertissement)
 ```
 
-Non exécuté : `npm run perf` (P7 ne modifie ni le rendu ni le moteur).
+Not run: `npm run perf` (P7 changes neither the rendering nor the engine).
 
-## 5. Limites connues
+## 5. Known limitations
 
-- **Safari réel non testé par Claude** : WebKit de Playwright (moteur de Safari) est testé ; l'application Safari reste à la recette humaine (§ 3 du protocole).
-- **Un seul serveur à la fois** sur un même dossier : les écritures sont sérialisées dans le processus ; deux serveurs simultanés (dev + production) sur le même dossier ne sont pas protégés par un verrou de fichier (les révisions limitent le risque, sans l'exclure).
-- **Sauvegardes du navigateur** : lues dans le navigateur qui les contient (Chrome et Safari ont chacun les leurs), par empreinte du modèle. Celle de ta recette P6 dans Chrome n'a pas pu être vérifiée par Claude.
-- **Position dans la notice** : en cas d'enregistrements concurrents qui ne diffèrent que par la page ou le livret affiché, le dernier l'emporte (la partie elle-même n'est jamais écrasée).
-- **Vérification rapide** dans la collection (existence + taille ; le modèle est toujours haché) : une notice modifiée sans changement de taille n'apparaît qu'au détail du set ou à l'ouverture (hachage complet).
-- **Fichiers « laissés en place »** : les déplacer ou les renommer casse la référence (signalé, réparable en choisissant le fichier d'origine, qui est alors copié dans `library/blobs/`).
-- **Fichiers orphelins** : un fichier importé puis abandonné (dialogue annulé, construction retirée) reste dans `library/blobs/` ; pas de nettoyage automatique.
-- **Historique** : 30 versions par type et par construction (progression : au plus une par minute), 20 versions de l'index.
-- **Miniature** : rendue la première fois que la collection ou le détail s'affiche ; sans bibliothèque LDraw configurée, pas de miniature (placeholder).
-- **31009** : pas de mapping (saisie non faite, hors périmètre) ; les livrets 6038252 / 6038254 sont ceux des modèles alternatifs, dont l'OMR ne fournit pas de MPD.
-- **Premier rendu à froid en `next dev`** : jusqu'à quelques secondes (compilation de la page) ; délai du premier test porté à 60 s.
+- **Real Safari not tested by Claude**: Playwright's WebKit (Safari's engine) is tested; the Safari application remains for the manual acceptance test (section 3 of the protocol).
+- **Only one server at a time** on a given folder: writes are serialized within the process; two simultaneous servers (dev + production) on the same folder are not protected by a file lock (revisions limit the risk without excluding it).
+- **Browser saves**: read in the browser that holds them (Chrome and Safari each have their own), by model fingerprint. The one from your P6 acceptance test in Chrome could not be verified by Claude.
+- **Position in the instructions**: in case of concurrent saves that differ only by the page or the displayed booklet, the last one wins (the game itself is never overwritten).
+- **Quick check** in the collection (existence + size; the model is always hashed): an instruction booklet modified without a size change only shows up in the set detail or on opening (full hash).
+- **Files "left in place"**: moving or renaming them breaks the reference (reported, repairable by choosing the original file, which is then copied into `library/blobs/`).
+- **Orphan files**: a file imported then abandoned (dialog cancelled, build removed) stays in `library/blobs/`; no automatic cleanup.
+- **History**: 30 versions per type and per build (progress: at most one per minute), 20 versions of the index.
+- **Thumbnail**: rendered the first time the collection or the detail is displayed; without a configured LDraw library, no thumbnail (placeholder).
+- **31009**: no mapping (entry not done, out of scope); booklets 6038252 / 6038254 are those of the alternate models, for which the OMR provides no MPD.
+- **First cold render in `next dev`**: up to a few seconds (page compilation); first test timeout raised to 60 s.
 
 ## 6. Verdict
 
-**GO sous conditions.**
+**GO with conditions.**
 
-Démontré : la collection est sur le disque du Mac, partagée par les navigateurs ; 31040 et 31009 y figurent sans réimport ni copie de leurs fichiers ; 31040 se reprend depuis « Ma collection » en notice synchronisée, après fermeture du navigateur et redémarrage du serveur, à la même étape et à la même page, livret ouvert sans sélection, puis se termine (65/65). Rien n'est inventé : fichier modifié ou manquant → erreur et réparation, jamais de substitution. P5/P6 : aucune régression (recette complète), sauvegardes du navigateur reprises sans perte.
+Demonstrated: the collection is on the Mac's disk, shared by the browsers; 31040 and 31009 are in it without re-import or copy of their files; 31040 resumes from "Ma collection" in synchronized instructions mode, after closing the browser and restarting the server, at the same step and the same page, booklet open without selection, then completes (65/65). Nothing is invented: modified or missing file → error and repair, never substitution. P5/P6: no regression (full acceptance test), browser saves picked up without loss.
 
-Conditions :
-1. **Recette humaine P7** (`RECETTE_HUMAINE_P7.md`), en particulier dans l'application **Safari** (seul WebKit de Playwright a été testé).
-2. Vérifier la reprise de ta partie P6 restée dans le `localStorage` de ton Chrome (non accessible à Claude).
+Conditions:
+1. **P7 manual acceptance test** (`RECETTE_HUMAINE_P7.md`), in particular in the **Safari** application (only Playwright's WebKit was tested).
+2. Verify the resume of your P6 game left in your Chrome's `localStorage` (not accessible to Claude).
 
-La fusion reste soumise à ton accord explicite.
+Merging remains subject to your explicit approval.
 
-## 7. Correctifs après la revue du propriétaire (05/11/2026)
+## 7. Fixes after the owner's review (2026-11-05)
 
-**Demande.** Le choix entre une sauvegarde P5/P6 du navigateur et celle de la bibliothèque ne doit pas dépendre de la date : l'ancienne partie P6 doit rester récupérable même si elle est plus ancienne que les 12/65 pièces des essais ; comparer mode, pièces posées, page, correspondances ; aucun écrasement silencieux.
+**Request.** The choice between a P5/P6 browser save and the library's must not depend on the date: the old P6 game must remain recoverable even if it is older than the 12/65 parts of the trials; compare mode, placed parts, page, mappings; no silent overwrite.
 
-**Livré.**
-- `src/domain/library/save-compare.ts` : comparaison des différences pertinentes (mode, pièces posées — avec le détail de celles propres à chaque version —, page, livret affiché, empreinte des correspondances jouées) ; la date n'est qu'indicative.
-- À l'ouverture : dès que les deux versions diffèrent, un écran les compare côte à côte et demande laquelle reprendre, **quelle que soit la date**. Les correspondances du navigateur peuvent être reprises avec la partie (case visible). Une sauvegarde de la bibliothèque devenue incompatible n'est jamais remplacée sans question.
-- « Reprendre la bibliothèque » est mémorisé pour cette sauvegarde précise du navigateur (plus de question, mais un rappel) ; elle reste récupérable à tout moment depuis le **détail du set** (« Reprendre la sauvegarde de ce navigateur », avec confirmation). La collection signale ces sauvegardes avec un lien vers le détail.
-- Toute reprise explicite copie la version remplacée de la bibliothèque dans `history/` (y compris dans la minute, contrairement aux enregistrements automatiques) ; une reprise fondée sur une révision périmée est refusée. Le `localStorage` n'est jamais modifié.
+**Delivered.**
+- `src/domain/library/save-compare.ts`: comparison of the relevant differences (mode, placed parts — with the detail of those specific to each version —, page, displayed booklet, fingerprint of the mappings played); the date is only indicative.
+- On opening: as soon as the two versions differ, a screen compares them side by side and asks which one to resume, **regardless of the date**. The browser's mappings can be picked up along with the game (visible checkbox). A library save that has become incompatible is never replaced without asking.
+- "Reprendre la bibliothèque" is remembered for that specific browser save (no more question, but a reminder); it remains recoverable at any time from the **set detail** ("Reprendre la sauvegarde de ce navigateur", with confirmation). The collection flags these saves with a link to the detail.
+- Every explicit resume copies the replaced library version into `history/` (including within the minute, unlike automatic saves); a resume based on a stale revision is rejected. `localStorage` is never modified.
 
-**Tests ajoutés.** Unitaires `save-compare.test.ts` (11 : identique malgré dates et ordre, navigateur plus ancien proposé, plus récent proposé, chaque différence seule, toutes ensemble, bibliothèque absente / incompatible, sauvegarde d'un autre modèle ignorée, mémorisation par sauvegarde précise) ; `library-store` « explicit browser recovery always keeps the replaced one » ; E2E « an OLDER browser save… » (garder la bibliothèque, puis récupérer depuis le détail, historique et `localStorage` vérifiés) et « … another mapping » (correspondances reprises, ancienne version dans l'historique).
+**Tests added.** Unit `save-compare.test.ts` (11: identical despite dates and order, older browser offered, newer browser offered, each difference alone, all together, library absent / incompatible, save of another model ignored, memorization per specific save); `library-store` "explicit browser recovery always keeps the replaced one"; E2E "an OLDER browser save…" (keep the library, then recover from the detail, history and `localStorage` verified) and "… another mapping" (mappings picked up, old version in the history).
 
-**Trouvé en relançant la recette.**
-1. *Boucle de rechargement en `next dev`* (11 puis 12 échecs en début de série) : la première explication (règle `headers()`) était **fausse**. Cause mesurée : le cache Turbopack `.next/dev` du worktree (HMR « hash mismatch » à chaque connexion ; 733 / 640 navigations en 20 s avec ce cache, 2 sur 5 essais sans). Le serveur E2E démarre maintenant avec un cache neuf. Le serveur de production n'est pas concerné.
-2. *Deux onglets ouverts ensemble* : chacun réenregistrait la page au chargement, et le second était bloqué sans changement de partie. Sur un conflit, si seule la page ou le livret affiché a changé, l'enregistrement est refait ; sinon, refus et « Recharger ». Test rendu déterministe.
+**Found when re-running the acceptance test.**
+1. *Reload loop in `next dev`* (11 then 12 failures at the start of the series): the first explanation (`headers()` rule) was **wrong**. Measured cause: the worktree's Turbopack cache `.next/dev` (HMR "hash mismatch" on every connection; 733 / 640 navigations in 20 s with this cache, 2 out of 5 attempts without). The E2E server now starts with a fresh cache. The production server is not affected.
+2. *Two tabs opened together*: each re-saved the page on load, and the second was blocked without any game change. On a conflict, if only the page or the displayed booklet changed, the save is redone; otherwise, rejection and "Recharger" (Reload). Test made deterministic.
 
-**Données réelles.** Rien n'a été renommé, supprimé ni réinitialisé dans `~/Documents/brick-lab-data/library/`. Sauvegarde de sécurité avant la recette humaine : `~/Documents/brick-lab-data/backups-p7/library-2026-11-05T19-05-04-avant-recette-humaine.tar.gz` (archive vérifiée par extraction séparée et comparaison des SHA-256 listés dans `library-2026-11-05T19-05-04.sha256`). Pour revenir à cet état : arrêter le serveur, mettre de côté le dossier `library/` actuel (ne pas le supprimer), puis `tar -xzf <archive> -C ~/Documents/brick-lab-data`.
+**Real data.** Nothing was renamed, deleted or reset in `~/Documents/brick-lab-data/library/`. Safety backup before the manual acceptance test: `~/Documents/brick-lab-data/backups-p7/library-2026-11-05T19-05-04-avant-recette-humaine.tar.gz` (archive verified by separate extraction and comparison of the SHA-256 listed in `library-2026-11-05T19-05-04.sha256`). To return to this state: stop the server, set aside (do not delete) the current `library/` folder, then `tar -xzf <archive> -C ~/Documents/brick-lab-data`.
 
-**Verdict.** Inchangé : **GO sous conditions** (recette humaine dans Chrome et Safari, dont la reprise de ta partie P6). Pas de fusion sans ton GO explicite.
+**Verdict.** Unchanged: **GO with conditions** (manual acceptance test in Chrome and Safari, including the resume of your P6 game). No merge without your explicit GO.
 
-## 8. Recette humaine du propriétaire et verdict final (06/11/2026)
+## 8. Owner's manual acceptance test and final verdict (2026-11-06)
 
-Résultats communiqués par le propriétaire, qui a mené la recette lui-même sur le serveur de production et son dossier de données réel ([RECETTE_HUMAINE_P7.md](RECETTE_HUMAINE_P7.md)) :
+Results reported by the owner, who ran the acceptance test himself on the production server and his real data folder ([RECETTE_HUMAINE_P7.md](RECETTE_HUMAINE_P7.md)):
 
-| Point vérifié | Résultat |
+| Point verified | Result |
 |---|---|
-| Récupération de sa sauvegarde P6 (`localStorage` de Chrome) | OK |
-| Collection et reprise dans Chrome | OK |
-| Même collection et reprise dans Safari | OK |
-| Gestion des conflits entre navigateurs | OK |
+| Recovery of his P6 save (Chrome `localStorage`) | OK |
+| Collection and resume in Chrome | OK |
+| Same collection and resume in Safari | OK |
+| Conflict handling between browsers | OK |
 
-Aucune autre mesure n'a été relevée pendant cette recette ; la version de Safari n'a pas été communiquée.
+No other measurement was taken during this acceptance test; the Safari version was not reported.
 
-**Verdict : GO.** Les deux conditions du § 6 sont levées. Le propriétaire a donné son GO explicite pour fusionner la PR #4 (par rebase).
+**Verdict: GO.** The two conditions of section 6 are lifted. The owner gave his explicit GO to merge PR #4 (by rebase).

@@ -1,52 +1,52 @@
-# Montage libre — manipulateur 3D (gizmo) : conception et rapport
+# Free building — 3D manipulator (gizmo): design and report
 
-**Date :** 07/11/2026. Branche `feat/true-free-building` (PR #7). Demande du propriétaire avant la fusion : un manipulateur 3D sur la pièce sélectionnée, comme dans Blender. Recette : [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md). Suite de [MONTAGE_LIBRE_3D_RAPPORT.md](MONTAGE_LIBRE_3D_RAPPORT.md) et [MONTAGE_LIBRE_CONNEXIONS.md](MONTAGE_LIBRE_CONNEXIONS.md).
+**Date:** 2026-11-07. Branch `feat/true-free-building` (PR #7). Owner's request before the merge: a 3D manipulator on the selected part, as in Blender. Acceptance test: [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md). Follows [MONTAGE_LIBRE_3D_RAPPORT.md](MONTAGE_LIBRE_3D_RAPPORT.md) and [MONTAGE_LIBRE_CONNEXIONS.md](MONTAGE_LIBRE_CONNEXIONS.md).
 
-> Critère : je sélectionne une brique, les trois flèches apparaissent immédiatement, puis je peux la positionner exactement dans l'espace en manipulant les axes directement avec la souris.
+> Criterion: I select a brick, the three arrows appear immediately, then I can position it exactly in space by manipulating the axes directly with the mouse.
 
-## 1. Comportement
+## 1. Behavior
 
 | | |
 |---|---|
-| **Apparition** | Clic sur une pièce posée (montage libre) : trois flèches sur la pièce, **X rouge, Y verte (vers le haut), Z bleue** ; aucune touche nécessaire. Sur une sélection multiple ou un assemblage, au pivot du groupe (centre des pièces, point le plus bas). |
-| **Flèches (W)** | Cliquer-glisser une flèche : la pièce (ou le groupe) ne bouge **que** le long de cet axe. |
-| **Anneaux (E)** | Trois anneaux X / Y / Z : cliquer-glisser pour tourner autour de cet axe, par le **pas de rotation** choisi dans la barre (90°, 45°, 15°, 5° ou 1°) ; vertical / horizontal à la souris, sans limite aux orientations du modèle. |
-| **Axes globaux / locaux (Q)** | Locaux : les flèches et anneaux suivent la rotation de la pièce (ex. un axe redressé : sa flèche rouge est verticale). |
-| **Pas** | « ½ tenon » (10 LDU à l'horizontale, une plaque de 8 LDU à la verticale), « tenon » (20 / 8), « 1 LDU » ; case « Grille » décochée ou **⌥ maintenu pendant le glisser** : déplacement libre. |
-| **Coordonnées** | En temps réel : **X**, **Y = hauteur au-dessus du sol du modèle**, **Z** (même sens que les flèches) ; saisie numérique + « Appliquer » (ou Entrée). |
-| **Échap** pendant un glisser | Annule ce glisser (retour à la position de départ, sélection gardée). |
-| **Annuler** | Chaque glisser ou chaque saisie = une action, annulée d'un coup (même pour 432 pièces). |
-| **Barre de sélection** | Compacte (libellés courts, raccourcis dans les infobulles) : avec les commandes du manipulateur elle passait à 174 px et couvrait le haut de la vue 3D — un Maj + clic sur une pièce cachée par elle n'arrivait pas à la scène (trouvé par `free-height-group`) ; 138 px à 1280 × 800. |
-| Conservé | Glisser direct de la pièce (avec l'aimant entre pièces), boutons et touches X / Y / Z ± un pas de rotation (90° par défaut), R, M, hauteur, assemblage, Maj + clic. |
+| **Appearance** | Click on a placed part (free building): three arrows on the part, **X red, Y green (pointing up), Z blue**; no key needed. On a multiple selection or an assembly, at the group's pivot (center of the parts, lowest point). |
+| **Arrows (W)** | Click-drag an arrow: the part (or group) moves **only** along that axis. |
+| **Rings (E)** | Three X / Y / Z rings: click-drag to rotate around that axis, by the **rotation step** chosen in the bar (90°, 45°, 15°, 5° or 1°); vertical / horizontal mouse movement, with no limit to the model's orientations. |
+| **Global / local axes (Q)** | Local: the arrows and rings follow the part's rotation (e.g. an upright axle: its red arrow is vertical). |
+| **Step** | "½ tenon" (half stud) (10 LDU horizontally, one 8 LDU plate vertically), "tenon" (stud) (20 / 8), "1 LDU"; "Grille" (Grid) checkbox unchecked or **⌥ held during the drag**: free movement. |
+| **Coordinates** | In real time: **X**, **Y = height above the model's ground**, **Z** (same direction as the arrows); numeric entry + "Appliquer" (Apply) (or Enter). |
+| **Esc** during a drag | Cancels that drag (back to the starting position, selection kept). |
+| **Undo** | Each drag or each entry = one action, undone in one go (even for 432 parts). |
+| **Selection bar** | Compact (short labels, shortcuts in the tooltips): with the manipulator's controls it reached 174 px and covered the top of the 3D view — a Shift + click on a part hidden by it did not reach the scene (found by `free-height-group`); 138 px at 1280 × 800. |
+| Kept | Direct drag of the part (with the magnet between parts), buttons and keys X / Y / Z ± one rotation step (90° by default), R, M, height, assembly, Shift + click. |
 
-## 2. Implémentation (réutilisation de `TransformControls`)
+## 2. Implementation (reuse of `TransformControls`)
 
-- **`TransformControls`** de three-stdlib, via drei (déjà installé) — pas de manipulateur écrit de zéro. Seuls les **trois flèches** et les **trois anneaux** sont gardés : la poignée centrale, les poignées de plan, l'anneau de vue et la sphère de rotation libre sont retirées (elles couvraient la pièce, dont l'appui est le glisser direct avec l'aimant ; trouvé par les tests B et D).
-- **LDraw ↔ Three.js** : le manipulateur agit sur un **objet relais au pivot placé DANS le groupe LDraw** (retourné de 180° autour de X) : sa matrice locale est en coordonnées LDraw, `TransformControls` gère le parent tourné. Le manipulateur lui-même est rendu **à côté du groupe LDraw, à la racine de la scène**, car il travaille en espace monde (simple élément frère, sans portail R3F). Résultat : flèche verte = −Y LDraw (vers le haut), flèche bleue = −Z LDraw.
-- **Pas relatifs, pas absolus** : l'arrondi intégré de `TransformControls` arrondit la **position absolue** (une pièce à y = 17,41 ou x = 351,92 aurait sauté à une valeur ronde). Il n'est pas utilisé pour la translation : `snapAlong` découpe le **déplacement depuis le début du glisser** en pas entiers, **le long de l'axe tiré seulement** ; les autres coordonnées ne changent pas (aucune modification surprise). La rotation utilise le pas intégré, qui est relatif à l'angle de départ.
-- **Pendant le glisser**, les pièces suivent dans **un seul groupe** dont la matrice = relais actuel × relais au départ⁻¹ (une matrice par image, aucun rendu React par pièce) ; les originales sont masquées.
-- **Au relâchement** : delta → `applyDelta` (rotations nettoyées, coordonnées à 0,01 LDU) → `moveGroup` (tout ou rien) → une action d'annulation.
-- **Caméra** : drei suspend OrbitControls pendant le glisser d'une poignée. Un appui sur une poignée n'est jamais pris pour le glisser direct d'une pièce ; un appui sur une poignée **relâché sans mouvement** reste un clic (Maj + clic sur une pièce sous une flèche).
-- **Clavier pendant un glisser du manipulateur** : Échap l'annule, les autres touches de l'atelier sont ignorées (une sélection ne peut pas disparaître en plein glisser) ; si le manipulateur disparaît quand même, la caméra est réactivée.
-- **Aimant entre pièces** : jamais pendant un glisser contraint (seulement les pas de grille) ; il reste celui du glisser direct.
-- **Sauvegardes** : aucun changement de format (poses rigides v3) ; v1 / v2 / v3 lues comme avant.
-- **Modes guidé et synchronisé** : aucun manipulateur (pas de sélection), inchangés.
+- **`TransformControls`** from three-stdlib, via drei (already installed) — no manipulator written from scratch. Only the **three arrows** and the **three rings** are kept: the central handle, the plane handles, the view ring and the free rotation sphere are removed (they covered the part, whose support is the direct drag with the magnet; found by tests B and D).
+- **LDraw ↔ Three.js**: the manipulator acts on a **relay object whose pivot is placed INSIDE the LDraw group** (flipped 180° around X): its local matrix is in LDraw coordinates, `TransformControls` handles the rotated parent. The manipulator itself is rendered **next to the LDraw group, at the scene root**, because it works in world space (simple sibling element, no R3F portal). Result: green arrow = LDraw −Y (pointing up), blue arrow = LDraw −Z.
+- **Relative steps, not absolute**: the built-in rounding of `TransformControls` rounds the **absolute position** (a part at y = 17.41 or x = 351.92 would have jumped to a round value). It is not used for translation: `snapAlong` splits the **movement since the start of the drag** into whole steps, **along the dragged axis only**; the other coordinates do not change (no surprising modification). Rotation uses the built-in step, which is relative to the starting angle.
+- **During the drag**, the parts follow in **a single group** whose matrix = current relay × relay at start⁻¹ (one matrix per frame, no React render per part); the originals are hidden.
+- **On release**: delta → `applyDelta` (cleaned rotations, coordinates at 0.01 LDU) → `moveGroup` (all or nothing) → one undo action.
+- **Camera**: drei suspends OrbitControls during a handle drag. A press on a handle is never taken for the direct drag of a part; a press on a handle **released without movement** remains a click (Shift + click on a part under an arrow).
+- **Keyboard during a manipulator drag**: Esc cancels it, the workshop's other keys are ignored (a selection cannot disappear in the middle of a drag); if the manipulator disappears anyway, the camera is re-enabled.
+- **Magnet between parts**: never during a constrained drag (only the grid steps); it remains that of the direct drag.
+- **Saves**: no format change (rigid poses v3); v1 / v2 / v3 read as before.
+- **Guided and synchronized modes**: no manipulator (no selection), unchanged.
 
 ## 3. Tests
 
-- **Unitaires** (+3, 289/289) : `snapAlong` (pas depuis le départ, y = 17,41 → 9,41, dérive hors axe ignorée, libre, axe local), `applyDelta` (rotation de groupe exacte autour du pivot), coordonnées affichées ↔ saisies.
-- **E2E** `free-gizmo.spec.ts` (5) : flèches à la sélection (sans M), X +40 / Y une plaque / Z +20 exacts, rien d'autre ne bouge ; 1 LDU ; ⌥ libre ; une annulation par glisser ; anneau X : l'axe rouge redressé à la souris ; axes locaux (sa flèche rouge verticale) ; coordonnées saisies ; positions identiques après rechargement ; assemblage de 7 pièces monté puis tourné sur son pivot, distances exactes, stock inchangé, deux annulations ; Échap annule un glisser ; l'appui sur la pièce reste le glisser direct avec l'aimant (4 tenons) ; **WebKit**. Pointeur envoyé sur les poignées calculées à partir de la géométrie du manipulateur.
-- **Recette réelle** (dossier isolé, fichiers copiés en lecture seule, serveur redémarré) — partie 4 sur **ta construction 31039 actuelle** (21 pièces, copiée) : plaque grise montée d'une plaque exactement, rien d'autre ; ton assemblage (8 pièces avec la brique Technic 32018) déplacé sur X et tourné de 90° sur Y, distances exactes, rétabli par deux annulations ; ta roue placée par saisie (X = 360) ; positions identiques après rechargement. Partie 3 : **assemblage de 432 pièces** déplacé au manipulateur : 57 i/s (pire image 50 ms), chaque pièce exactement −8 en Y, les autres intactes.
+- **Unit** (+3, 289/289): `snapAlong` (step since the start, y = 17.41 → 9.41, off-axis drift ignored, free, local axis), `applyDelta` (exact group rotation around the pivot), displayed ↔ entered coordinates.
+- **E2E** `free-gizmo.spec.ts` (5): arrows on selection (without M), X +40 / Y one plate / Z +20 exact, nothing else moves; 1 LDU; ⌥ free; one undo per drag; X ring: the red axle straightened with the mouse; local axes (its red arrow vertical); entered coordinates; identical positions after reload; 7-part assembly raised then rotated on its pivot, exact distances, stock unchanged, two undos; Esc cancels a drag; the press on the part remains the direct drag with the magnet (4 studs); **WebKit**. Pointer sent onto the handles computed from the manipulator's geometry.
+- **Real acceptance test** (isolated folder, files copied read-only, server restarted) — part 4 on **your current 31039 build** (21 parts, copied): gray plate raised by exactly one plate, nothing else; your assembly (8 parts with the Technic brick 32018) moved on X and rotated 90° on Y, exact distances, restored by two undos; your wheel placed by entry (X = 360); identical positions after reload. Part 3: **432-part assembly** moved with the manipulator: 57 fps (worst frame 50 ms), each part exactly −8 in Y, the others intact.
 
-## 4. Limites
+## 4. Limits
 
-- Une flèche dessinée par-dessus une pièce voisine prend l'appui (comme dans Blender) : glisser ailleurs sur la pièce voisine, ou Échap pour désélectionner d'abord.
-- Rotations par pas de 90°, 45°, 15°, 5° ou 1° (⌥ pendant le glisser d'un anneau : libre) ; une pièce tournée hors des quarts de tour n'est plus emboîtable par l'aimant (axes non alignés).
-- Le pivot d'un groupe est son centre au ras du point le plus bas ; pas de choix de pivot.
-- La barre de sélection couvre le haut de la vue 3D (≈ 140 px sur un écran de 1280 px de large) : une pièce cachée derrière elle se sélectionne après avoir tourné ou déplacé la caméra.
-- Pas de mise à l'échelle (le manipulateur n'a que déplacement et rotation).
+- An arrow drawn over a neighboring part takes the press (as in Blender): drag elsewhere on the neighboring part, or Esc to deselect first.
+- Rotations by steps of 90°, 45°, 15°, 5° or 1° (⌥ during a ring drag: free); a part rotated off the quarter turns can no longer be snapped by the magnet (axes not aligned).
+- A group's pivot is its center at the level of the lowest point; no pivot choice.
+- The selection bar covers the top of the 3D view (≈ 140 px on a 1280 px wide screen): a part hidden behind it is selected after rotating or moving the camera.
+- No scaling (the manipulator only has translation and rotation).
 
-## 5. Validation (07/11/2026, sorties réelles)
+## 5. Validation (2026-11-07, real outputs)
 
 ```
 check:spec                                  exit 0
@@ -58,18 +58,18 @@ next build                                  ✓ Compiled successfully
 recette réelle libre-reel.spec.ts           partie 1 1/1 ; redémarrage du serveur ; parties 2, 3, 4 3/3
 ```
 
-- Partie 3 (31039, 596 pièces posées) : ouverture 4,3 s ; graphe 13 ms (531 pièces, 831 liaisons) ; assemblage de 432 pièces en 175 ms ; **glisser du manipulateur sur cet assemblage : 57 i/s, pire image 50 ms**, toutes les autres pièces inchangées ; glisser avec aimant et caméra : 60 i/s.
-- Partie 4 (ta construction 31039 copiée, 21 pièces) : plaque grise montée d'une plaque ; assemblage de 8 pièces (f1, f6–f12) déplacé et tourné ; axe f19 sélectionné (axes locaux) ; roue f20 placée à X = 360 par saisie ; identique après rechargement.
-- Données réelles : empreintes SHA-256 de `library.json` et des `progress.json` identiques avant et après la recette.
-- Un échec trouvé par la suite complète pendant ce lot (Maj + clic refusé dans `free-height-group`) venait de la barre de sélection agrandie qui couvrait la pièce ; corrigé (§ 1, « Barre de sélection »).
+- Part 3 (31039, 596 placed parts): opening 4.3 s; graph 13 ms (531 parts, 831 links); 432-part assembly in 175 ms; **manipulator drag on this assembly: 57 fps, worst frame 50 ms**, all other parts unchanged; drag with magnet and camera: 60 fps.
+- Part 4 (your 31039 build copied, 21 parts): gray plate raised by one plate; 8-part assembly (f1, f6–f12) moved and rotated; axle f19 selected (local axes); wheel f20 placed at X = 360 by entry; identical after reload.
+- Real data: SHA-256 fingerprints of `library.json` and of the `progress.json` files identical before and after the acceptance test.
+- One failure found by the full suite during this batch (Shift + click refused in `free-height-group`) came from the enlarged selection bar covering the part; fixed (§ 1, "Selection bar").
 
-## 6. Recette humaine (08/11/2026)
+## 6. Manual acceptance test (2026-11-08)
 
-Chrome et Safari, par le propriétaire : flèches X / Y / Z **OK** ; rotations et axes locaux **OK** ; précision et coordonnées **OK** ; assemblage connecté **OK** ; non-régression et Safari **OK**. Verdict : **GO FINAL** (fusion de la PR #7 autorisée). Détail et état des données : [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md) § 7.
+Chrome and Safari, by the owner: X / Y / Z arrows **OK**; rotations and local axes **OK**; precision and coordinates **OK**; connected assembly **OK**; non-regression and Safari **OK**. Verdict: **FINAL GO** (merge of PR #7 authorized). Detail and data state: [RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md) § 7.
 
-## 6. Rotation au degré près (10/11/2026, branche `feat/rotation-degree`)
+## 6. Rotation to the degree (2026-11-10, branch `feat/rotation-degree`)
 
-- Demande du propriétaire : pouvoir tourner une pièce au degré près.
-- **Un seul pas de rotation** pour les boutons ±, les touches X / Y / Z (Maj : sens inverse) et les anneaux : **90° (défaut), 45°, 15°, 5°, 1°**. Il se choisit dans la barre, à côté des boutons de rotation (`rot-step-<deg>`), aussi bien pour la pièce en main que pour la sélection. Le réglage « Pas des anneaux » (90° / 15°) des réglages de manipulation est remplacé par ce choix.
-- Domaine : `axisTurn(axis, degrés)` donne le quart de tour exact pour les multiples de 90° et une rotation cos / sin sinon. `rotateOrientation(…, stepDeg)` prend le pas. `cleanPose` ré-orthonormalise (Gram-Schmidt, un miroir reste un miroir, une matrice non rigide reste intacte) avant d'arrondir les coefficients ±1 / 0. Résultat : 3 600 rotations d'un degré ne dérivent pas, et une pose stockée (arrondie à 1e-6) reste rigide.
-- Limite inchangée : hors des quarts de tour, l'aimant n'emboîte plus (axes non alignés) ; la pièce est posée librement.
+- Owner's request: be able to rotate a part to the degree.
+- **A single rotation step** for the ± buttons, the X / Y / Z keys (Shift: opposite direction) and the rings: **90° (default), 45°, 15°, 5°, 1°**. It is chosen in the bar, next to the rotation buttons (`rot-step-<deg>`), for the part in hand as well as for the selection. The "Pas des anneaux" (Ring step) setting (90° / 15°) in the manipulation settings is replaced by this choice.
+- Domain: `axisTurn(axis, degrees)` gives the exact quarter turn for multiples of 90° and a cos / sin rotation otherwise. `rotateOrientation(…, stepDeg)` takes the step. `cleanPose` re-orthonormalizes (Gram-Schmidt, a mirror stays a mirror, a non-rigid matrix stays intact) before rounding the ±1 / 0 coefficients. Result: 3,600 one-degree rotations do not drift, and a stored pose (rounded to 1e-6) stays rigid.
+- Limit unchanged: off the quarter turns, the magnet no longer fits (axes not aligned); the part is placed freely.

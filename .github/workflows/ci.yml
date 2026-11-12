@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   verifications:
+    # Job name kept in French: the main branch ruleset requires these exact check names.
     name: Vérifications (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -32,9 +33,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Spécification figée
+      - name: Frozen specification
         run: npm run check:spec
       - name: TypeScript strict
         run: npm run typecheck
-      - name: Tests unitaires
+      - name: Unit tests
         run: npm test

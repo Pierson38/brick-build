@@ -1,59 +1,59 @@
-# Recette humaine — manipulateur 3D (Chrome puis Safari)
+# Manual acceptance test — 3D manipulator (Chrome then Safari)
 
-> Critère : je sélectionne une brique, les trois flèches apparaissent immédiatement, puis je peux la positionner exactement dans l'espace en manipulant les axes directement avec la souris. Détail : [MONTAGE_LIBRE_GIZMO.md](MONTAGE_LIBRE_GIZMO.md).
+> Criterion: I select a brick, the three arrows appear immediately, then I can position it exactly in space by manipulating the axes directly with the mouse. Detail: [MONTAGE_LIBRE_GIZMO.md](MONTAGE_LIBRE_GIZMO.md).
 
-Durée estimée : 20 min, sur le MacBook (trackpad), puis Safari.
+Estimated duration: 20 min, on the MacBook (trackpad), then Safari.
 
-## 0. Avant de commencer (préparé par Claude)
+## 0. Before starting (prepared by Claude)
 
-- Serveur de production depuis le worktree `true-free-building` (tête de la PR #7), http://127.0.0.1:3000 (127.0.0.1 seulement).
-- Sauvegarde vérifiée de `library` + `mappings` juste avant ; inventaire SHA-256.
-- Ta construction 31039 (21 pièces) telle que tu l'as laissée ; rien n'est réaligné à l'ouverture. Format des sauvegardes inchangé (v3).
+- Production server from the `true-free-building` worktree (head of PR #7), http://127.0.0.1:3000 (127.0.0.1 only).
+- Verified backup of `library` + `mappings` just before; SHA-256 inventory.
+- Your 31039 build (21 parts) as you left it; nothing is realigned on open. Save format unchanged (v3).
 
-## 1. Les flèches à la sélection
+## 1. The arrows on selection
 
-1. 31039 → **Reprendre**. Clic sur une **plaque grise** : trois flèches apparaissent sur elle (X rouge, Y verte vers le haut, Z bleue), sans M. La barre affiche « X … · Y … (hauteur) · Z … ».
-2. Glisse la **flèche verte** vers le haut : la plaque ne monte que verticalement, par plaques (8 LDU) ; relâche. **Annuler** : elle revient.
-3. Flèche **rouge**, puis **bleue** : déplacement sur un seul axe, par demi-tenons ; les coordonnées changent en direct.
-4. **Pas : 1 LDU** : ajustement fin. Maintiens **⌥** pendant un glisser : sans pas du tout.
-5. Pendant un glisser, **Échap** : la pièce revient où elle était.
+1. 31039 → **Reprendre** (Resume). Click on a **gray plate**: three arrows appear on it (X red, Y green pointing up, Z blue), without M. The bar shows "X … · Y … (hauteur) · Z …" (X … · Y … (height) · Z …).
+2. Drag the **green arrow** upward: the plate moves only vertically, by plates (8 LDU); release. **Annuler** (Undo): it returns.
+3. **Red** arrow, then **blue**: movement on a single axis, by half studs; the coordinates change live.
+4. **Pas : 1 LDU** (Step: 1 LDU): fine adjustment. Hold **⌥** during a drag: no step at all.
+5. During a drag, **Esc**: the part returns to where it was.
 
-## 2. Les anneaux
+## 2. The rings
 
-1. **Anneaux** (touche E) : trois anneaux remplacent les flèches.
-2. Clic sur un de tes **axes rouges**, anneau **rouge** (X) ou **bleu** (Z) : glisse le long de l'anneau, l'axe bascule par quarts de tour — vertical, horizontal. Rotation **15°** si tu veux d'autres angles.
-3. **Locaux** (Q) puis **Flèches** (W) : sur un axe redressé, la flèche rouge suit l'axe (verticale) ; **Globaux** : de nouveau les axes de la scène.
+1. **Anneaux** (Rings) (E key): three rings replace the arrows.
+2. Click on one of your **red axles**, **red** (X) or **blue** (Z) ring: drag along the ring, the axle tilts by quarter turns — vertical, horizontal. **15°** rotation if you want other angles.
+3. **Locaux** (Local) (Q) then **Flèches** (Arrows) (W): on an upright axle, the red arrow follows the axle (vertical); **Globaux** (Global): the scene's axes again.
 
-## 3. Coordonnées saisies
+## 3. Entered coordinates
 
-1. Sélectionne ta **roue** : tape une valeur dans **X** (ou Y, Z), Entrée ou **Appliquer** : elle y est exactement. Annuler : elle revient.
+1. Select your **wheel**: type a value in **X** (or Y, Z), Enter or **Appliquer** (Apply): it is exactly there. Undo: it returns.
 
-## 4. Assemblage
+## 4. Assembly
 
-1. Clic sur une pièce de ton assemblage gris / orange / vert, **« Assemblage »** (ou double-clic) : le manipulateur se place au centre de l'ensemble.
-2. Flèches et anneaux : tout l'assemblage bouge et tourne d'un bloc, sans se déformer ; **une** annulation par geste.
+1. Click on a part of your gray / orange / green assembly, **"Assemblage"** (Assembly) (or double-click): the manipulator is placed at the center of the whole.
+2. Arrows and rings: the whole assembly moves and rotates as a block, without deforming; **one** undo per gesture.
 
-## 5. Ce qui ne change pas
+## 5. What does not change
 
-1. Appuyer sur la pièce elle-même (pas sur une flèche) et glisser : le glisser direct, avec l'aimant entre pièces.
-2. Boutons X / Y / Z ±90°, R, Monter / Descendre, M, Maj + clic : comme avant.
-3. 31040 (notice synchronisée) : aucun manipulateur, rien ne change.
+1. Press on the part itself (not on an arrow) and drag: the direct drag, with the magnet between parts.
+2. X / Y / Z ±90° buttons, R, Monter / Descendre (Raise / Lower), M, Shift + click: as before.
+3. 31040 (synchronized instructions): no manipulator, nothing changes.
 
 ## 6. Safari
 
-Dans **Safari** : refais **1.1–1.3, 2.2 et 4.2**.
+In **Safari**: redo **1.1–1.3, 2.2 and 4.2**.
 
-## 7. Résultats (propriétaire, 08/11/2026)
+## 7. Results (owner, 2026-11-08)
 
-Résultats transmis par le propriétaire sous forme de verdicts par thème (aucune mesure chiffrée transmise) ; « Safari OK » couvre les points du § 6.
+Results transmitted by the owner as verdicts per theme (no numeric measurements transmitted); "Safari OK" covers the items of § 6.
 
-| Point | Chrome | Safari | Remarques |
+| Item | Chrome | Safari | Remarks |
 |---|---|---|---|
-| 1. Flèches à la sélection, un axe à la fois, pas, 1 LDU, ⌥, Échap | OK | OK (§ 6) | « Flèches X / Y / Z : OK » |
-| 2. Anneaux, vertical / horizontal, axes locaux | OK | OK (§ 6) | « Rotations et axes locaux : OK » |
-| 3. Coordonnées en direct et saisies | OK | — | « Précision et coordonnées : OK » |
-| 4. Assemblage déplacé et tourné d'un bloc, une annulation | OK | OK (§ 6) | « Assemblage connecté : OK » |
-| 5. Glisser direct, aimant, boutons, 31040 inchangés | OK | — | « Non-régression et Safari : OK » |
-| Critère : sélectionner, voir les flèches, placer exactement à la souris | OK | OK | « Toutes les conditions fonctionnelles sont levées. » Verdict : **GO FINAL** |
+| 1. Arrows on selection, one axis at a time, step, 1 LDU, ⌥, Esc | OK | OK (§ 6) | "X / Y / Z arrows: OK" |
+| 2. Rings, vertical / horizontal, local axes | OK | OK (§ 6) | "Rotations and local axes: OK" |
+| 3. Live and entered coordinates | OK | — | "Precision and coordinates: OK" |
+| 4. Assembly moved and rotated as a block, one undo | OK | OK (§ 6) | "Connected assembly: OK" |
+| 5. Direct drag, magnet, buttons, 31040 unchanged | OK | — | "Non-regression and Safari: OK" |
+| Criterion: select, see the arrows, place exactly with the mouse | OK | OK | "All functional conditions are lifted." Verdict: **FINAL GO** |
 
-Données après la recette (comparées à l'inventaire `donnees-2026-11-07T23-44-37.sha256`) : seule la construction 31039 a changé — révision 254, **50 pièces posées librement** (21 avant), modifications du 08/11 entre 15 h 45 et 16 h 01 ; 4 plus anciens instantanés d'historique (r1, r4, r9, r16) retirés par la rotation normale (30 au plus, `MAX_HISTORY`, depuis P7), conservés dans les sauvegardes précédentes. 31040 (25/65, synchronisé) et le reste : inchangés.
+Data after the acceptance test (compared to the inventory `donnees-2026-11-07T23-44-37.sha256`): only the 31039 build changed — revision 254, **50 freely placed parts** (21 before), changes of 2026-11-08 between 15:45 and 16:01; 4 older history snapshots (r1, r4, r9, r16) removed by the normal rotation (30 at most, `MAX_HISTORY`, since P7), kept in the previous backups. 31040 (25/65, synchronized) and the rest: unchanged.

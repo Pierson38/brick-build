@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Signaler une faille de sécurité
+  - name: Report a security vulnerability
     url: https://github.com/Pierson38/brick-build/security/advisories/new
-    about: En privé, jamais dans une issue publique (voir SECURITY.md).
+    about: Privately, never in a public issue (see SECURITY.md).

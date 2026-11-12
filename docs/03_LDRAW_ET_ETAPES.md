@@ -1,13 +1,13 @@
-# 03 — LDraw, import et gestion des étapes
+# 03 — LDraw, import, and step handling
 
-## Sources et formats
+## Sources and formats
 
-- LDraw : `.ldr` (modèle texte), `.mpd` (plusieurs fichiers logiques dans un conteneur texte), `.dat` (définition de pièce) ; encodage UTF-8 dans la spécification.
-- OMR : répliques communautaires de vrais sets LEGO, **pas des fichiers 3D officiels LEGO**.
-- La bibliothèque de géométries des pièces doit être installée localement par l'utilisateur ou via procédure explicite conforme aux licences ; ne pas la commiter.
-- Dans le MVP, `.io` (BrickLink Studio) et `.lxf` restent **hors périmètre** ; ne pas les annoncer comme importés.
+- LDraw: `.ldr` (text model), `.mpd` (several logical files in a text container), `.dat` (part definition); UTF-8 encoding in the specification.
+- OMR: community replicas of real LEGO sets, **not official LEGO 3D files**.
+- The part geometry library must be installed locally by the user or via an explicit procedure compliant with the licenses; do not commit it.
+- In the MVP, `.io` (BrickLink Studio) and `.lxf` remain **out of scope**; do not advertise them as imported.
 
-## Lire les lignes qui comptent
+## Reading the lines that matter
 
 ```text
 0 FILE exemple.mpd
@@ -19,53 +19,53 @@
 0 NOFILE
 ```
 
-- `0 FILE <nom>` : nouvelle section dans un MPD.
-- `0 NOFILE` : fin de section (quand présent).
-- `1 <couleur> <x y z> <a b c d e f g h i> <fichier>` : occurrence référencée, translation et matrice 3×3.
-- `0 STEP` : marque la **fin** d'une étape, pas le début.
-- `0 ROTSTEP` et autres méta-commandes : conserver/ignorer explicitement selon le support, documenter les limites.
-- Les noms des sous-fichiers peuvent contenir des espaces : parser avec robustesse, en gardant le reste de la ligne pour la référence.
+- `0 FILE <name>`: new section in an MPD.
+- `0 NOFILE`: end of section (when present).
+- `1 <color> <x y z> <a b c d e f g h i> <file>`: referenced occurrence, translation and 3×3 matrix.
+- `0 STEP`: marks the **end** of a step, not the start.
+- `0 ROTSTEP` and other meta-commands: keep/ignore explicitly depending on support, document the limits.
+- Subfile names may contain spaces: parse robustly, keeping the rest of the line for the reference.
 
-## Algorithme recommandé
+## Recommended algorithm
 
-1. Lire fichier texte et isoler les sections MPD ; pour un `.ldr` seul, créer une section unique.
-2. Déterminer la section racine à partir de la convention/metadata ou demander à l'utilisateur si ambigu.
-3. Construire la table des sous-fichiers internes, sans collisions ni normalisation destructive.
-4. Parser chaque section, conserver ordre, `0 STEP`, type 1 et métadonnées utiles.
-5. Détecter cycles, sous-fichiers manquants, profondeur excessive, références `../`, dépassements de quotas.
-6. Résoudre récursivement chaque référence de sous-modèle avec composition des transformations : `M_global = M_parent * M_local`.
-7. Résoudre la couleur héritée (`16` = couleur courante en LDraw, selon contexte) ; ne pas écraser arbitrairement les couleurs des enfants.
-8. Attribuer un ID déterministe **par occurrence**, avec un chemin d'occurrence (`root/3/submodel/2/...`) et une référence de pièce, pour distinguer deux briques identiques.
-9. Exposer pièces finales, sous-assemblages, étapes connues, inconnues, diagnostic de qualité et source du modèle.
-10. Préparer un `buildPlan` dont les étapes viennent **seulement des données réelles du modèle ou d'un mapping édité**, jamais d'une prétendue lecture automatique de la notice.
+1. Read the text file and isolate the MPD sections; for a standalone `.ldr`, create a single section.
+2. Determine the root section from the convention/metadata, or ask the user if ambiguous.
+3. Build the table of internal subfiles, without collisions or destructive normalization.
+4. Parse each section, keeping order, `0 STEP`, type 1, and useful metadata.
+5. Detect cycles, missing subfiles, excessive depth, `../` references, quota overruns.
+6. Recursively resolve each submodel reference with composition of transformations: `M_global = M_parent * M_local`.
+7. Resolve the inherited color (`16` = current color in LDraw, depending on context); do not arbitrarily overwrite children's colors.
+8. Assign a deterministic ID **per occurrence**, with an occurrence path (`root/3/submodel/2/...`) and a part reference, to distinguish two identical bricks.
+9. Expose final parts, subassemblies, known and unknown steps, quality diagnostic, and model source.
+10. Prepare a `buildPlan` whose steps come **only from the model's real data or from an edited mapping**, never from a supposed automatic reading of the instructions.
 
-## Complexité des étapes
+## Step complexity
 
-Les sous-modèles peuvent contenir leurs propres `STEP`. Un `0 STEP` à la racine ne garantit pas qu'on dispose d'une séquence physique de pose de toutes les briques. Une référence de sous-modèle peut représenter un sous-assemblage entier. Il faut donc distinguer :
+Submodels may contain their own `STEP`s. A root-level `0 STEP` does not guarantee a physical placement sequence for all bricks. A submodel reference may represent an entire subassembly. A distinction is therefore needed:
 
-- **ROOT_STEPS** : ordre des références dans la section principale ; pourra inclure des groupes entiers.
-- **NESTED_STEPS** : informations présentes dans les sous-modèles, parfois exploitables séparément.
-- **FLATTENED_STEPS** : ordre de poses au niveau des pièces finales, obtenu par une stratégie explicitement documentée et testée, non automatiquement équivalent aux notices officielles.
-- **NO_STEPS** : modèle fini uniquement ; en MVP, **mode montage libre** : stock de pièces disponibles, choix à la référence/couleur, placement sur la cible finale restante correspondante. Pas de guidage par l'ordre ni de revendication de fidélité à la notice.
+- **ROOT_STEPS**: order of references in the main section; may include entire groups.
+- **NESTED_STEPS**: information present in submodels, sometimes usable separately.
+- **FLATTENED_STEPS**: placement order at the final-part level, obtained by an explicitly documented and tested strategy, not automatically equivalent to the official instructions.
+- **NO_STEPS**: finished model only; in the MVP, **free building mode**: stock of available parts, choice by reference/color, placement on the matching remaining final target. No order-based guidance and no claim of fidelity to the instructions.
 
-Les instructions LEGO PDF ne contiennent pas de coordonnées directement exploitables. Ne pas annoncer de synchronisation PDF/MPD sans mapping vérifié. Pour le MVP, PDF et 3D sont deux vues **parallèles**.
+LEGO PDF instructions do not contain directly usable coordinates. Do not announce PDF/MPD synchronization without a verified mapping. For the MVP, PDF and 3D are two **parallel** views.
 
-## Cas de compatibilité à détecter
+## Compatibility cases to detect
 
-- `.mpd` valide mais seulement un modèle assemblé sans `0 STEP`.
-- Un nombre de `STEP` positif mais étapes ambiguës à cause de sous-modèles imbriqués.
-- Une pièce LDraw manque dans la bibliothèque locale.
-- Fichier MPD avec plusieurs modèles alternatifs.
-- Référence circulaire `A → B → A`.
-- `0 FILE` dont le nom contient des espaces ou différences de casse.
-- Répétition d'une même référence de pièce à plusieurs positions/couleurs.
-- Pièce avec matrice de rotation non triviale, miroir, échelle invalide.
-- Fichier volumineux ou malformé ; aucun traitement sans borne.
+- Valid `.mpd` but only an assembled model without `0 STEP`.
+- A positive number of `STEP`s but ambiguous steps due to nested submodels.
+- An LDraw part is missing from the local library.
+- MPD file with several alternative models.
+- Circular reference `A → B → A`.
+- `0 FILE` whose name contains spaces or case differences.
+- Repetition of the same part reference at several positions/colors.
+- Part with a non-trivial rotation matrix, mirroring, invalid scale.
+- Large or malformed file; no processing without bounds.
 
-## Sources de référence
+## Reference sources
 
-- Spécification LDraw : https://www.ldraw.org/article/218.html
-- OMR : https://library.ldraw.org/omr
-- OMR standard : https://library.ldraw.org/documentation/official-model-repository-omr-standards/official-model-repository-omr-specification
-- Three.js LDrawLoader : https://threejs.org/docs/pages/LDrawLoader.html
-- Démonstration : https://threejs.org/examples/webgl_loader_ldraw.html
+- LDraw specification: https://www.ldraw.org/article/218.html
+- OMR: https://library.ldraw.org/omr
+- OMR standard: https://library.ldraw.org/documentation/official-model-repository-omr-standards/official-model-repository-omr-specification
+- Three.js LDrawLoader: https://threejs.org/docs/pages/LDrawLoader.html
+- Demo: https://threejs.org/examples/webgl_loader_ldraw.html

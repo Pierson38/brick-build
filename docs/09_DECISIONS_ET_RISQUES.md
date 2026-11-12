@@ -1,44 +1,44 @@
-# 09 — Décisions, risques et questions à arbitrer
+# 09 — Decisions, risks, and questions to settle
 
-## Décisions déjà prises
+## Decisions already made
 
-- Projet personnel, mono-utilisateur, local sur Mac.
-- Les sets visés sont les véritables références LEGO, importées par l'utilisateur.
-- Les notices PDF sont importées manuellement ; ne pas mettre en place de téléchargement automatique.
-- Deux modes : étapes 3D guidées à partir d'une structure disponible + montage libre accompagné d'une notice PDF locale lorsque les étapes manquent.
-- Priorité absolue à la **jouabilité** : prendre/poser des briques, pas seulement faire défiler des étapes.
-- Développer le moteur avant le catalogue.
-- Stack TS / Next.js / Three.js / R3F / PDF.js, sous réserve de compatibilité documentée.
+- Personal, single-user project, local on Mac.
+- The targeted sets are real LEGO references, imported by the user.
+- PDF instructions are imported manually; do not set up any automatic download.
+- Two modes: guided 3D steps from an available structure + free building accompanied by a local PDF instruction booklet when steps are missing.
+- Absolute priority on **playability**: picking/placing bricks, not just scrolling through steps.
+- Develop the engine before the catalog.
+- TS / Next.js / Three.js / R3F / PDF.js stack, subject to documented compatibility.
 
-## Risques et parades
+## Risks and mitigations
 
-| Risque | Impact | Parade / garde |
+| Risk | Impact | Mitigation / guard |
 |---|---|---|
-| OMR sans `0 STEP` | High | Diagnostic + mode non guidé, éditeur futur |
-| Sous-modèle = groupe et non brique | High | Parser structurel séparé, IDs path-based, spike |
-| `LDrawLoader` fusionne des géométries | High | Vérification API réelle, rendu indépendant par occurrence |
-| PDF et modèle ont des étapes différentes | High | Navigation indépendante, pas de fausse synchro |
-| Pièces/variantes manquantes | Medium | Diagnostic précis, ne pas marquer rendu complet |
-| Technic complexe et pièces flexibles | Medium | Hors MVP, tests ciblés ultérieurs |
-| Fichiers importés malformés | High | Quotas, limites de profondeur, validation et erreurs |
-| Confusion de droits sur sets/notices | High | Usage local, import manuel, pas de redistribution |
-| Sauvegarde liée au mauvais modèle | High | Hash + versionnement + tests de restauration |
-| Surinvestissement avant preuve de faisabilité | High | Lots courts, GO/NO-GO et démonstration à chaque phase |
+| OMR without `0 STEP` | High | Diagnostic + non-guided mode, future editor |
+| Submodel = group rather than brick | High | Separate structural parser, path-based IDs, spike |
+| `LDrawLoader` merges geometries | High | Verification of the real API, independent rendering per occurrence |
+| PDF and model have different steps | High | Independent navigation, no fake sync |
+| Missing parts/variants | Medium | Precise diagnostic, do not mark rendering complete |
+| Complex Technic and flex parts | Medium | Outside MVP, targeted tests later |
+| Malformed imported files | High | Quotas, depth limits, validation and errors |
+| Rights confusion on sets/instructions | High | Local use, manual import, no redistribution |
+| Save tied to the wrong model | High | Hash + versioning + restoration tests |
+| Overinvestment before proof of feasibility | High | Short batches, GO/NO-GO and demonstration at each phase |
 
-## Points à vérifier au spike (ne pas supposer)
+## Points to verify in the spike (do not assume)
 
-- Version actuelle de `three` et API précise de `LDrawLoader`, notamment exposition des étapes/occurrences.
-- Stratégie réellement fonctionnelle de chargement local de la bibliothèque LDraw dans Next.js, sans réseau à l'exécution.
-- Matrice/axes et composition sous-modèles selon fichiers de tests.
-- Performance pratique des géométries séparées et modes de placement.
-- Qualité d'un **vrai MPD OMR choisi et fourni par l'utilisateur** : toutes les références résolues ? étapes ? nombre d'occurrences ?
-- Comportement Chrome et Safari avec PDF.js/worker en local.
+- Current version of `three` and precise `LDrawLoader` API, notably the exposure of steps/occurrences.
+- Strategy that actually works for loading the LDraw library locally in Next.js, without network at runtime.
+- Matrix/axes and submodel composition according to test files.
+- Practical performance of separate geometries and placement modes.
+- Quality of a **real OMR MPD chosen and provided by the user**: all references resolved? steps? number of occurrences?
+- Chrome and Safari behavior with PDF.js/worker locally.
 
-## Questions reportées après le POC
+## Questions deferred until after the POC
 
-- Souhaites-tu qu'on crée un éditeur de séquences de montage pour les MPD sans étapes ?
-- Faut-il sauvegarder durablement les fichiers MPD et PDF eux-mêmes en IndexedDB, ou demander leur réimport ?
-- Quel est le premier set réel de validation, après réussite des fixtures synthétiques ?
-- Quel mode de manipulation doit être prioritaire : glisser-déposer libre, ou sélection de pièce puis « placer » avec ajustement automatique ?
+- Do you want us to create an assembly sequence editor for MPDs without steps?
+- Should the MPD and PDF files themselves be durably saved in IndexedDB, or should their reimport be requested?
+- What is the first real validation set, after the synthetic fixtures succeed?
+- Which manipulation mode should take priority: free drag-and-drop, or part selection then "place" with automatic adjustment?
 
-Ces questions ne doivent pas bloquer le spike initial.
+These questions must not block the initial spike.

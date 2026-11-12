@@ -1,24 +1,24 @@
-## Objet
+## Purpose
 
-<!-- Ce que change la PR et pourquoi. Une PR = un sujet. -->
+<!-- What the PR changes and why. One PR = one topic. -->
 
-Issue liée : <!-- Closes #… -->
+Related issue: <!-- Closes #… -->
 
 ## Type
 
-- [ ] Correction de bug
-- [ ] Fonctionnalité
+- [ ] Bug fix
+- [ ] Feature
 - [ ] Documentation
-- [ ] Maintenance (dépendances, outillage, CI)
+- [ ] Maintenance (dependencies, tooling, CI)
 
-## Vérifications
+## Checks
 
-<!-- Indique ce que tu as réellement exécuté, et sur quel système. -->
+<!-- State what you actually ran, and on which system. -->
 
-- [ ] `npm run recette` passe en local (système : …)
-- [ ] Tests ajoutés ou adaptés (une correction de bug vient avec un test qui échouait avant)
-- [ ] Captures avant/après jointes pour un changement visible
-- [ ] Aucune notice, aucun fichier de set tiers, aucune bibliothèque de pièces, aucune clé d'API
-- [ ] Aucune requête réseau sans action de l'utilisateur, aucune télémétrie
-- [ ] Spécification figée : écart déclaré si un fichier de `DOSSIER_MANIFEST.json` change (`npm run check:spec`)
-- [ ] `docs/implementation/JOURNAL_DECISIONS.md` mis à jour si une hypothèse du projet change
+- [ ] `npm run recette` passes locally (system: …)
+- [ ] Tests added or adapted (a bug fix comes with a test that failed before)
+- [ ] Before/after screenshots attached for a visible change
+- [ ] No instruction booklet, no third-party set file, no parts library, no API key
+- [ ] No network request without a user action, no telemetry
+- [ ] Frozen specification: deviation declared if a file in `DOSSIER_MANIFEST.json` changes (`npm run check:spec`)
+- [ ] `docs/implementation/JOURNAL_DECISIONS.md` updated if a project assumption changes

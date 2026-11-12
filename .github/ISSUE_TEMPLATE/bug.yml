@@ -1,77 +1,77 @@
 name: Bug
-description: Quelque chose ne fonctionne pas comme prévu.
+description: Something does not work as expected.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Merci de prendre le temps de signaler un problème !
-        **Ne joins jamais** de notice LEGO, de fichier de set tiers (`.mpd`, `.ldr`, y compris de l'OMR) ni de bibliothèque de pièces : donne plutôt le numéro du set et le lien vers sa page.
-        Une faille de sécurité se signale en privé : voir [SECURITY.md](https://github.com/Pierson38/brick-build/blob/main/SECURITY.md).
+        Thanks for taking the time to report a problem!
+        **Never attach** a LEGO instruction booklet, a third-party set file (`.mpd`, `.ldr`, including from the OMR) or a parts library: give the set number and the link to its page instead.
+        A security vulnerability must be reported privately: see [SECURITY.md](https://github.com/Pierson38/brick-build/blob/main/SECURITY.md).
   - type: textarea
     id: description
     attributes:
-      label: Que se passe-t-il ?
-      description: Décris le problème et ce que tu attendais à la place.
+      label: What is happening?
+      description: Describe the problem and what you expected instead.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: Étapes pour reproduire
+      label: Steps to reproduce
       placeholder: |
-        1. Ouvrir /atelier
-        2. Importer fixtures/mini-4-pieces.mpd
+        1. Open /atelier
+        2. Import fixtures/mini-4-pieces.mpd
         3. …
     validations:
       required: true
   - type: input
     id: set
     attributes:
-      label: Set ou fichier concerné
-      description: Numéro du set et source du fichier (lien vers la page OMR, fixture du dépôt, fichier écrit par toi…).
+      label: Set or file concerned
+      description: Set number and file source (link to the OMR page, repository fixture, file written by you…).
       placeholder: 31040-1, https://library.ldraw.org/omr/sets/…
   - type: dropdown
     id: os
     attributes:
-      label: Système
+      label: System
       options:
         - macOS
-        - Windows (préversion)
-        - Autre (non pris en charge)
+        - Windows (preview)
+        - Other (not supported)
     validations:
       required: true
   - type: input
     id: browser
     attributes:
-      label: Navigateur et version
+      label: Browser and version
       placeholder: Chrome 142, Safari 26…
     validations:
       required: true
   - type: input
     id: versions
     attributes:
-      label: Version de Node.js et commit
-      description: Résultats de `node --version` et `git rev-parse --short HEAD`.
+      label: Node.js version and commit
+      description: Results of `node --version` and `git rev-parse --short HEAD`.
       placeholder: v24.5.0, 31fe635
     validations:
       required: true
   - type: textarea
     id: check-ldraw
     attributes:
-      label: Sortie de `npm run check:ldraw`
+      label: Output of `npm run check:ldraw`
       render: text
   - type: textarea
     id: extra
     attributes:
-      label: Captures, messages d'erreur, console du navigateur
-      description: Une capture de l'application est utile ; veille à ce qu'aucune page de notice n'y soit visible.
+      label: Screenshots, error messages, browser console
+      description: A screenshot of the application is helpful; make sure no instruction booklet page is visible in it.
   - type: checkboxes
     id: checks
     attributes:
-      label: Vérifications
+      label: Checks
       options:
-        - label: J'ai cherché parmi les issues existantes.
+        - label: I searched the existing issues.
           required: true
-        - label: Je n'ai joint ni notice, ni fichier de set tiers, ni bibliothèque de pièces, ni clé d'API.
+        - label: I did not attach any instruction booklet, third-party set file, parts library or API key.
           required: true

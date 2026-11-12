@@ -1,97 +1,97 @@
-# Documentation d'implémentation
+# Implementation documentation
 
-Le dépôt contient deux familles de documents :
+The repository contains two families of documents:
 
-| Famille | Emplacement | Statut |
+| Family | Location | Status |
 |---|---|---|
-| **Spécification initiale v1.0** | `README.md`, `CLAUDE.md`, `PROMPT_CLAUDE_CODE.md`, `docs/01…09`, `fixtures/`, `.gitignore` | Référence, figée. Chaque fichier est tracé par SHA-256 dans `DOSSIER_MANIFEST.json`, contrôlé par `npm run check:spec`. |
-| **Implémentation** | `docs/implementation/` | Évolue avec le code : notes de lots, journal des décisions, écarts, preuves. |
+| **Initial specification v1.0** | `README.md`, `CLAUDE.md`, `PROMPT_CLAUDE_CODE.md`, `docs/01…09`, `fixtures/`, `.gitignore` | Reference, frozen. Each file is tracked by SHA-256 in `DOSSIER_MANIFEST.json`, checked by `npm run check:spec`. |
+| **Implementation** | `docs/implementation/` | Evolves with the code: batch notes, decision log, deviations, evidence. |
 
-- [Note technique du spike et du lot P0/P1](10_SPIKE_ET_LOT_P0_P1.md)
-- [Journal des décisions d'implémentation](JOURNAL_DECISIONS.md) (prolonge `docs/09`)
-- [Écarts par rapport au manifeste de spécification](ECARTS_SPECIFICATION.md)
-- [Preuves du lot P0/P1](preuves/lot-p0-p1/)
-- [Validation P5 sur sets OMR réels](P5_VALIDATION_OMR.md)
-- [Inventaire 31009 contre notice officielle](P5_INVENTAIRE_31009.md)
-- [Recette humaine P5 (à faire par le propriétaire)](RECETTE_HUMAINE_P5.md)
-- [P6 — notice ↔ 3D synchronisée : architecture et risques](P6_ARCHITECTURE_NOTICE_SYNC.md)
-- [P6 — rapport, essai réel 31040, verdict](P6_RAPPORT.md)
-- [Recette humaine P6 (à faire par le propriétaire)](RECETTE_HUMAINE_P6.md)
-- [P7 — bibliothèque personnelle : architecture, sécurité, sauvegarde et restauration](P7_ARCHITECTURE_BIBLIOTHEQUE.md)
-- [P7 — rapport, recette réelle 31040/31009, limites, verdict](P7_RAPPORT.md)
-- [Recette humaine P7 (à faire par le propriétaire)](RECETTE_HUMAINE_P7.md)
-- [P8 — import simplifié : sources, permissions, stratégie et risques](P8_ARCHITECTURE_IMPORT.md)
-- [P8 — rapport, recette réelle, limites, verdict](P8_RAPPORT.md)
-- [Recette humaine P8 (à faire par le propriétaire)](RECETTE_HUMAINE_P8.md)
-- [Atelier — panneaux redimensionnables, notice ajustée, miniatures des pièces : rapport](UX_ATELIER_RAPPORT.md)
-- [Recette humaine du lot UX atelier (faite par le propriétaire, 06/11/2026)](RECETTE_HUMAINE_UX_ATELIER.md)
-- [Limitation connue : le montage libre n'est libre que dans l'ordre](LIMITATION_MONTAGE_LIBRE.md)
-- [Véritable montage libre : architecture (cible du modèle ≠ pose du joueur)](MONTAGE_LIBRE_ARCHITECTURE.md)
-- [Véritable montage libre : rapport, tests, mesures, verdict](MONTAGE_LIBRE_RAPPORT.md)
-- [Recette humaine du véritable montage libre (faite : NO-GO, deux limitations)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
-- [Corrections : hauteur libre et groupes (cause, tests, compatibilité)](MONTAGE_LIBRE_CORRECTIONS.md)
-- [Recette humaine ciblée des corrections (faite : NO-GO, quatre problèmes)](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md)
-- [Connexions, transformations et aimantation : note d'architecture](MONTAGE_LIBRE_CONNEXIONS.md)
-- [Rotations 3 axes, manipulation directe, assemblages, aimant : rapport](MONTAGE_LIBRE_3D_RAPPORT.md)
-- [Recette humaine des quatre problèmes (sans résultat transmis ; suite : manipulateur 3D)](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md)
-- [Manipulateur 3D (gizmo) : conception et rapport](MONTAGE_LIBRE_GIZMO.md)
-- [Recette humaine du manipulateur 3D (à faire par le propriétaire)](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md)
-- [Connexions fiabilisées : aimant depuis le bac, axes Technic, assemblages cachés — diagnostic, règles, inventaire 31039, performances](CONNEXIONS_FIABILISEES.md)
-- [Recette humaine des connexions (faite par le propriétaire : GO, 08/11/2026)](RECETTE_HUMAINE_CONNEXIONS.md)
-- [Emboîtement du bloc beige à trou sur le 31039 : identification, cause (tenons étirés, tubes en retrait), correction, preuves](CORRECTION_BLOC_31039.md)
-- [Recette humaine du bloc beige (à faire par le propriétaire)](RECETTE_HUMAINE_BLOC_31039.md)
+- [Technical note on the spike and the P0/P1 batch](10_SPIKE_ET_LOT_P0_P1.md)
+- [Implementation decision log](JOURNAL_DECISIONS.md) (extends `docs/09`)
+- [Deviations from the specification manifest](ECARTS_SPECIFICATION.md)
+- [P0/P1 batch evidence](preuves/lot-p0-p1/)
+- [P5 validation on real OMR sets](P5_VALIDATION_OMR.md)
+- [31009 inventory against the official instructions](P5_INVENTAIRE_31009.md)
+- [P5 manual acceptance test (to be done by the owner)](RECETTE_HUMAINE_P5.md)
+- [P6 — synchronized instructions ↔ 3D: architecture and risks](P6_ARCHITECTURE_NOTICE_SYNC.md)
+- [P6 — report, real 31040 trial, verdict](P6_RAPPORT.md)
+- [P6 manual acceptance test (to be done by the owner)](RECETTE_HUMAINE_P6.md)
+- [P7 — personal library: architecture, security, backup and restore](P7_ARCHITECTURE_BIBLIOTHEQUE.md)
+- [P7 — report, real 31040/31009 acceptance test, limits, verdict](P7_RAPPORT.md)
+- [P7 manual acceptance test (to be done by the owner)](RECETTE_HUMAINE_P7.md)
+- [P8 — simplified import: sources, permissions, strategy and risks](P8_ARCHITECTURE_IMPORT.md)
+- [P8 — report, real acceptance test, limits, verdict](P8_RAPPORT.md)
+- [P8 manual acceptance test (to be done by the owner)](RECETTE_HUMAINE_P8.md)
+- [Workshop — resizable panels, fitted instructions, part thumbnails: report](UX_ATELIER_RAPPORT.md)
+- [Manual acceptance test of the workshop UX batch (done by the owner, 2026-11-06)](RECETTE_HUMAINE_UX_ATELIER.md)
+- [Known limitation: free building is only free in the order](LIMITATION_MONTAGE_LIBRE.md)
+- [True free building: architecture (model target ≠ player placement)](MONTAGE_LIBRE_ARCHITECTURE.md)
+- [True free building: report, tests, measurements, verdict](MONTAGE_LIBRE_RAPPORT.md)
+- [Manual acceptance test of true free building (done: NO-GO, two limitations)](RECETTE_HUMAINE_MONTAGE_LIBRE.md)
+- [Fixes: free height and groups (cause, tests, compatibility)](MONTAGE_LIBRE_CORRECTIONS.md)
+- [Targeted manual acceptance test of the fixes (done: NO-GO, four problems)](RECETTE_HUMAINE_MONTAGE_LIBRE_CORRECTIONS.md)
+- [Connections, transformations and snapping: architecture note](MONTAGE_LIBRE_CONNEXIONS.md)
+- [3-axis rotations, direct manipulation, assemblies, magnet: report](MONTAGE_LIBRE_3D_RAPPORT.md)
+- [Manual acceptance test of the four problems (no result reported; next: 3D manipulator)](RECETTE_HUMAINE_MONTAGE_LIBRE_3D.md)
+- [3D manipulator (gizmo): design and report](MONTAGE_LIBRE_GIZMO.md)
+- [Manual acceptance test of the 3D manipulator (to be done by the owner)](RECETTE_HUMAINE_MONTAGE_LIBRE_GIZMO.md)
+- [Reliable connections: magnet from the tray, Technic axles, hidden assemblies — diagnosis, rules, 31039 inventory, performance](CONNEXIONS_FIABILISEES.md)
+- [Manual acceptance test of the connections (done by the owner: GO, 2026-11-08)](RECETTE_HUMAINE_CONNEXIONS.md)
+- [Fit of the beige block with a hole on the 31039: identification, cause (stretched studs, recessed tubes), fix, evidence](CORRECTION_BLOC_31039.md)
+- [Manual acceptance test of the beige block (to be done by the owner)](RECETTE_HUMAINE_BLOC_31039.md)
 
-## Démarrage développeur
+## Developer quick start
 
-Prérequis : macOS, Node ≥ 20.9 (testé 24.5), npm. Windows : préversion, voir le README racine (§ Windows) et le [journal](JOURNAL_DECISIONS.md#journal--08112026-prise-en-charge-de-windows-branche-featwindows-support).
+Prerequisites: macOS, Node ≥ 20.9 (tested 24.5), npm. Windows: preview, see the root README (§ Windows) and the [journal](JOURNAL_DECISIONS.md#journal--2026-11-08-windows-support-branch-featwindows-support).
 
-1. Bibliothèque de pièces LDraw (une fois, hors dépôt) : télécharger `complete.zip` depuis https://library.ldraw.org/library/updates/complete.zip, le décompresser par exemple dans `~/Documents/brick-lab-data/` (dossier `ldraw/`), puis créer `.env.local` à la racine du projet :
+1. LDraw parts library (once, outside the repository): download `complete.zip` from https://library.ldraw.org/library/updates/complete.zip, unzip it for example into `~/Documents/brick-lab-data/` (`ldraw/` folder), then create `.env.local` at the project root:
    ```
    LDRAW_LIBRARY_DIR=/Users/<toi>/Documents/brick-lab-data/ldraw
    ```
-   Licence : CC BY 4.0, voir `CAreadme.txt` dans la bibliothèque. Ne jamais la commiter.
+   License: CC BY 4.0, see `CAreadme.txt` in the library. Never commit it.
 2. `npm ci` puis `npx playwright install chromium`.
-3. `npm run check:ldraw` vérifie la bibliothèque.
-4. `npm run dev` → http://127.0.0.1:3000 (écoute sur 127.0.0.1 uniquement, télémétrie Next désactivée). La page d'accueil est « Ma collection » ; « Ajouter un set » est sur `/ajouter` ; l'atelier P5/P6 sans collection est sur `/atelier`.
-   Facultatif (P8) : `REBRICKABLE_API_KEY=<ta clé>` dans `.env.local` pour afficher nom, année et nombre de pièces annoncé ; `BRICK_LAB_ONLINE=0` pour interdire tout accès Internet (l'import local reste complet).
-5. Recette : `npm run recette` (typecheck + Vitest + Playwright).
+3. `npm run check:ldraw` checks the library.
+4. `npm run dev` → http://127.0.0.1:3000 (listens on 127.0.0.1 only, Next telemetry disabled). The home page is "Ma collection" (My collection); "Ajouter un set" (Add a set) is at `/ajouter`; the P5/P6 workshop without a collection is at `/atelier`.
+   Optional (P8): `REBRICKABLE_API_KEY=<your key>` in `.env.local` to display the name, year and advertised part count; `BRICK_LAB_ONLINE=0` to forbid any Internet access (local import remains complete).
+5. Acceptance tests: `npm run recette` (typecheck + Vitest + Playwright).
 
-Note technique du spike et limites : [10_SPIKE_ET_LOT_P0_P1.md](10_SPIKE_ET_LOT_P0_P1.md).
+Technical note on the spike and limits: [10_SPIKE_ET_LOT_P0_P1.md](10_SPIKE_ET_LOT_P0_P1.md).
 
-## Validation sur sets réels (P5)
+## Validation on real sets (P5)
 
-Les modèles OMR et les notices restent hors dépôt, dans `~/Documents/brick-lab-data/` (ou `$BRICK_LAB_DATA`) :
-`models/<set>/<set>.mpd`, `instructions/<set>/<set>_notice_<id>.pdf`. Sans eux, la spec `omr-validation` est ignorée (skip).
+OMR models and instructions stay outside the repository, in `~/Documents/brick-lab-data/` (or `$BRICK_LAB_DATA`):
+`models/<set>/<set>.mpd`, `instructions/<set>/<set>_notice_<id>.pdf`. Without them, the `omr-validation` spec is skipped.
 
 ```bash
 npm run compat-report -- ~/Documents/brick-lab-data/models/31040-1/31040-1.mpd
-npx playwright test tests/e2e/omr-validation.spec.ts   # GPU, joueur scripté pointeur/clavier
-npm run perf                                           # build de production, 3 passages, médiane
-npx tsx scripts/level-baseline.ts <model.mpd>          # appuis PageUp/PageDown de l'ancien schéma (référence)
+npx playwright test tests/e2e/omr-validation.spec.ts   # GPU, scripted pointer/keyboard player
+npm run perf                                           # production build, 3 runs, median
+npx tsx scripts/level-baseline.ts <model.mpd>          # PageUp/PageDown presses of the old scheme (reference)
 ```
 
-Ajouter une dépendance npm : `rm -rf node_modules package-lock.json && npm i`, puis vérifier que `node_modules/@rolldown/binding-*` existe (bug npm des dépendances optionnelles).
+To add an npm dependency: `rm -rf node_modules package-lock.json && npm i`, then check that `node_modules/@rolldown/binding-*` exists (npm bug with optional dependencies).
 
-## Notice synchronisée (P6)
+## Synchronized instructions (P6)
 
-Les correspondances notice ↔ 3D sont saisies dans l'onglet **Correspondances**. Elles sont sauvegardées localement et exportables en `<modèle>.brick-mapping.json`. Le mapping réel de 31040 reste hors dépôt, dans `$BRICK_LAB_DATA/mappings/31040-1.brick-mapping.json`. Sans lui, la spec `instructions-sync-omr` est ignorée (skip).
+Instructions ↔ 3D mappings are entered in the **Correspondances** (Mappings) tab. They are saved locally and can be exported as `<model>.brick-mapping.json`. The real 31040 mapping stays outside the repository, in `$BRICK_LAB_DATA/mappings/31040-1.brick-mapping.json`. Without it, the `instructions-sync-omr` spec is skipped.
 
 ```bash
 npx vitest run tests/unit/mapping.test.ts
-npx playwright test tests/e2e/instructions-sync.spec.ts        # fixtures synthétiques
-npx playwright test tests/e2e/instructions-sync-omr.spec.ts    # essai réel 31040 (GPU)
+npx playwright test tests/e2e/instructions-sync.spec.ts        # synthetic fixtures
+npx playwright test tests/e2e/instructions-sync-omr.spec.ts    # real 31040 trial (GPU)
 ```
 
 
-## Bibliothèque personnelle (P7)
+## Personal library (P7)
 
-Données dans `~/Documents/brick-lab-data/library/` (ou `$BRICK_LAB_DATA_DIR/library/`). Sauvegarde et restauration : [P7_ARCHITECTURE_BIBLIOTHEQUE.md § 7](P7_ARCHITECTURE_BIBLIOTHEQUE.md#7-démarrage-sauvegarde-restauration).
+Data in `~/Documents/brick-lab-data/library/` (or `$BRICK_LAB_DATA_DIR/library/`). Backup and restore: [P7_ARCHITECTURE_BIBLIOTHEQUE.md § 7](P7_ARCHITECTURE_BIBLIOTHEQUE.md#7-startup-backup-restore).
 
 ```bash
 npx vitest run tests/unit/library-store.test.ts tests/unit/library-api.test.ts
-npx playwright test tests/e2e/library.spec.ts          # fixtures originales, dossier temporaire
+npx playwright test tests/e2e/library.spec.ts          # original fixtures, temporary folder
 npx playwright test tests/e2e/library-webkit.spec.ts   # Chromium ↔ WebKit (npx playwright install webkit)
-npx playwright test tests/e2e/library-omr.spec.ts      # essai réel 31040/31009 (ignoré sans les fichiers)
+npx playwright test tests/e2e/library-omr.spec.ts      # real 31040/31009 trial (skipped without the files)
 ```
 
-Les suites E2E démarrent leur serveur sur un dossier temporaire et refusent un serveur déjà lancé sur un autre dossier : arrêter `npm run dev`/`npm run start` avant `npm run recette`.
+The E2E suites start their server on a temporary folder and refuse a server already running on another folder: stop `npm run dev`/`npm run start` before `npm run recette`.

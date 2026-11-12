@@ -1,15 +1,15 @@
-# 04 — Parcours et interface
+# 04 — User flows and interface
 
-## Écran A — Accueil / Import
+## Screen A — Home / Import
 
-- Marque d'application neutre : **Brick Lab Local** ; aucune fausse affiliation officielle LEGO.
-- Bouton « Importer un modèle (.mpd/.ldr) » ; l'utilisateur conserve ses fichiers.
-- Bouton secondaire « Importer une notice PDF ».
-- Liste locale des sessions récemment ouvertes (métadonnées + progression, pas de fichiers tiers préembarqués).
-- Lien externe « Trouver une notice sur LEGO.com » ; ouvre le site dans le navigateur, pas de téléchargement automatique par l'app.
-- Afficher informations de statut et limites après import.
+- Neutral application brand: **Brick Lab Local**; no false official LEGO affiliation.
+- Button "Importer un modèle (.mpd/.ldr)" (Import a model); the user keeps their files.
+- Secondary button "Importer une notice PDF" (Import a PDF instruction booklet).
+- Local list of recently opened sessions (metadata + progress, no pre-bundled third-party files).
+- External link "Trouver une notice sur LEGO.com" (Find instructions on LEGO.com); opens the site in the browser, no automatic download by the app.
+- Display status information and limits after import.
 
-## Écran B — Aperçu du modèle
+## Screen B — Model preview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -23,9 +23,9 @@
 └───────────────────────────────────────────────┴─────────────────────┘
 ```
 
-- Si pas d'étapes mais géométrie complète, le bouton affiche « Montage libre (avec notice) ». Si rendu incomplet, afficher « Visualiser » et les pièces manquantes ; ne pas tromper l'utilisateur.
+- If there are no steps but the geometry is complete, the button shows "Montage libre (avec notice)" (Free building, with instructions). If rendering is incomplete, display "Visualiser" (View) and the missing parts; do not mislead the user.
 
-## Écran C — Construction
+## Screen C — Building
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -42,26 +42,26 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-- Un mode fractionné avec poignée redimensionnable est agréable mais pas nécessaire au premier lot.
-- Navigation clavier et libellés accessibles ; ne pas rendre le gameplay inaccessible sans drag : ajouter un bouton « Poser à la position cible » pour debug / accessibilité, explicite dans l'UI.
-- Lorsqu'une pièce est correctement placée, elle devient fixe et passe à l'état validé ; en cas d'erreur, message et retour réversible.
-- **Montage libre** : si le modèle n'a pas de `STEP`, ne pas désactiver le jeu. L'utilisateur suit le PDF à sa manière ; pour une pièce choisie, l'application considère toutes les positions finales encore non occupées de même référence/couleur. Si plusieurs cibles correspondent, résoudre par proximité et empêcher toute validation ambiguë.
-- Afficher `N/M pièces posées`, **pas seulement** « étape x/y ».
+- A split mode with a resizable handle is nice but not necessary for the first batch.
+- Keyboard navigation and accessible labels; do not make gameplay inaccessible without drag: add a "Poser à la position cible" (Place at target position) button for debugging / accessibility, explicit in the UI.
+- When a part is correctly placed, it becomes fixed and moves to the validated state; on error, a message and a reversible rollback.
+- **Free building**: if the model has no `STEP`, do not disable the game. The user follows the PDF their own way; for a chosen part, the application considers all final positions not yet occupied with the same reference/color. If several targets match, resolve by proximity and prevent any ambiguous validation.
+- Display `N/M pièces posées` (N/M parts placed), **not only** "step x/y".
 
-## États UI obligatoires
+## Mandatory UI states
 
-- Chargement/lecture du fichier.
-- Modèle invalide.
-- Modèle analysable mais géométrie manquante.
-- Modèle affichable sans étapes.
-- Modèle jouable avec étapes.
-- Mode PDF sans modèle 3D (notice seulement) — possibilité utile mais pas obligatoire MVP.
-- Progression restaurée après réimport du même fichier.
-- Session terminée avec possibilité de recommencer.
+- File loading/reading.
+- Invalid model.
+- Analyzable model but missing geometry.
+- Displayable model without steps.
+- Playable model with steps.
+- PDF mode without a 3D model (instructions only) — a useful possibility but not mandatory for the MVP.
+- Progress restored after reimporting the same file.
+- Finished session with the possibility to start over.
 
-## Comportement des PDF
+## PDF behavior
 
-- Le PDF est chargé via le sélecteur local File API ; il ne part pas sur le réseau.
-- Ne pas afficher de texte « Étape LEGO x » si on ne connaît que « Page PDF y ».
-- Sauvegarde minimale : index de page ; les bytes PDF ne sont pas conservés sans choix explicite.
-- En cas de PDF chiffré, abîmé ou trop volumineux : afficher une erreur utilisable.
+- The PDF is loaded via the local File API picker; it does not go over the network.
+- Do not display a "LEGO step x" text if only "PDF page y" is known.
+- Minimal saving: page index; PDF bytes are not kept without an explicit choice.
+- For an encrypted, damaged, or too large PDF: display a usable error.

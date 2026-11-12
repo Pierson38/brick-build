@@ -1,32 +1,32 @@
-# Politique de sécurité
+# Security policy
 
-## Versions prises en charge
+## Supported versions
 
-Le projet n'a pas encore de version publiée : seule la branche `main` est maintenue. Vérifie que le problème existe toujours sur le dernier commit de `main` avant de le signaler.
+The project does not have a published release yet: only the `main` branch is maintained. Check that the problem still exists on the latest `main` commit before reporting it.
 
-## Signaler une vulnérabilité
+## Reporting a vulnerability
 
-**N'ouvre pas d'issue publique.** Utilise le signalement privé de GitHub : onglet **Security** du dépôt, puis **Report a vulnerability** ([lien direct](https://github.com/Pierson38/brick-build/security/advisories/new)).
+**Do not open a public issue.** Use GitHub's private reporting: the repository's **Security** tab, then **Report a vulnerability** ([direct link](https://github.com/Pierson38/brick-build/security/advisories/new)).
 
-Indique si possible :
+If possible, include:
 
-- le composant touché (parseur, import, bibliothèque personnelle, route locale, accès réseau…) ;
-- les étapes pour reproduire, avec un fichier **écrit par toi** si un fichier est en cause (jamais de notice ni de modèle de set tiers) ;
-- l'impact concret que tu as observé ;
-- le commit testé et ton système.
+- the affected component (parser, import, personal library, local route, network access…);
+- the steps to reproduce, with a file **written by you** if a file is involved (never an instruction booklet or a third-party set model);
+- the concrete impact you observed;
+- the commit you tested and your system.
 
-Le projet est maintenu sur du temps libre : l'objectif est d'accuser réception sous une semaine et de te tenir informé jusqu'à la correction. Tu seras crédité dans l'avis publié, sauf si tu préfères rester anonyme.
+The project is maintained in spare time: the goal is to acknowledge receipt within a week and keep you informed until the fix. You will be credited in the published advisory, unless you prefer to remain anonymous.
 
-## Périmètre
+## Scope
 
-Brick Lab Local est une application **locale** : le serveur écoute sur `127.0.0.1` et lit des fichiers que l'utilisateur importe lui-même. Sont particulièrement intéressants :
+Brick Lab Local is a **local** application: the server listens on `127.0.0.1` and reads files that the user imports themselves. Of particular interest are:
 
-- le **traitement de fichiers non fiables** : `.mpd`, `.ldr`, `.pdf`, `.brick-mapping.json`, sauvegardes de la bibliothèque (dépassement des bornes de taille ou de profondeur, cycles, consommation mémoire, chemins `../`, écriture hors du dossier de données) ;
-- les **routes locales** (`src/app/api/`) : une page web d'une autre origine, ou un nom de domaine qui résout vers `127.0.0.1` (DNS rebinding), ne doit pouvoir ni lire ni modifier la bibliothèque (voir `src/server/http/guard.ts`) ;
-- les **accès réseau sortants** (OMR, Rebrickable) : contournement de la liste d'hôtes autorisés, des tailles ou des délais (`src/server/net/safe-fetch.ts`), fuite de la clé Rebrickable, requête émise sans action de l'utilisateur ou malgré `BRICK_LAB_ONLINE=0`.
+- **handling of untrusted files**: `.mpd`, `.ldr`, `.pdf`, `.brick-mapping.json`, library backups (exceeding size or depth limits, cycles, memory consumption, `../` paths, writing outside the data folder);
+- **local routes** (`src/app/api/`): a web page from another origin, or a domain name that resolves to `127.0.0.1` (DNS rebinding), must not be able to read or modify the library (see `src/server/http/guard.ts`);
+- **outgoing network access** (OMR, Rebrickable): bypassing the allowed-host list, the sizes or the timeouts (`src/server/net/safe-fetch.ts`), leaking the Rebrickable key, a request issued without a user action or despite `BRICK_LAB_ONLINE=0`.
 
-Hors périmètre :
+Out of scope:
 
-- un serveur exposé volontairement sur le réseau (option `-H` modifiée, proxy, tunnel) ;
-- une vulnérabilité d'une dépendance sans impact démontré sur Brick Lab Local (signale-la plutôt au projet concerné) ;
-- les attaques qui supposent un accès préalable au compte ou aux fichiers de l'utilisateur.
+- a server deliberately exposed on the network (modified `-H` option, proxy, tunnel);
+- a vulnerability in a dependency with no demonstrated impact on Brick Lab Local (report it to the relevant project instead);
+- attacks that assume prior access to the user's account or files.

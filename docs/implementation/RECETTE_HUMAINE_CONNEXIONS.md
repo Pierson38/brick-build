@@ -1,49 +1,49 @@
-# Recette humaine — aimantation depuis le bac, connexions et assemblages cachés (31039)
+# Manual acceptance test — snapping from the tray, connections and hidden assemblies (31039)
 
-> **Résultat (08/11/2026) : GO.** Recette faite par le propriétaire sur le serveur de production de la branche (commit `7836b3d`), avec sa bibliothèque réelle sauvegardée juste avant (`backups-p8/library-2026-11-08T20-10-32-avant-recette-connexions.tar.gz`, inventaire `donnees-2026-11-08T20-10-32.sha256`). Retour : « ok tout est good ». Aucune anomalie signalée.
+> **Result (2026-11-08): GO.** Acceptance test done by the owner on the branch's production server (commit `7836b3d`), with his real library backed up just before (`backups-p8/library-2026-11-08T20-10-32-avant-recette-connexions.tar.gz`, inventory `donnees-2026-11-08T20-10-32.sha256`). Feedback: "ok tout est good" (all good). No anomaly reported.
 
-> Critères :
-> 1. Je prends une pièce **dans le bac**, je l'approche de mon assemblage, l'aimant propose immédiatement une connexion compatible, je vois les **repères verts**, puis la pièce s'emboîte **exactement** à cet endroit. Je n'ai plus à poser puis reprendre la pièce.
-> 2. Je sélectionne une pièce d'un mécanisme, « **Assemblage** », et Brick Build sélectionne tout ce qui est relié — y compris par un **axe intérieur** et des pièces invisibles depuis ma caméra.
+> Criteria:
+> 1. I take a part **from the tray**, bring it close to my assembly, the magnet immediately proposes a compatible connection, I see the **green markers**, then the part fits **exactly** at that place. I no longer have to place then pick back up the part.
+> 2. I select a part of a mechanism, "**Assemblage**" (Assembly), and Brick Build selects everything that is linked — including through an **inner axle** and parts invisible from my camera.
 >
-> Détail technique : [CONNEXIONS_FIABILISEES.md](CONNEXIONS_FIABILISEES.md).
+> Technical detail: [CONNEXIONS_FIABILISEES.md](CONNEXIONS_FIABILISEES.md).
 
-Durée estimée : 20 min, Chrome puis Safari. Branche `fix/free-building-connections` (PR non fusionnée).
+Estimated duration: 20 min, Chrome then Safari. Branch `fix/free-building-connections` (PR not merged).
 
-## 0. Avant de commencer
+## 0. Before starting
 
-- Sauvegarde de ta bibliothèque (`library` + `mappings`) avant d'ouvrir le serveur de la branche ; rien n'est réaligné à l'ouverture, format des sauvegardes inchangé (v3).
-- Serveur de la branche sur http://127.0.0.1:3000 (127.0.0.1 seulement) : `npm run build && npm run start` dans le worktree `brick-build-worktrees/free-building-connections`.
+- Backup of your library (`library` + `mappings`) before opening the branch's server; nothing is realigned on open, save format unchanged (v3).
+- Branch server on http://127.0.0.1:3000 (127.0.0.1 only): `npm run build && npm run start` in the `brick-build-worktrees/free-building-connections` worktree.
 
-## 1. Le bug : une pièce prise dans le bac (31039 → Reprendre)
+## 1. The bug: a part taken from the tray (31039 → Reprendre (Resume))
 
-1. Barre de pièces : clic sur une **plaque orange 1 × 2** (3023). Ne pose rien d'abord.
-2. Approche-la du dessus de ta **plaque blanche 2 × 4** : dès qu'elle est au-dessus, la barre affiche « **aimant : 2 tenon(s) emboîté(s) sur 1 pièce(s)** » et **deux points verts** apparaissent sur les tenons — *avant* tout clic.
-3. Clic : la plaque est posée **là où l'aperçu la montrait** (même endroit, même hauteur).
-4. **Annuler** ; recommence avec une **plaque grise 30157** au-dessus de tes plaques orange + support vert : « 4 tenon(s) … sur 2 pièce(s) ».
-5. Reprends la pièce posée (clic puis M) et ramène-la au même endroit : **même proposition** qu'au point 2.
+1. Part tray: click on an **orange 1 × 2 plate** (3023). Do not place anything first.
+2. Bring it close to the top of your **white 2 × 4 plate**: as soon as it is above, the bar shows "**aimant : 2 tenon(s) emboîté(s) sur 1 pièce(s)**" (magnet: 2 stud(s) fitted on 1 part(s)) and **two green dots** appear on the studs — *before* any click.
+3. Click: the plate is placed **where the preview showed it** (same place, same height).
+4. **Annuler** (Undo); start again with a **gray plate 30157** above your orange plates + green support: "4 tenon(s) … sur 2 pièce(s)".
+5. Pick the placed part back up (click then M) and bring it back to the same place: **same proposal** as in item 2.
 
-## 2. Une aimantation cohérente
+## 2. A consistent magnet
 
-1. Déplace lentement une pièce en main au-dessus de deux emplacements voisins : la proposition **ne saute pas** d'un emplacement à l'autre à chaque petit mouvement ; elle change quand tu t'éloignes franchement.
-2. Approche une pièce d'un endroit éloigné de plus d'un tenon et demi : **aucune** attraction lointaine.
-3. Tourne la pièce en main avec **X** (quart de tour) au-dessus de l'assemblage : la barre dit « **axes non alignés — tourne la pièce** », pas de point vert. Encore 3 × X : l'aimant revient.
-4. Maintiens **⌥** : plus d'aimant (pose libre). Décoche **Aimant pièces** : idem.
-5. **Aimant modèle** seul : près de la place officielle de la pièce, elle s'y cale (« à sa place dans le modèle ») ; ailleurs, pose libre. Les points verts n'apparaissent que si la pose montrée emboîte **réellement** des tenons.
-6. Le manipulateur (flèches, anneaux, coordonnées) et le glisser direct d'une pièce posée : inchangés.
+1. Slowly move a part in hand above two neighboring slots: the proposal **does not jump** from one slot to the other at each small movement; it changes when you clearly move away.
+2. Bring a part close to a place more than a stud and a half away: **no** distant attraction.
+3. Rotate the part in hand with **X** (quarter turn) above the assembly: the bar says "**axes non alignés — tourne la pièce**" (axes not aligned — rotate the part), no green dot. Another 3 × X: the magnet returns.
+4. Hold **⌥**: no more magnet (free placement). Uncheck **Aimant pièces** (Parts magnet): same.
+5. **Aimant modèle** (Model magnet) alone: near the part's official place, it snaps there ("à sa place dans le modèle" (in its place in the model)); elsewhere, free placement. The green dots appear only if the pose shown **really** fits studs.
+6. The manipulator (arrows, rings, coordinates) and the direct drag of a placed part: unchanged.
 
-## 3. L'assemblage relié par un axe intérieur
+## 3. The assembly linked by an inner axle
 
-1. Ta **roue avant** (axes rouges 32062, demi-poutres grises) : clic sur une demi-poutre grise, **Assemblage** → « **8 pièce(s) sélectionnée(s)** » (vérifié sur une copie de ta construction : 3 axes rouges, 2 × 41677, 2 × 6632, 1 × 32449, reliés par axes dans les trous d'axe). La jante, le pneu, la seconde 32449 et les deux axes-goupilles bleus 43093 n'en font pas partie : jante et pneu ne sont pas reconnus ; les trois autres sont posés à ~1 LDU d'un engagement réel (un axe à côté d'un trou n'est pas un axe dans le trou). Reprends-les avec l'aimant : ils s'emboîtent, puis Assemblage les inclut.
-2. **Voir les connexions** : les autres pièces deviennent transparentes, l'intérieur est visible ; re-clic : retour normal (rien n'est modifié).
-3. Tourne la caméra et refais **Assemblage** depuis la même pièce : **même nombre**.
-4. **M**, déplace, **R**, clic : l'ensemble bouge d'un bloc, sans se déformer ; **Annuler** une fois : tout revient.
+1. Your **front wheel** (red axles 32062, gray half beams): click on a gray half beam, **Assemblage** → "**8 pièce(s) sélectionnée(s)**" (8 part(s) selected) (verified on a copy of your build: 3 red axles, 2 × 41677, 2 × 6632, 1 × 32449, linked by axles in the axle holes). The rim, the tire, the second 32449 and the two blue 43093 axle-pins are not part of it: rim and tire are not recognized; the other three are placed ~1 LDU from a real engagement (an axle beside a hole is not an axle in the hole). Pick them back up with the magnet: they fit, then Assemblage includes them.
+2. **Voir les connexions** (See the connections): the other parts become transparent, the inside is visible; click again: back to normal (nothing is modified).
+3. Rotate the camera and redo **Assemblage** from the same part: **same count**.
+4. **M**, move, **R**, click: the whole moves as a block, without deforming; **Annuler** once: everything returns.
 
-> Note : la roue (42610), le pneu (51011) et les charnières ne sont **pas** reconnus par la bibliothèque LDraw (ni primitive de connexion, ni métadonnée vérifiée) : ils ne s'ajoutent qu'avec Maj + clic. C'est voulu (pas de connexion inventée), voir l'inventaire.
+> Note: the wheel (42610), the tire (51011) and the hinges are **not** recognized by the LDraw library (neither connection primitive nor verified metadata): they are added only with Shift + click. This is intended (no invented connection), see the inventory.
 
-## 4. Ce qui ne change pas
+## 4. What does not change
 
-1. 31040 (notice synchronisée) et un set en mode guidé : comme avant.
-2. Ta construction 31039 rouverte : chaque pièce exactement où tu l'avais laissée.
+1. 31040 (synchronized instructions) and a set in guided mode: as before.
+2. Your 31039 build reopened: each part exactly where you left it.
 
-Retour attendu : GO / NO-GO par section, et toute pièce qui ne s'aimante pas alors qu'elle le devrait (référence + couleur).
+Expected feedback: GO / NO-GO per section, and any part that does not snap when it should (reference + color).

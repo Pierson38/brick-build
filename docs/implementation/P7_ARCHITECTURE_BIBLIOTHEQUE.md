@@ -1,91 +1,91 @@
-# P7 — Bibliothèque personnelle : architecture, sécurité, sauvegarde
+# P7 — Personal library: architecture, security, backup
 
-**Date :** 05/11/2026. Branche `feat/p7-personal-library`, base `origin/main` = `7f2e670` (P6 fusionné).
+**Date:** 2026-11-05. Branch `feat/p7-personal-library`, base `origin/main` = `7f2e670` (P6 merged).
 
-## 1. Besoin et contraintes
+## 1. Need and constraints
 
-- Ouvrir l'application sur **« Ma collection »** et reprendre une construction **sans réimporter** le MPD, les notices ni le mapping.
-- La **même** collection depuis Chrome et Safari, sur le même Mac.
-- Fichiers uniquement sur le Mac, serveur sur `127.0.0.1`, aucune requête sortante, aucun compte.
-- Les sauvegardes `localStorage` de P5/P6 restent lisibles et sont reprises sans perte.
+- Open the application on **"Ma collection"** (My collection) and resume a build **without re-importing** the MPD, the instructions or the mapping.
+- The **same** collection from Chrome and Safari, on the same Mac.
+- Files only on the Mac, server on `127.0.0.1`, no outbound requests, no account.
+- The P5/P6 `localStorage` saves remain readable and are carried over without loss.
 
-## 2. Choix de stockage
+## 2. Storage choice
 
-| Option | Chrome + Safari partagés | Fichiers MPD/PDF durables | Verdict |
+| Option | Shared Chrome + Safari | Durable MPD/PDF files | Verdict |
 |---|---|---|---|
-| `localStorage` / IndexedDB / OPFS (état P5/P6) | **Non** : un stockage par navigateur et par origine | IndexedDB oui, mais par navigateur | Écarté (c'est la contrainte à supprimer) |
-| File System Access API | Non (absente de Safari) | Oui | Écarté |
-| SQLite (`node:sqlite`) | Oui (côté serveur) | Oui | Écarté : quelques dizaines de sets, un index de quelques Ko ; un JSON lisible se sauvegarde, se compare et se restaure avec le Finder. Rien ne justifie une base binaire. |
-| **Fichiers + index JSON côté serveur Next.js (Node `fs`)** | **Oui** | **Oui** | **Retenu** |
+| `localStorage` / IndexedDB / OPFS (P5/P6 state) | **No**: one store per browser and per origin | IndexedDB yes, but per browser | Rejected (this is the constraint to remove) |
+| File System Access API | No (absent from Safari) | Yes | Rejected |
+| SQLite (`node:sqlite`) | Yes (server side) | Yes | Rejected: a few dozen sets, an index of a few KB; a readable JSON can be backed up, compared and restored with the Finder. Nothing justifies a binary database. |
+| **Files + JSON index on the Next.js server side (Node `fs`)** | **Yes** | **Yes** | **Chosen** |
 
-Le serveur Next.js local (déjà nécessaire pour servir la bibliothèque LDraw) lit et écrit dans un dossier de données. Les deux navigateurs parlent au même serveur ; ils voient donc la même collection.
+The local Next.js server (already needed to serve the LDraw library) reads and writes in a data folder. Both browsers talk to the same server, so they see the same collection.
 
-## 3. Organisation sur le disque
+## 3. Layout on disk
 
-Dossier de données : `~/Documents/brick-lab-data/` (variable `BRICK_LAB_DATA_DIR` pour un autre emplacement ; les tests utilisent un dossier temporaire).
+Data folder: `~/Documents/brick-lab-data/` (variable `BRICK_LAB_DATA_DIR` for another location; tests use a temporary folder).
 
 ```
 brick-lab-data/
-  models/ instructions/ mappings/      ← fichiers existants : lus seulement, jamais modifiés ni déplacés
-  ldraw/                                ← bibliothèque de pièces (inchangé)
-  library/                              ← tout ce que P7 écrit
-    library.json                        index (sets, constructions, fichiers) — écriture atomique
-    backups/library-<date>-r<rév>.json  copie de chaque version de l'index (20 dernières)
-    blobs/<2 car.>/<sha256>.<ext>       fichiers importés par « Ajouter un set » (adressés par contenu)
-    builds/<id>/progress.json           progression (charge utile P6 v2 inchangée) + révision
-    builds/<id>/mapping.json            correspondances de cette construction + révision
-    builds/<id>/thumbnail-<sha>.png     miniature rendue localement
-    builds/<id>/history/                versions remplacées (30 dernières par type)
-    trash/<date>-<id>/                  constructions retirées de la collection (rien n'est effacé)
-    tmp/                                imports en cours
+  models/ instructions/ mappings/      ← existing files: read only, never modified or moved
+  ldraw/                                ← part library (unchanged)
+  library/                              ← everything P7 writes
+    library.json                        index (sets, builds, files) — atomic write
+    backups/library-<date>-r<rév>.json  copy of each version of the index (last 20)
+    blobs/<2 chars>/<sha256>.<ext>      files imported via "Ajouter un set" (Add a set) (content-addressed)
+    builds/<id>/progress.json           progress (P6 v2 payload unchanged) + revision
+    builds/<id>/mapping.json            mappings for this build + revision
+    builds/<id>/thumbnail-<sha>.png     locally rendered thumbnail
+    builds/<id>/history/                replaced versions (last 30 per type)
+    trash/<date>-<id>/                  builds removed from the collection (nothing is erased)
+    tmp/                                imports in progress
 ```
 
-### Modèle de données
+### Data model
 
-- **Fichier** : identifié par son **SHA-256** ; type (`model`, `pdf`, `mapping`), taille, nom d'origine, emplacement `blob` (copie de la bibliothèque) ou `external` (laissé en place, chemin relatif au dossier de données).
-- **Set** : numéro et nom modifiables. Le numéro **n'est pas une identité** (deux sets peuvent porter le même numéro, sur confirmation).
-- **Construction** : un set en a une ou plusieurs (modèles alternatifs d'un 3-en-1). Identité propre (`id`), et surtout **(SHA-256 du modèle, modèle principal)** : c'est contre cela que la progression et le mapping sont validés. Notices associées (liste ordonnée), instantané des diagnostics du parseur pris à l'ajout.
-- **Progression** : exactement le `LocalBuildProgress` P6 (schéma v2, v1 relue), enveloppé dans `{ revision, savedAtIso, source }`.
-- **Mapping** : le `brick-lab-instruction-mapping` P6, même enveloppe.
+- **File**: identified by its **SHA-256**; type (`model`, `pdf`, `mapping`), size, original name, location `blob` (library copy) or `external` (left in place, path relative to the data folder).
+- **Set**: editable number and name. The number **is not an identity** (two sets can have the same number, upon confirmation).
+- **Build**: a set has one or more (alternate models of a 3-in-1). Own identity (`id`), and above all **(SHA-256 of the model, main model)**: this is what progress and mapping are validated against. Associated instructions (ordered list), snapshot of the parser diagnostics taken at add time.
+- **Progress**: exactly the P6 `LocalBuildProgress` (schema v2, v1 still readable), wrapped in `{ revision, savedAtIso, source }`.
+- **Mapping**: the P6 `brick-lab-instruction-mapping`, same envelope.
 
-### Fichiers déjà présents (31040, 31009)
+### Files already present (31040, 31009)
 
-« Ma collection » propose les sets trouvés dans `models/<set>/`, `instructions/<set>/` et `mappings/`. Les mappings sont reconnus par **l'empreinte du modèle qu'ils contiennent**, pas par leur nom ; le plus vérifié est présélectionné (31040 : `31040-1.brick-mapping.json`, 24/24 vérifiées, plutôt que la version préparée 0/24). L'ajout **référence les fichiers en place** (aucune copie, aucun déplacement) ; seul le mapping (7 Ko) est recopié dans `builds/<id>/mapping.json`, car il devient modifiable dans l'éditeur sans toucher l'original.
+"Ma collection" offers the sets found in `models/<set>/`, `instructions/<set>/` and `mappings/`. Mappings are recognized by the **fingerprint of the model they contain**, not by their name; the most verified one is preselected (31040: `31040-1.brick-mapping.json`, 24/24 verified, rather than the prepared version 0/24). Adding **references the files in place** (no copy, no move); only the mapping (7 KB) is copied into `builds/<id>/mapping.json`, because it becomes editable in the editor without touching the original.
 
-## 4. Réutilisation de P5/P6 (pas de logique dupliquée)
+## 4. Reuse of P5/P6 (no duplicated logic)
 
-- `BrickLabApp` reçoit un **`BuildStore`** : `browserStore` (localStorage, atelier sans collection, comportement P5/P6 inchangé) ou `libraryBuildStore` (API locale). Restauration, validation de la progression (`restoreProgress`), validation du mapping (`validateMapping`), repli explicite en montage libre, plan synchronisé : **code P5/P6 inchangé**.
-- `LibraryAtelier` prépare l'ouverture : contrôle SHA-256 de chaque fichier, chargement du modèle et des notices (objets `File` passés à `useNotice.open`), reprise des sauvegardes du navigateur, puis monte `BrickLabApp`.
-- Le serveur réutilise le parseur (`analyzeModel`) pour les diagnostics et pour refuser une progression ou un mapping qui ne correspond pas au modèle.
+- `BrickLabApp` receives a **`BuildStore`**: `browserStore` (localStorage, workshop without a collection, P5/P6 behavior unchanged) or `libraryBuildStore` (local API). Restoration, progress validation (`restoreProgress`), mapping validation (`validateMapping`), explicit fallback to free building, synchronized plan: **P5/P6 code unchanged**.
+- `LibraryAtelier` prepares the opening: SHA-256 check of each file, loading of the model and the instructions (`File` objects passed to `useNotice.open`), pick-up of the browser saves, then mounts `BrickLabApp`.
+- The server reuses the parser (`analyzeModel`) for diagnostics and to reject a progress or mapping that does not match the model.
 
-## 5. Sécurité
+## 5. Security
 
-| Menace | Parade | Test |
+| Threat | Countermeasure | Test |
 |---|---|---|
-| Accès réseau | `next dev/start -H 127.0.0.1` | — |
-| Page web d'un autre site qui écrit dans la bibliothèque (CSRF) | Écritures : `Origin` = `http://<Host>` **et** en-tête `x-brick-lab: 1` (impossible sans pré-vol CORS, jamais accepté) ; `Sec-Fetch-Site` ≠ `cross-site`/`same-site` | unitaires `library-api`, E2E iframe sandbox → « blocked » |
-| DNS rebinding (`evil.example` → 127.0.0.1) qui lirait les PDF | `Host` doit être `127.0.0.1`, `localhost` ou `[::1]`, y compris en lecture | unitaires, E2E |
-| Chemins arbitraires / traversée | Le client ne fournit **jamais** de chemin ; identifiants validés (`[a-z0-9-]`, SHA-256 hex). Chemins stockés validés segment par segment (pas de `..`, `/` initial, `\`, fichier caché), résolus par `realpath` et contrôlés **dans** la racine ; découverte sans suivre les liens symboliques, limitée à `models/`, `instructions/`, `mappings/` ; `library/` interdit comme fichier externe | unitaires « hostile paths », E2E |
-| Index modifié à la main | `library.json` relu et validé **en entier** à chaque opération (types, bornes, intégrité référentielle, `__proto__`) ; s'il est invalide, **aucune écriture** | unitaire « damaged index » |
-| Fichier remplacé / mauvaise notice | SHA-256 recalculé à chaque ouverture (serveur **et** navigateur) ; réparation acceptée seulement avec la même empreinte | unitaires, E2E « modified or missing » |
-| Taille | modèle 8 Mo, PDF 300 Mo, mapping 1 Mo, miniature 2 Mo, corps JSON 2 Mo ; import en flux, refus dès le dépassement | unitaires |
-| Type | extension + contenu (`%PDF-`, texte LDraw sans octet nul et avec au moins une pièce, mapping valide, PNG) | unitaires |
-| Corruption à l'écriture | fichier temporaire + `fsync` + `rename` + `fsync` du dossier ; copie de chaque version de l'index | unitaire « interrupted write » |
-| Écrasement silencieux | révision optimiste : une écriture fondée sur une révision périmée est **refusée** (409), jamais fusionnée (exception documentée : si seule la page ou le livret affiché a changé ailleurs, la partie étant identique, l'atelier réenregistre sur la nouvelle révision) ; versions remplacées gardées dans `history/` ; blobs créés par `link` (jamais d'écrasement) | unitaires, E2E « two tabs » |
-| Suppression | « Retirer » demande une confirmation, déplace dans `trash/` ; « Abandonner » (bibliothèque) demande une confirmation et garde la progression dans `history/` | unitaires, E2E |
-| Fichiers tiers | jamais modifiés ni déplacés (mtime vérifié en test) | unitaire « discovery » |
+| Network access | `next dev/start -H 127.0.0.1` | — |
+| Web page from another site writing into the library (CSRF) | Writes: `Origin` = `http://<Host>` **and** header `x-brick-lab: 1` (impossible without a CORS preflight, which is never accepted); `Sec-Fetch-Site` ≠ `cross-site`/`same-site` | `library-api` unit tests, E2E sandboxed iframe → "blocked" |
+| DNS rebinding (`evil.example` → 127.0.0.1) that would read the PDFs | `Host` must be `127.0.0.1`, `localhost` or `[::1]`, including for reads | unit tests, E2E |
+| Arbitrary paths / traversal | The client **never** supplies a path; identifiers validated (`[a-z0-9-]`, SHA-256 hex). Stored paths validated segment by segment (no `..`, leading `/`, `\`, hidden file), resolved by `realpath` and checked **inside** the root; discovery without following symbolic links, limited to `models/`, `instructions/`, `mappings/`; `library/` forbidden as an external file | "hostile paths" unit tests, E2E |
+| Hand-edited index | `library.json` re-read and validated **in full** on every operation (types, bounds, referential integrity, `__proto__`); if invalid, **no write** | "damaged index" unit test |
+| Replaced file / wrong instructions | SHA-256 recomputed on every open (server **and** browser); repair accepted only with the same fingerprint | unit tests, E2E "modified or missing" |
+| Size | model 8 MB, PDF 300 MB, mapping 1 MB, thumbnail 2 MB, JSON body 2 MB; streamed import, rejected as soon as the limit is exceeded | unit tests |
+| Type | extension + content (`%PDF-`, LDraw text with no null byte and at least one part, valid mapping, PNG) | unit tests |
+| Corruption on write | temporary file + `fsync` + `rename` + directory `fsync`; copy of each version of the index | "interrupted write" unit test |
+| Silent overwrite | optimistic revision: a write based on a stale revision is **rejected** (409), never merged (documented exception: if only the displayed page or booklet changed elsewhere, the game being identical, the workshop saves again on the new revision); replaced versions kept in `history/`; blobs created by `link` (never overwritten) | unit tests, E2E "two tabs" |
+| Deletion | "Retirer" (Remove) asks for confirmation, moves to `trash/`; "Abandonner" (Abandon) (library) asks for confirmation and keeps the progress in `history/` | unit tests, E2E |
+| Third-party files | never modified or moved (mtime checked in test) | "discovery" unit test |
 
-En-têtes ajoutés à toutes les réponses du serveur de production : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+Headers added to all production server responses: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
 
-## 6. Performances (mesurées)
+## 6. Performance (measured)
 
-- Index : relu à chaque requête (quelques Ko), < 5 ms.
-- Liste de la collection : existence et taille des fichiers seulement ; le modèle (≤ 50 Ko) est haché et analysé pour valider le mapping (analyse mise en cache par empreinte).
-- SHA-256 complet à l'ouverture d'une construction et dans le détail d'un set : les 4 PDF existants (22 Mo) en quelques dizaines de ms.
-- Découverte du dossier réel (8 modèles, 4 PDF, 2 mappings) : **130 ms** (empreintes mises en cache par taille + date).
-- Miniatures : rendues dans le navigateur à partir du modèle 3D (WebGL), une à la fois, puis enregistrées en PNG ; aucune image téléchargée.
+- Index: re-read on every request (a few KB), < 5 ms.
+- Collection list: file existence and size only; the model (≤ 50 KB) is hashed and analyzed to validate the mapping (analysis cached by fingerprint).
+- Full SHA-256 when opening a build and in the set detail: the 4 existing PDFs (22 MB) in a few tens of ms.
+- Discovery of the real folder (8 models, 4 PDFs, 2 mappings): **130 ms** (fingerprints cached by size + date).
+- Thumbnails: rendered in the browser from the 3D model (WebGL), one at a time, then saved as PNG; no image downloaded.
 
-## 7. Démarrage, sauvegarde, restauration
+## 7. Startup, backup, restore
 
 ```bash
 npm ci
@@ -93,28 +93,28 @@ npm run build
 npm run start            # http://127.0.0.1:3000 → « Ma collection »
 ```
 
-**Sauvegarder** : copier le dossier `~/Documents/brick-lab-data/` (au minimum `library/`, plus `models/`, `instructions/`, `mappings/` si des fichiers y sont référencés « laissés en place »). Time Machine le fait déjà s'il couvre `Documents`. Arrêter le serveur pendant la copie pour avoir un instantané cohérent.
+**Back up**: copy the folder `~/Documents/brick-lab-data/` (at minimum `library/`, plus `models/`, `instructions/`, `mappings/` if files there are referenced "left in place"). Time Machine already does this if it covers `Documents`. Stop the server during the copy to get a consistent snapshot.
 
-**Restaurer la collection** : arrêter le serveur, remettre le dossier `library/` (et les fichiers externes à leur place), relancer.
+**Restore the collection**: stop the server, put the `library/` folder back (and the external files in place), restart.
 
-**Restaurer une version de l'index** (`library.json` abîmé ou supprimé : l'application le signale et n'écrit plus rien) :
+**Restore a version of the index** (`library.json` damaged or deleted: the application reports it and writes nothing more):
 
 ```bash
 cd ~/Documents/brick-lab-data/library
-ls -1 backups | tail -3                       # versions les plus récentes
-cp library.json library.json.abime 2>/dev/null # garder la version abîmée
+ls -1 backups | tail -3                       # most recent versions
+cp library.json library.json.abime 2>/dev/null # keep the damaged version
 cp backups/<la plus récente>.json library.json
 ```
 
-**Restaurer une progression ou un mapping** : `builds/<id>/history/` contient les versions remplacées ; copier celle voulue sur `progress.json` / `mapping.json`, serveur arrêté.
+**Restore a progress or a mapping**: `builds/<id>/history/` contains the replaced versions; copy the desired one over `progress.json` / `mapping.json`, with the server stopped.
 
-**Récupérer un élément retiré** : `trash/<date>-<id>/removed.json` décrit le set, les constructions et les fichiers ; le dossier de la construction contient sa progression et son mapping.
+**Recover a removed item**: `trash/<date>-<id>/removed.json` describes the set, the builds and the files; the build folder contains its progress and its mapping.
 
-**Fichier externe déplacé ou modifié** : le détail du set le signale (« introuvable », « modifié (empreinte) ») ; « Réparer » accepte le fichier d'origine (même SHA-256) et en garde une copie dans `library/blobs/`.
+**External file moved or modified**: the set detail reports it ("introuvable" (not found), "modifié (empreinte)" (modified (fingerprint))); "Réparer" (Repair) accepts the original file (same SHA-256) and keeps a copy in `library/blobs/`.
 
-**Sauvegardes du navigateur (P5/P6)** : jamais effacées ni modifiées. À l'ouverture d'une construction dont le modèle a la même empreinte :
-- la bibliothèque n'a pas de progression → celle du navigateur est reprise (rien à écraser) ;
-- les deux sont **identiques** (mode, pièces posées, page, livret, empreinte des correspondances) → rien n'est demandé ;
-- elles **diffèrent** → un écran compare ces cinq points côte à côte (la date n'est qu'indicative) et demande laquelle reprendre, **même si celle du navigateur est plus ancienne**. « Reprendre la bibliothèque » est mémorisé pour cette sauvegarde précise du navigateur (elle reste annoncée) ; « Reprendre ce navigateur » remplace la progression de la bibliothèque, dont la version précédente est **toujours** copiée dans `builds/<id>/history/` ; si les correspondances diffèrent, une case (visible, cochée quand la partie a été jouée avec elles) reprend aussi celles du navigateur, l'ancienne version allant dans l'historique ;
-- à tout moment, le **détail du set** propose « Reprendre la sauvegarde de ce navigateur » (avec confirmation) tant qu'elle diffère de la bibliothèque ;
-- une écriture fondée sur une révision périmée de la bibliothèque est refusée (pas d'écrasement d'une partie jouée entre-temps dans un autre navigateur).
+**Browser saves (P5/P6)**: never erased or modified. When opening a build whose model has the same fingerprint:
+- the library has no progress → the browser's is picked up (nothing to overwrite);
+- the two are **identical** (mode, placed parts, page, booklet, mappings fingerprint) → nothing is asked;
+- they **differ** → a screen compares these five points side by side (the date is only indicative) and asks which one to resume, **even if the browser's is older**. "Reprendre la bibliothèque" (Resume the library) is remembered for that specific browser save (it stays announced); "Reprendre ce navigateur" (Resume this browser) replaces the library progress, whose previous version is **always** copied to `builds/<id>/history/`; if the mappings differ, a checkbox (visible, checked when the game was played with them) also picks up the browser's mappings, the old version going to the history;
+- at any time, the **set detail** offers "Reprendre la sauvegarde de ce navigateur" (Resume this browser's save) (with confirmation) as long as it differs from the library;
+- a write based on a stale revision of the library is rejected (no overwriting of a game played in the meantime in another browser).
