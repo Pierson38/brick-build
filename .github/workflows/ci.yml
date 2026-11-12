@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   verifications:
-    name: Checks (${{ matrix.os }})
+    # Job name kept in French: the main branch ruleset requires these exact check names.
+    name: Vérifications (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
