@@ -21,7 +21,7 @@ To reproduce a problem, a small `.ldr` file **written by you** (a few parts, ori
 
 ## Reporting a bug
 
-Open an [issue](https://github.com/Pierson38/brick-build/issues/new/choose) with the "Bug" template. The information that saves the most time:
+Open an [issue](https://github.com/Pierson38/brick-lab-ldraw/issues/new/choose) with the "Bug" template. The information that saves the most time:
 
 - system (macOS, Windows in preview), browser and Node.js version (`node --version`);
 - commit used (`git rev-parse --short HEAD`);

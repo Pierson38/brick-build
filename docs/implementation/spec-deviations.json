@@ -25,7 +25,7 @@
     {
       "path": "README.md",
       "manifestSha256": "bd441a932dcdf1278161f99ad39efd3b0e670a17a5452f654a0908f11ed5ee13",
-      "currentSha256": "e80a8ad5b170e589c126c726f01346c56813af2aa300f82c7b9126f088cdd1a6",
+      "currentSha256": "cab54e7db67996c90a6cc950927be140ee6b774011678fdc78c10b0ecb69e756",
       "reason": "README rewritten for the repository publication: app overview, installation, tests, rights. The v1.0 version remains in b019989; its content is carried by docs/01…09 and docs/implementation/README.md. Windows (preview) section added on 2026-11-08, Contributing section on 2026-11-09; translated to English with a new screenshot on 2026-11-12.",
       "introducedIn": "docs/public-readme, chore/community-files, docs/english"
     },

@@ -1,6 +1,10 @@
-# Brick Lab Local
+# Brick Lab Local — LDraw viewer and virtual brick builder
 
-A **local** web app (macOS; Windows in preview) to rebuild brick sets virtually, part by part, from **LDraw** files (`.mpd` / `.ldr`) and the PDF instructions you downloaded yourself.
+[![CI](https://github.com/Pierson38/brick-lab-ldraw/actions/workflows/ci.yml/badge.svg)](https://github.com/Pierson38/brick-lab-ldraw/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Website](https://img.shields.io/badge/website-pierson38.github.io-2f7d5b.svg)](https://pierson38.github.io/brick-lab-ldraw/)
+
+**Brick Lab Local** is a free, open-source, **local-first** web app (macOS; Windows in preview) to rebuild brick sets virtually, part by part, in 3D. Open an **LDraw** model (`.mpd` / `.ldr`, for example from the LDraw OMR), follow its building steps in guided mode or build freely with stud snapping, and read the PDF instructions you downloaded yourself side by side. No account, no cloud: everything stays on your computer.
+
+*Français : Brick Lab Local est une application libre pour reconstruire virtuellement des sets de briques en 3D, étape par étape, à partir de fichiers LDraw et de vos notices PDF. L'interface est disponible en français.*
 
 ![Workshop in free building mode: model with a selected assembly and the 3D manipulator, model panel and parts tray](docs/images/workshop-free-building.png)
 
@@ -37,11 +41,11 @@ A **local** web app (macOS; Windows in preview) to rebuild brick sets virtually,
 ### 1. Code and dependencies
 
 ```bash
-git clone https://github.com/Pierson38/brick-build.git
+git clone https://github.com/Pierson38/brick-lab-ldraw.git
 ```
 
 ```bash
-cd brick-build
+cd brick-lab-ldraw
 ```
 
 ```bash
@@ -147,6 +151,7 @@ src/
 fixtures/       small original LDraw models (CC0)
 tests/          unit, E2E, performance, real-set acceptance tests
 docs/           specification and implementation notes
+site/           static presentation page published on GitHub Pages (not the app)
 ```
 
 ## Documentation

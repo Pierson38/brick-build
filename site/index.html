@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brick Lab Local — Open-source LDraw viewer &amp; brick builder</title>
+  <meta name="description" content="Free, open-source LDraw viewer: rebuild brick sets step by step in 3D from .mpd/.ldr files and your own PDF instructions. Local-first, no account.">
+  <link rel="canonical" href="https://pierson38.github.io/brick-lab-ldraw/">
+  <link rel="alternate" hreflang="en" href="https://pierson38.github.io/brick-lab-ldraw/">
+  <link rel="alternate" hreflang="fr" href="https://pierson38.github.io/brick-lab-ldraw/fr/">
+  <link rel="alternate" hreflang="x-default" href="https://pierson38.github.io/brick-lab-ldraw/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#2f7d5b">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Brick Lab Local">
+  <meta property="og:title" content="Brick Lab Local — open-source LDraw viewer and virtual brick builder">
+  <meta property="og:description" content="Rebuild brick sets step by step in 3D from LDraw files and your own PDF instructions. Free, local-first, no account.">
+  <meta property="og:url" content="https://pierson38.github.io/brick-lab-ldraw/">
+  <meta property="og:image" content="https://pierson38.github.io/brick-lab-ldraw/images/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Brick Lab Local workshop: a brick model in 3D with the model panel and parts tray">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Brick Lab Local",
+    "alternateName": "brick-lab-ldraw",
+    "description": "Open-source, local-first web app to rebuild brick sets virtually, part by part, in 3D from LDraw files (.mpd/.ldr) and the PDF instructions you downloaded yourself.",
+    "url": "https://pierson38.github.io/brick-lab-ldraw/",
+    "image": "https://pierson38.github.io/brick-lab-ldraw/images/og-image.png",
+    "screenshot": "https://pierson38.github.io/brick-lab-ldraw/images/workshop-free-building.webp",
+    "applicationCategory": "DesignApplication",
+    "operatingSystem": "macOS, Windows",
+    "inLanguage": ["en", "fr"],
+    "isAccessibleForFree": true,
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+    "author": { "@type": "Person", "name": "Pierson38", "url": "https://github.com/Pierson38" },
+    "sameAs": ["https://github.com/Pierson38/brick-lab-ldraw"]
+  }
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28">Brick Lab Local</a>
+      <nav class="top" aria-label="Main">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+        <a href="fr/" hreflang="fr" lang="fr">Français</a>
+        <a href="https://github.com/Pierson38/brick-lab-ldraw">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="hero">
+        <h1>Rebuild brick sets in 3D,<br>step by step, from LDraw files</h1>
+        <p class="lead">Brick Lab Local is a free, open-source LDraw viewer and virtual brick builder. Open a <code>.mpd</code> or <code>.ldr</code> model, follow its building steps or build freely, with your own PDF instructions side by side. Everything runs on your computer.</p>
+        <div class="cta">
+          <a class="button primary" href="https://github.com/Pierson38/brick-lab-ldraw">Get it on GitHub</a>
+          <a class="button" href="#install">Installation guide</a>
+        </div>
+      </div>
+
+      <figure class="shot">
+        <img src="images/workshop-free-building.webp" width="1600" height="1000" alt="Brick Lab Local workshop in free building mode: a brick model with a selected assembly and the 3D manipulator, the model panel and the parts tray">
+        <figcaption>The workshop in free building mode, with the model panel and the parts tray.</figcaption>
+      </figure>
+
+      <section id="features">
+        <h2>Features</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Guided building from LDraw steps</h3>
+            <p>When a model contains <code>0 STEP</code> commands, each step's target positions are shown and every part snaps into place. Rotate the part in hand around X, Y and Z.</p>
+          </div>
+          <div class="card">
+            <h3>Free building with snapping</h3>
+            <p>Build in any order, place parts where you point, rotate to the degree, move connected assemblies with a 3D manipulator. Studs, anti-studs, pins and pin holes snap together.</p>
+          </div>
+          <div class="card">
+            <h3>Your PDF instructions alongside</h3>
+            <p>Read the building instructions you downloaded yourself in a resizable PDF panel, and map instruction pages to 3D steps with a built-in editor.</p>
+          </div>
+          <div class="card">
+            <h3>Compatibility check before import</h3>
+            <p>Steps, submodels, parts missing from your LDraw library, license and author: you see what is playable, and why, before you start.</p>
+          </div>
+          <div class="card">
+            <h3>Personal collection</h3>
+            <p>Keep your sets and builds with progress and thumbnails, resume after a restart, undo, back up and restore.</p>
+          </div>
+          <div class="card">
+            <h3>Local-first and private</h3>
+            <p>The server listens on <code>127.0.0.1</code>. No account, no analytics, no cloud. Network access only when you click, and it can be disabled entirely.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>Install the free <a href="https://library.ldraw.org/">LDraw parts library</a> once, on your computer.</li>
+          <li>Add a set: type its number, pick a local <code>.mpd</code>/<code>.ldr</code> file or, on demand, a model from the LDraw Official Model Repository (OMR).</li>
+          <li>Optionally drop in the PDF instructions you downloaded from the official website.</li>
+          <li>Build it in 3D, in guided or free mode, and pick it up again whenever you like.</li>
+        </ol>
+      </section>
+
+      <section id="install">
+        <h2>Installation</h2>
+        <p>Requirements: macOS, or Windows 10/11 (preview); Node.js 20.9 or later; Git; the LDraw parts library (<code>complete.zip</code>, CC BY 4.0).</p>
+<pre><code>git clone https://github.com/Pierson38/brick-lab-ldraw.git
+cd brick-lab-ldraw
+npm ci
+npm run dev</code></pre>
+        <p>Then open <code>http://127.0.0.1:3000</code>. The <a href="https://github.com/Pierson38/brick-lab-ldraw#installation">full installation guide</a> explains where to unzip the parts library and how to configure <code>.env.local</code>.</p>
+      </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+        <details>
+          <summary>What is LDraw?</summary>
+          <p>LDraw is an open standard and a community-maintained library of brick parts used to describe brick models in plain-text files (<code>.ldr</code>, <code>.mpd</code>). Brick Lab Local reads these files and renders them in 3D with Three.js.</p>
+        </details>
+        <details>
+          <summary>Does it work offline?</summary>
+          <p>Yes. Once the parts library is installed, everything works without Internet access. Online search in the OMR is optional and can be disabled with <code>BRICK_LAB_ONLINE=0</code>.</p>
+        </details>
+        <details>
+          <summary>Does it download building instructions for me?</summary>
+          <p>No. Instructions are protected by copyright: you download them yourself from the official website, for your personal use. The app only displays the files you import.</p>
+        </details>
+        <details>
+          <summary>Can every set be rebuilt?</summary>
+          <p>It depends on the LDraw file: steps, submodels and parts available in your library. The app tells you before import whether a model is playable with steps, only in free building, or incomplete.</p>
+        </details>
+        <details>
+          <summary>Is it free?</summary>
+          <p>Yes. The code is open source under the MIT license. There is no account, subscription or tracking.</p>
+        </details>
+      </section>
+
+      <p class="notice"><strong>Unofficial project.</strong> LEGO® is a trademark of the LEGO Group, which does not sponsor, authorize or endorse this project. The repository contains no instructions, no third-party set models and no parts library: everything is imported locally by the user.</p>
+    </main>
+
+    <footer>
+      Brick Lab Local · <a href="https://github.com/Pierson38/brick-lab-ldraw">Source code on GitHub</a> · MIT license · <a href="fr/" hreflang="fr" lang="fr">Version française</a>
+    </footer>
+  </div>
+</body>
+</html>
