@@ -1,26 +1,26 @@
-# Limitation connue — le « montage libre » n'est libre que dans l'ordre
+# Known limitation — "free building" is only free in the order
 
-**Signalée par :** le propriétaire, pendant la recette humaine du lot UX (06/11/2026).
-**Statut :** limitation du moteur **antérieure** au lot UX, **non bloquante** pour la PR #6. Chantier dédié décidé par le propriétaire : branche `feat/true-free-building`.
-**Suite :** traitée par la branche `feat/true-free-building` — voir [MONTAGE_LIBRE_ARCHITECTURE.md](MONTAGE_LIBRE_ARCHITECTURE.md) (en attente de recette humaine et de fusion).
+**Reported by:** the owner, during the manual acceptance test of the UX batch (2026-11-06).
+**Status:** engine limitation **predating** the UX batch, **non-blocking** for PR #6. Dedicated workstream decided by the owner: branch `feat/true-free-building`.
+**Follow-up:** handled by the `feat/true-free-building` branch — see [MONTAGE_LIBRE_ARCHITECTURE.md](MONTAGE_LIBRE_ARCHITECTURE.md) (awaiting manual acceptance test and merge).
 
-## Constat
+## Finding
 
-En mode « Montage libre (avec notice) » (`freeManual`), une pièce prise dans le stock ne peut être posée qu'**à l'emplacement d'une occurrence du modèle LDraw** encore libre, de même référence et de même couleur. Posée ailleurs, elle est refusée (« Trop loin de l'emplacement le plus proche », « mauvaise orientation »).
+In the **Montage libre (avec notice)** (free building, with instructions) mode (`freeManual`), a part taken from the stock can only be placed **at the location of a still-free occurrence of the LDraw model**, with the same reference and the same color. Placed elsewhere, it is refused ("Trop loin de l'emplacement le plus proche" (Too far from the nearest location), "mauvaise orientation" (wrong orientation)).
 
-Ce comportement ne correspond pas à la définition du montage libre du propriétaire : choisir une brique et la poser **où il veut**, même si ce n'est pas sa place dans le modèle LEGO officiel.
+This behavior does not match the owner's definition of free building: pick a brick and place it **wherever they want**, even if it is not its place in the official LEGO model.
 
-## Origine
+## Origin
 
-| Élément | Détail |
+| Item | Detail |
 |---|---|
-| Règle | `tryPlace()` (`src/domain/build/engine.ts`) : en `freeManual`, les candidats sont toutes les occurrences non posées (au lieu de l'étape active) ; la pose est acceptée seulement à moins de 10 LDU et 10° de la `targetMatrix` de l'une d'elles, sinon refusée. |
-| Aide au pointeur | `resolveHover()` (`surface.ts`) aimante la pièce sur les cibles du modèle (fantôme, couche de la cible, rayon). |
-| Sauvegarde | La progression ne contient que des identifiants d'occurrences (`placedOccurrenceIds`) : une pièce posée est **par construction** à la position de son occurrence. Aucune position libre n'est enregistrable. |
-| Introduite | Moteur du lot P0–P4 (`738db13`, 03/11/2026), inchangée depuis sur ce point (P5–P8). |
-| Spécification v1.0 | Comportement conforme à la spécification initiale, qui définit le montage libre comme un **ordre** libre et une **position finale** imposée : `01_PRODUIT_ET_PERIMETRE.md` (« Pas de validation de l'ordre officiel, uniquement de l'emplacement final »), `03_LDRAW_ET_ETAPES.md` (« placement sur la cible finale restante correspondante »), `04_UX_ET_PARCOURS.md`, `08_SCHEMA_DONNEES.md` § 5, `06_TESTS_ET_ACCEPTATION.md`. |
-| Lot UX | Aucun fichier de `src/domain/build/` ni de la persistance modifié (`git diff 727ba1c..a645b9d -- src/domain src/server` : seul `src/domain/ui/panel-layout.ts`, nouveau). La limitation n'est ni causée ni aggravée par la PR #6. |
+| Rule | `tryPlace()` (`src/domain/build/engine.ts`): in `freeManual`, the candidates are all unplaced occurrences (instead of the active step); placement is accepted only within 10 LDU and 10° of the `targetMatrix` of one of them, otherwise refused. |
+| Pointer aid | `resolveHover()` (`surface.ts`) snaps the part onto the model targets (ghost, target layer, ray). |
+| Save | Progress only contains occurrence identifiers (`placedOccurrenceIds`): a placed part is **by construction** at the position of its occurrence. No free position can be saved. |
+| Introduced | Engine of batch P0–P4 (`738db13`, 2026-11-03), unchanged on this point since (P5–P8). |
+| Specification v1.0 | Behavior compliant with the initial specification, which defines free building as a free **order** and an imposed **final position**: `01_PRODUIT_ET_PERIMETRE.md` ("No validation of the official order, only of the final location"), `03_LDRAW_ET_ETAPES.md` ("placement on the matching remaining final target"), `04_UX_ET_PARCOURS.md`, `08_SCHEMA_DONNEES.md` § 5, `06_TESTS_ET_ACCEPTATION.md`. |
+| UX batch | No file of `src/domain/build/` or of persistence modified (`git diff 727ba1c..a645b9d -- src/domain src/server`: only `src/domain/ui/panel-layout.ts`, new). The limitation is neither caused nor worsened by PR #6. |
 
-## Conséquence
+## Consequence
 
-Le véritable montage libre change la **règle** et le **format des sauvegardes** : il faut distinguer la position cible du modèle (`targetMatrix`, inchangée, utilisée par les modes guidé et synchronisé) de la position réellement choisie par le joueur, et l'enregistrer. C'est un écart volontaire à la spécification v1.0 (qui reste immuable), approuvé par le propriétaire le 06/11/2026 ; il sera traité et documenté dans son propre lot (architecture, compatibilité des sauvegardes P5–P8, recette), sans modifier les modes guidé et synchronisé.
+True free building changes the **rule** and the **save format**: the model's target position (`targetMatrix`, unchanged, used by the guided and synchronized modes) must be distinguished from the position actually chosen by the player, and the latter must be recorded. This is a deliberate deviation from the v1.0 specification (which remains immutable), approved by the owner on 2026-11-06; it will be handled and documented in its own batch (architecture, P5–P8 save compatibility, acceptance test), without modifying the guided and synchronized modes.

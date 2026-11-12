@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="fr" data-dir="a" data-theme="light">
+<html lang="en" data-dir="a" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brick Lab — directions visuelles</title>
-<!-- Maquette statique de la phase 2 : aucune ressource externe, icônes SVG en ligne (tracés type Lucide). -->
+<title>Brick Lab — visual directions</title>
+<!-- Static mockup for phase 2: no external resources, inline SVG icons (Lucide-style paths). -->
 <style>
-/* ===== Direction A — « Établi » : clair d'abord, papier chaud, encre, vert outil ===== */
+/* ===== Direction A — "Établi" (Workbench): light first, warm paper, ink, tool green ===== */
 [data-dir="a"][data-theme="light"] {
   --bg: #f6f4f0; --surface: #ffffff; --surface-2: #efece6; --surface-3: #e7e3db; --border: #e2ddd4; --border-strong: #cfc8bc;
   --ink: #1e1b16; --ink-2: #5c564c; --ink-3: #7d766a;
@@ -32,7 +32,7 @@
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --r-control: 7px; --r-card: 12px; --r-panel: 14px; --label-case: none; --label-track: 0; --control-h: 32px; --density: 1;
 }
-/* ===== Direction B — « Plan technique » : sombre d'abord, ardoise, ambre signal, Plex ===== */
+/* ===== Direction B — "Plan technique" (Technical drawing): dark first, slate, signal amber, Plex ===== */
 [data-dir="b"][data-theme="dark"] {
   --bg: #0f1216; --surface: #161a20; --surface-2: #1d232b; --surface-3: #252c36; --border: #2a313b; --border-strong: #3a4350;
   --ink: #e6eaf0; --ink-2: #9aa4b2; --ink-3: #758091;
@@ -173,39 +173,39 @@ kbd { font: 11px var(--font-mono); padding: 1px 5px; border-radius: 4px; border:
     <button type="button" aria-pressed="true" data-set-dir="a">A · Établi</button>
     <button type="button" aria-pressed="false" data-set-dir="b">B · Plan technique</button>
   </div>
-  <strong>Thème</strong>
-  <div class="seg" role="group" aria-label="Thème">
-    <button type="button" aria-pressed="true" data-set-theme="light">Clair</button>
-    <button type="button" aria-pressed="false" data-set-theme="dark">Sombre</button>
+  <strong>Theme</strong>
+  <div class="seg" role="group" aria-label="Theme">
+    <button type="button" aria-pressed="true" data-set-theme="light">Light</button>
+    <button type="button" aria-pressed="false" data-set-theme="dark">Dark</button>
   </div>
 </div>
 
 <div class="wrap">
   <header>
-    <div class="label" id="dir-label">Direction A — « Établi »</div>
-    <h1 id="dir-title">Un établi calme, la scène en lumière</h1>
+    <div class="label" id="dir-label">Direction A — "Établi" (Workbench)</div>
+    <h1 id="dir-title">A calm workbench, the scene in the light</h1>
     <p class="lead" id="dir-lead"></p>
   </header>
 
   <section class="block">
     <h2>Palette</h2>
     <div class="swatches" id="swatches"></div>
-    <p class="note" style="margin-top:10px">Statuts : <span class="badge b-ok">Jouable avec étapes 3D</span> <span class="badge b-info">Montage libre uniquement</span> <span class="badge b-warn">Analysable (rendu incomplet)</span> <span class="badge b-err">Invalide</span> <span class="badge b-neutral">Jamais commencé</span></p>
+    <p class="note" style="margin-top:10px">Statuses: <span class="badge b-ok">Jouable avec étapes 3D</span> <span class="badge b-info">Montage libre uniquement</span> <span class="badge b-warn">Analysable (rendu incomplet)</span> <span class="badge b-err">Invalide</span> <span class="badge b-neutral">Jamais commencé</span></p>
   </section>
 
   <section class="block grid2">
     <div>
-      <h2>Typographie</h2>
+      <h2>Typography</h2>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="label">Titre d'écran · 28/600</div><div style="font:600 28px/1.15 var(--font-display);letter-spacing:-.01em">Ma collection</div>
-        <div class="label">Titre de section · 18/600</div><div style="font:600 18px var(--font-display)">Compatibilité</div>
-        <div class="label">Texte · 14/400</div><div>Étapes lues dans les commandes 0 STEP du modèle principal.</div>
-        <div class="label">Secondaire · 12/400</div><div style="font-size:12px;color:var(--ink-2)">Géométrie LDraw : 4 combinaisons chargées, 0 manquante, 108 ms.</div>
-        <div class="label">Chiffres et références · mono tabulaire</div><div class="mono">3001 · 2/8 pièces · X 90 · Y 24 · Z 30 LDU</div>
+        <div class="label">Screen title · 28/600</div><div style="font:600 28px/1.15 var(--font-display);letter-spacing:-.01em">Ma collection</div>
+        <div class="label">Section title · 18/600</div><div style="font:600 18px var(--font-display)">Compatibilité</div>
+        <div class="label">Text · 14/400</div><div>Étapes lues dans les commandes 0 STEP du modèle principal.</div>
+        <div class="label">Secondary · 12/400</div><div style="font-size:12px;color:var(--ink-2)">Géométrie LDraw : 4 combinaisons chargées, 0 manquante, 108 ms.</div>
+        <div class="label">Digits and references · tabular mono</div><div class="mono">3001 · 2/8 pièces · X 90 · Y 24 · Z 30 LDU</div>
       </div>
     </div>
     <div>
-      <h2>Composants</h2>
+      <h2>Components</h2>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="row">
           <button class="btn primary">${i.play} Reprendre</button>
@@ -232,7 +232,7 @@ kbd { font: 11px var(--font-mono); padding: 1px 5px; border-radius: 4px; border:
   </section>
 
   <section>
-    <h2>Atelier — montage libre, une pièce sélectionnée, notice ouverte (1280 px)</h2>
+    <h2>Workshop — free building, one part selected, instructions open (1280 px)</h2>
     <div class="atelier">
       <div class="appbar">
         <button class="btn ghost icon" aria-label="Ma collection">${i.back}</button>
@@ -291,7 +291,7 @@ kbd { font: 11px var(--font-mono); padding: 1px 5px; border-radius: 4px; border:
   </section>
 
   <section>
-    <h2>Collection — reprise en un clic, cartes visuelles</h2>
+    <h2>Collection — one-click resume, visual cards</h2>
     <div class="resume">
       <div class="thumb"><svg viewBox="0 0 460 260" width="220" class="mini"></svg></div>
       <div><div class="label">Reprendre là où tu t'es arrêté</div><div style="font:600 20px var(--font-display);margin:4px 0">Maison de test <span class="mono" style="font-size:13px;color:var(--ink-3)">90001-1</span></div><div class="note">Montage libre · 2/8 pièces · il y a 5 min</div><div class="progress" style="width:240px;margin-top:8px"><div style="width:25%"></div></div></div>
@@ -348,11 +348,11 @@ function render() {
   const cs = getComputedStyle(document.documentElement);
   document.getElementById('swatches').innerHTML = names.map((n) => `<div class="sw"><div style="background:var(${n})"></div><span>${n}<br><span class="mono" style="padding:0">${cs.getPropertyValue(n).trim()}</span></span></div>`).join('');
   const a = document.documentElement.dataset.dir === 'a';
-  document.getElementById('dir-label').textContent = a ? 'Direction A — « Établi »' : 'Direction B — « Plan technique »';
-  document.getElementById('dir-title').textContent = a ? 'Un établi calme, la scène en lumière' : 'Un outil de précision, la scène sur fond de nuit';
+  document.getElementById('dir-label').textContent = a ? 'Direction A — "Établi" (Workbench)' : 'Direction B — "Plan technique" (Technical drawing)';
+  document.getElementById('dir-title').textContent = a ? 'A calm workbench, the scene in the light' : 'A precision tool, the scene on a night background';
   document.getElementById('dir-lead').textContent = a
-    ? 'Clair par défaut, neutres chauds de papier et d’ardoise, un seul accent vert « outil » pour l’action principale et la progression ; la sélection en orange brûlé. Police système (SF Pro) : 0 Ko ajouté. Rayons doux, ombres légères. Les briques colorées et les pages blanches de la notice ressortent sans éblouir.'
-    : 'Sombre par défaut, ardoise froide façon logiciel de CAO, accent ambre signal et sélection cyan. IBM Plex Sans et Plex Mono auto-hébergées (chiffres, références, coordonnées). Rayons serrés, filets plutôt qu’ombres, libellés en petites capitales, densité plus forte.';
+    ? 'Light by default, warm paper and slate neutrals, a single "tool" green accent for the main action and progress; selection in burnt orange. System font (SF Pro): 0 KB added. Soft radii, light shadows. The colored bricks and the white instruction pages stand out without dazzling.'
+    : 'Dark by default, cool slate in the style of CAD software, signal amber accent and cyan selection. Self-hosted IBM Plex Sans and Plex Mono (digits, references, coordinates). Tight radii, hairlines rather than shadows, labels in small caps, higher density.';
 }
 document.querySelectorAll('[data-set-dir]').forEach((b) => b.addEventListener('click', () => { document.documentElement.dataset.dir = b.dataset.setDir; document.querySelectorAll('[data-set-dir]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); }));
 document.querySelectorAll('[data-set-theme]').forEach((b) => b.addEventListener('click', () => { document.documentElement.dataset.theme = b.dataset.setTheme; document.querySelectorAll('[data-set-theme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); }));

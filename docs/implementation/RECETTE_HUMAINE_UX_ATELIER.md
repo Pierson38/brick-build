@@ -1,105 +1,105 @@
-# Recette humaine — atelier : panneaux redimensionnables et miniatures des pièces (Chrome puis Safari)
+# Manual acceptance test — workshop: resizable panels and part thumbnails (Chrome then Safari)
 
-> Les tests automatisés pilotent la souris par script et WebKit de Playwright n'est pas l'application Safari. Ce lot ne change ni le format de la collection, ni les progressions, ni les correspondances ; seule la largeur choisie est mémorisée, dans le navigateur. Poser une pièce pendant la recette enregistre la progression comme d'habitude (« Annuler » la retire).
+> The automated tests drive the mouse by script and Playwright's WebKit is not the Safari application. This batch changes neither the collection format, nor the progress, nor the mappings; only the chosen width is remembered, in the browser. Placing a part during the acceptance test saves the progress as usual ("Annuler" (Undo) removes it).
 
-Durée estimée : 30 min (Chrome 20, Safari 10). Rapport : [UX_ATELIER_RAPPORT.md](UX_ATELIER_RAPPORT.md).
+Estimated duration: 30 min (Chrome 20, Safari 10). Report: [UX_ATELIER_RAPPORT.md](UX_ATELIER_RAPPORT.md).
 
-## 0. Préparation (faite par Claude, 06/11/2026)
+## 0. Preparation (done by Claude, 2026-11-06)
 
-| Contrôle | Résultat |
+| Check | Result |
 |---|---|
-| Serveur précédent | Aucun serveur sur 3000 / 3100 / 3200 / 3300, aucun processus `next` |
-| Tête de la PR #6 | `a645b9d` (§ 6), identique en local, sur `origin` et dans la PR avant le lancement |
-| Données avant recette | 61 fichiers de `library/`, `models/`, `instructions/`, `mappings/` **identiques** à l'inventaire de clôture P8 (19:19) |
-| Sauvegarde vérifiée | `backups-p8/library-2026-11-06T20-47-30-avant-recette-ux.tar.gz` (`library` + `mappings`, 23,3 Mo, SHA-256 `6fdff829…5ab4f4`) ; extraite à part et comparée : 39/39 fichiers identiques, aucun en plus ni en moins. Manifeste : `backups-p8/donnees-2026-11-06T20-47-30.sha256` |
-| Serveur de recette | production (`npm run build` puis `npm run start`), worktree UX, http://127.0.0.1:3000 |
+| Previous server | No server on 3000 / 3100 / 3200 / 3300, no `next` process |
+| Head of PR #6 | `a645b9d` (section 6), identical locally, on `origin` and in the PR before launch |
+| Data before the acceptance test | 61 files of `library/`, `models/`, `instructions/`, `mappings/` **identical** to the P8 closure inventory (19:19) |
+| Verified backup | `backups-p8/library-2026-11-06T20-47-30-avant-recette-ux.tar.gz` (`library` + `mappings`, 23.3 MB, SHA-256 `6fdff829…5ab4f4`); extracted separately and compared: 39/39 files identical, none extra or missing. Manifest: `backups-p8/donnees-2026-11-06T20-47-30.sha256` |
+| Acceptance test server | production (`npm run build` then `npm run start`), UX worktree, http://127.0.0.1:3000 |
 
-**État de départ, à retrouver au point 7** (index révision 3) :
+**Starting state, to be found again at point 7** (index revision 3):
 
-| Set | Mode | Progression | Page notice | Révision |
+| Set | Mode | Progress | Instruction page | Revision |
 |---|---|---|---|---|
-| 31040-1 Desert Racers | notice synchronisée | 25 / 65 | 6 | 37 |
-| 31009-1 Small Cottage | jamais commencé | — | — | — |
-| 31039-1 Blue Power Jet | montage libre | 0 / 609 | 4 | 4 |
+| 31040-1 Desert Racers | synchronized instructions | 25 / 65 | 6 | 37 |
+| 31009-1 Small Cottage | never started | — | — | — |
+| 31039-1 Blue Power Jet | free building | 0 / 609 | 4 | 4 |
 
-Ouvrir 31009 en montage libre crée sa première sauvegarde de progression (0 pièce) : c'est attendu.
+Opening 31009 in free building creates its first progress save (0 parts): this is expected.
 
-## Parcours (Chrome d'abord, sur l'écran du MacBook si possible)
+## Flow (Chrome first, on the MacBook screen if possible)
 
-Ouvrir http://127.0.0.1:3000 dans **Chrome**. Note OK / KO et une remarque libre dans le tableau du § 5.
+Open http://127.0.0.1:3000 in **Chrome**. Note OK / KO and a free remark in the table of section 5.
 
-### 1. Panneaux redimensionnables — 31040
+### 1. Resizable panels — 31040
 
-1. Ma collection → 31040 → **Reprendre** : notice synchronisée, 25/65, page 6, comme avant. Un trait vertical à poignée sépare la vue 3D et la notice.
-2. Glisser le trait vers la **gauche**, puis vers la **droite** (souris puis trackpad) : la notice s'élargit/se rétrécit en direct, la page suit, puis redevient nette. Tout à gauche / tout à droite : il s'arrête (vue 3D ≥ ~320 px, notice ≥ ~280 px).
-3. Clic sur le trait, puis ← / → (Maj = plus vite), Début / Fin : il bouge au clavier, contour bleu visible.
-4. **⌘R** : la largeur choisie est conservée. **Double-clic** sur le trait : retour aux proportions d'origine.
-5. Élargir la notice, puis **poser 2 pièces** : la pièce suit exactement le pointeur et se pose au bon endroit. Redimensionner encore, poser 1 pièce. Puis **Annuler ×3** pour revenir à 25/65 (facultatif).
-6. Onglet **Correspondances** : l'éditeur a sa propre largeur (plus large) ; la changer ne change pas celle de l'atelier.
+1. Ma collection (My collection) → 31040 → **Reprendre** (Resume): synchronized instructions, 25/65, page 6, as before. A vertical line with a handle separates the 3D view and the instructions.
+2. Drag the line to the **left**, then to the **right** (mouse then trackpad): the instructions widen/narrow live, the page follows, then becomes sharp again. All the way left / all the way right: it stops (3D view ≥ ~320 px, instructions ≥ ~280 px).
+3. Click the line, then ← / → (Shift = faster), Home / End: it moves with the keyboard, visible blue outline.
+4. **⌘R**: the chosen width is kept. **Double-click** on the line: back to the original proportions.
+5. Widen the instructions, then **place 2 parts**: the part follows the pointer exactly and is placed in the right spot. Resize again, place 1 part. Then **Annuler ×3** to return to 25/65 (optional).
+6. **Correspondances** (Mappings) tab: the editor has its own width (wider); changing it does not change the workshop's.
 
-### 2. Notice : largeur automatique et zoom manuel — 31040 puis 31009
+### 2. Instructions: automatic width and manual zoom — 31040 then 31009
 
-1. Sur 31040, le zoom affiche **« Largeur »** : page entière, aucune barre de défilement horizontale, quelle que soit la largeur du panneau.
-2. **+** puis **−** : zoom fixe en pourcentage. Élargir le panneau en zoom fixe : la page garde son zoom. **↔** : retour à « Largeur », la page suit de nouveau le panneau.
-3. « ← Ma collection » → 31009 → **Construire** → **Montage libre (avec notice)** → onglet Notice PDF : la notice s'ouvre aussi en « Largeur » (avant le lot elle débordait de 196 px en montage libre).
+1. On 31040, the zoom shows **"Largeur"** (Width): whole page, no horizontal scrollbar, whatever the panel width.
+2. **+** then **−**: fixed zoom in percent. Widen the panel at fixed zoom: the page keeps its zoom. **↔**: back to "Largeur", the page follows the panel again.
+3. "← Ma collection" → 31009 → **Construire** (Build) → **Montage libre (avec notice)** (Free building (with instructions)) → Notice PDF tab: the instructions also open in "Largeur" (before the batch they overflowed by 196 px in free building).
 
-### 3. Miniatures — 31009 (montage libre)
+### 3. Thumbnails — 31009 (free building)
 
-1. Barre du bas : chaque pièce montre sa **forme** dans sa **couleur**, avec ×N ; la référence est en petit. Les 92 miniatures apparaissent en environ une seconde (mesuré : ~950 ms sur ce Mac).
-2. Comparer avec la page de notice ouverte : reconnais-tu les pièces par forme et couleur, sans chercher le numéro ?
-3. Survoler une pièce : infobulle référence · couleur · restantes/total.
-4. Cliquer une pièce : entourée en bleu, « en main » ; la poser : sa quantité baisse. **Annuler** la retire.
-5. Faire défiler la liste : Annuler, Mode, Centrer… restent visibles.
+1. Bottom bar: each part shows its **shape** in its **color**, with ×N; the reference is small. The 92 thumbnails appear in about a second (measured: ~950 ms on this Mac).
+2. Compare with the open instruction page: do you recognize the parts by shape and color, without looking for the number?
+3. Hover a part: tooltip reference · color · remaining/total.
+4. Click a part: outlined in blue, "en main" (in hand); place it: its quantity drops. **Annuler** removes it.
+5. Scroll the list: Annuler, Mode, Centrer… stay visible.
 
-### 4. Montage libre du 31039 (609 pièces) — utilisabilité réelle
+### 4. Free building of 31039 (609 parts) — real usability
 
-1. « ← Ma collection » → 31039 → **Reprendre** : montage libre, 0/609, page 4.
-2. Environ **180 couples pièce/couleur** (estimation d'après le fichier, ~2× 31009 ; **non mesuré** : compter 2 s environ pour toutes les miniatures).
-3. Avec la page 4 de la notice à côté : retrouver 3 ou 4 pièces de l'étape dans la barre, par la forme et la couleur. Combien de temps ? Le défilement (2 rangées visibles à 1280×800) est-il supportable ?
-4. En poser 1 ou 2, puis **Annuler** pour revenir à 0/609.
-5. Verdict personnel : utilisable tel quel / utilisable mais à améliorer (préciser : taille des vignettes, hauteur de la barre, tri, filtre par étape…) / inutilisable.
+1. "← Ma collection" → 31039 → **Reprendre**: free building, 0/609, page 4.
+2. About **180 part/color pairs** (estimate from the file, ~2× 31009; **not measured**: count about 2 s for all the thumbnails).
+3. With page 4 of the instructions next to it: find 3 or 4 parts of the step in the bar, by shape and color. How long does it take? Is the scrolling (2 rows visible at 1280×800) bearable?
+4. Place 1 or 2, then **Annuler** to return to 0/609.
+5. Personal verdict: usable as is / usable but to be improved (specify: thumbnail size, bar height, sorting, filter by step…) / unusable.
 
-### 5. Fluidité de la vue 3D après redimensionnement — 31039
+### 5. 3D view smoothness after resizing — 31039
 
-1. Pendant l'apparition des miniatures, faire tourner et zoomer le modèle : la vue reste fluide.
-2. Déplacer le séparateur 3 ou 4 fois, redimensionner la fenêtre de Chrome (plus petite, plus grande, plein écran) : la vue 3D reste nette et fluide, sans déformation, rien ne déborde ; une pièce prise en main suit encore le pointeur.
+1. While the thumbnails appear, rotate and zoom the model: the view stays smooth.
+2. Move the divider 3 or 4 times, resize Chrome's window (smaller, larger, full screen): the 3D view stays sharp and smooth, without distortion, nothing overflows; a part held in hand still follows the pointer.
 
 ### 6. Safari
 
-Ouvrir http://127.0.0.1:3000 dans **Safari** :
+Open http://127.0.0.1:3000 in **Safari**:
 
-1. 31040 → Reprendre : même progression ; largeur par défaut (la préférence est propre à chaque navigateur).
-2. Refaire **1.2, 1.4, 1.5** (glisser, ⌘R, poser), **2.1–2.2** (Largeur, zoom), **3.1** (miniatures 31009) et **5.1** (fluidité).
+1. 31040 → Reprendre: same progress; default width (the preference is specific to each browser).
+2. Redo **1.2, 1.4, 1.5** (drag, ⌘R, place), **2.1–2.2** (Largeur, zoom), **3.1** (31009 thumbnails) and **5.1** (smoothness).
 
-### 7. Aucune régression des progressions et des notices
+### 7. No regression of progress and instructions
 
-Fermer l'atelier, revenir à « Ma collection », puis rouvrir chaque set :
+Close the workshop, go back to "Ma collection", then reopen each set:
 
-1. 31040 : 25/65 (ou le compte que tu as laissé), notice synchronisée sur la bonne page.
-2. 31039 : 0/609 (si tu as annulé), montage libre, page 4.
-3. 31009 : montage libre, pièces que tu as laissées.
-4. Dis-moi ce que tu as laissé posé : je comparerai alors les fichiers avec le manifeste de 20:47 et te dirai exactement ce qui a changé (attendu : seulement les progressions et les pages que tu as touchées).
+1. 31040: 25/65 (or the count you left), synchronized instructions on the right page.
+2. 31039: 0/609 (if you undid), free building, page 4.
+3. 31009: free building, parts you left.
+4. Tell me what you left placed: I will then compare the files with the 20:47 manifest and tell you exactly what changed (expected: only the progress and pages you touched).
 
-## 5. Résultats (déclarés par le propriétaire, 06/11/2026)
+## 5. Results (declared by the owner, 2026-11-06)
 
-Recette réalisée par le propriétaire dans Chrome et Safari, sur le serveur de production préparé ci-dessus (tête `a645b9d`). Résultats tels que communiqués, par thème (pas de détail par navigateur ni de mesure chiffrée fournis) :
+Acceptance test carried out by the owner in Chrome and Safari, on the production server prepared above (head `a645b9d`). Results as reported, by theme (no per-browser detail or numeric measurement provided):
 
-| Point du parcours | Résultat déclaré |
+| Flow point | Declared result |
 |---|---|
-| 1. Redimensionnement des panneaux | **OK** |
-| 2. Notice PDF (largeur automatique, zoom manuel) | **OK** |
-| 3. Miniatures 31009 | **OK** |
-| 4. Montage libre 31039 — miniatures | **OK** |
-| 5. Placement et fluidité 3D | **OK** |
-| 6. Chrome et Safari | **OK** |
-| 7. Sauvegardes et progressions | **OK** |
+| 1. Panel resizing | **OK** |
+| 2. PDF instructions (automatic width, manual zoom) | **OK** |
+| 3. 31009 thumbnails | **OK** |
+| 4. Free building 31039 — thumbnails | **OK** |
+| 5. Placement and 3D smoothness | **OK** |
+| 6. Chrome and Safari | **OK** |
+| 7. Saves and progress | **OK** |
 
-**Constat sur les données après la recette** (comparaison avec le manifeste de 20:47, sans autre interprétation) : un seul fichier nouveau, `library/builds/b-mw5ag1wk-43084e0c/thumbnail-81b99485f4adb7c5.png` (aperçu de la construction 31039, écrit à son ouverture dans l'atelier) ; tous les autres fichiers identiques. Index révision 3 ; 31040 synchronisé 25/65, page 6, révision 37 ; 31039 libre 0/609, page 4, révision 4 ; 31009 sans progression. Aucune pose n'a donc été enregistrée dans la bibliothèque pendant la recette (les essais de pose ont pu être faits puis annulés hors bibliothèque, ou dans l'atelier autonome) : le point 7 est corroboré (rien de perdu ni modifié), la pose au point 5 repose sur la déclaration du propriétaire et sur les tests automatisés (§ 3–5 du rapport).
+**Finding on the data after the acceptance test** (comparison with the 20:47 manifest, without further interpretation): a single new file, `library/builds/b-mw5ag1wk-43084e0c/thumbnail-81b99485f4adb7c5.png` (preview of build 31039, written when it was opened in the workshop); all other files identical. Index revision 3; 31040 synchronized 25/65, page 6, revision 37; 31039 free 0/609, page 4, revision 4; 31009 without progress. No placement was therefore saved in the library during the acceptance test (placement trials may have been done then undone outside the library, or in the standalone workshop): point 7 is corroborated (nothing lost or modified), the placement at point 5 rests on the owner's declaration and on the automated tests (sections 3–5 of the report).
 
-**Limitation signalée pendant la recette, hors périmètre du lot** : en montage libre, une pièce ne peut être posée qu'à une position du modèle LDraw. Comportement du moteur antérieur à ce lot, documenté dans [LIMITATION_MONTAGE_LIBRE.md](LIMITATION_MONTAGE_LIBRE.md) ; non bloquant pour les corrections UX.
+**Limitation flagged during the acceptance test, out of scope of the batch**: in free building, a part can only be placed at a position of the LDraw model. Engine behavior earlier than this batch, documented in [LIMITATION_MONTAGE_LIBRE.md](LIMITATION_MONTAGE_LIBRE.md); non-blocking for the UX fixes.
 
-En cas de souci : je peux restaurer la sauvegarde de 20:47 sur ta demande (serveur arrêté). Pour retrouver les largeurs d'origine : double-clic sur le séparateur.
+In case of trouble: I can restore the 20:47 backup at your request (server stopped). To get back the original widths: double-click on the divider.
 
-## 6. Tête testée
+## 6. Tested head
 
-Branche `fix/atelier-resizable-panels-part-previews`, tête `a645b9d2a9e544b7d1e15f3d0d46e46bbee9a0e3` (code identique à `9e9c769`, validé par la suite complète ; seul ce document diffère). Serveur `npm run build && npm run start`, http://127.0.0.1:3000, à l'écoute sur 127.0.0.1 uniquement.
+Branch `fix/atelier-resizable-panels-part-previews`, head `a645b9d2a9e544b7d1e15f3d0d46e46bbee9a0e3` (code identical to `9e9c769`, validated by the full suite; only this document differs). Server `npm run build && npm run start`, http://127.0.0.1:3000, listening on 127.0.0.1 only.

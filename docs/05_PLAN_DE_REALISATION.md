@@ -1,51 +1,51 @@
-# 05 — Lots et portes de validation
+# 05 — Batches and validation gates
 
-## P0 — Préflight Git + audit de faisabilité (obligatoire)
+## P0 — Git preflight + feasibility audit (mandatory)
 
-**Tâches** : vérifier base git et worktrees ; lire docs ; décider versions ; tester le comportement réel du `LDrawLoader` ; inspecter la sortie de lecture sur fixture et modèle OMR téléchargé manuellement si disponible ; vérifier qu'on peut maintenir des occurrences individuelles.
+**Tasks**: check the git base and worktrees; read the docs; decide versions; test the real behavior of `LDrawLoader`; inspect the read output on the fixture and on a manually downloaded OMR model if available; verify that individual occurrences can be maintained.
 
-**Sortie** : note technique de 1 à 2 pages, proposition de structure et commandes reproductibles. **GO** seulement si les pièces/étapes peuvent être reconstruites ou si une alternative mesurée est documentée.
+**Output**: a 1–2 page technical note, a proposed structure, and reproducible commands. **GO** only if the parts/steps can be reconstructed or if a measured alternative is documented.
 
-## P1 — Parser structurel LDraw
+## P1 — LDraw structural parser
 
-Implémenter traitement MPD/LDR, table des sections, type 1, STEP, racine, sous-modèles, héritage couleur, transformations, diagnostics, IDs stables.
+Implement MPD/LDR handling, section table, type 1, STEP, root, submodels, color inheritance, transformations, diagnostics, stable IDs.
 
-**Preuve** : tests unitaires fixtures `mini-4-pieces.mpd`, `nested-submodel.mpd`, `no-steps.ldr`, et cas invalides.
+**Proof**: unit tests on the fixtures `mini-4-pieces.mpd`, `nested-submodel.mpd`, `no-steps.ldr`, and invalid cases.
 
-**GO** : pièce par pièce, transformations composées vérifiées, détection des erreurs ; aucun crash sur entrée malformée.
+**GO**: part by part, composed transformations verified, error detection; no crash on malformed input.
 
-## P2 — Viewer 3D minimal
+## P2 — Minimal 3D viewer
 
-Rendre 4 pièces correctement avec bibliothèque LDraw locale, interaction orbit/zoom, afficher aperçu et diagnostic. Ne pas inventer de pièces quand une référence manque.
+Render 4 parts correctly with the local LDraw library, orbit/zoom interaction, display preview and diagnostic. Do not invent parts when a reference is missing.
 
-**GO** : rendu réel validé dans navigateur Mac + preuve ; pas seulement capture avec cubes factices.
+**GO**: real rendering validated in a Mac browser + proof; not just a capture with dummy cubes.
 
-## P3 — Moteur de construction
+## P3 — Build engine
 
-Étapes explicitement définies **et mode libre sans STEP**, liste des occurrences à poser, drag simplifié, ghost target (optionnel en mode libre), snap, validations, undo, complétion. En mode libre, la bonne position est cherchée parmi les occurrences cibles non posées compatibles avec la référence/couleur choisie.
+Explicitly defined steps **and free mode without STEP**, list of occurrences to place, simplified drag, ghost target (optional in free mode), snap, validations, undo, completion. In free mode, the correct position is searched among the unplaced target occurrences compatible with the chosen reference/color.
 
-**GO** : les 4 pièces sont posées dans le bon ordre, une pièce déjà placée ne peut pas être placée une seconde fois, le mauvais emplacement ne valide pas.
+**GO**: the 4 parts are placed in the right order, an already placed part cannot be placed a second time, the wrong location does not validate.
 
-## P4 — PDF local
+## P4 — Local PDF
 
-Importer PDF local avec PDF.js, zoom, navigation, erreurs, indépendance page PDF / étape 3D.
+Import a local PDF with PDF.js, zoom, navigation, errors, independence of PDF page / 3D step.
 
-**GO** : notice importée en session, aucune requête réseau vers LEGO et aucune erreur après changement de page.
+**GO**: instructions imported in session, no network request to LEGO and no error after changing page.
 
-## P5 — Persistance et première recette réelle
+## P5 — Persistence and first real acceptance test
 
-Sauvegarder le modèle et la progression (ou hash + demande de réimport), reprendre. Puis choisir un vrai fichier OMR simple et mener une recette, signaler les écarts de géométrie/étapes.
+Save the model and progress (or hash + reimport request), resume. Then choose a simple real OMR file and run an acceptance test, reporting geometry/step discrepancies.
 
-**GO** : round-trip de progression, rapport de compatibilité du modèle réel et tests documentés.
+**GO**: progress round-trip, compatibility report of the real model, and documented tests.
 
-## P6 — Ensuite seulement (hors MVP)
+## P6 — Only afterwards (outside the MVP)
 
-- Éditeur manuel d'étapes (définition/reclassement d'occurrences et sous-assemblages) ;
-- Import multi-fichiers de modèles et bibliothèque manquante ;
-- Modes Technic avancés, rotations complexes, performance grands sets ;
-- Import `.io`/`.lxf` après étude des formats et licences ;
-- Mapping manuel étape de montage ↔ page PDF.
+- Manual step editor (definition/reclassification of occurrences and subassemblies);
+- Multi-file model import and missing library;
+- Advanced Technic modes, complex rotations, performance on large sets;
+- `.io`/`.lxf` import after a study of the formats and licenses;
+- Manual mapping of assembly step ↔ PDF page.
 
-## Discipline de fin de lot
+## End-of-batch discipline
 
-Chaque lot livre : objectifs atteints/non atteints, commandes de test, sorties vérifiables, liste des limitations, plan de test manuel et décision GO/NO-GO. Ne pas empiler P1 à P6 sans relecture intermédiaire.
+Each batch delivers: goals achieved/not achieved, test commands, verifiable outputs, list of limitations, manual test plan, and GO/NO-GO decision. Do not stack P1 to P6 without an intermediate review.

@@ -1,40 +1,40 @@
-# P6 — Notices LEGO et construction 3D synchronisée : architecture et risques
+# P6 — LEGO instructions and synchronized 3D building: architecture and risks
 
-**Date :** 04/11/2026. Branche `feat/p6-instructions-sync`, base `origin/main` = `5e03680`.
+**Date:** 2026-11-04. Branch `feat/p6-instructions-sync`, base `origin/main` = `5e03680`.
 
-> Les notices et les modèles OMR restent hors dépôt (`~/Documents/brick-lab-data/`). Ce document ne contient que des **comptages structurels** (pages, numéros d'étapes, nombre de pièces), sans image ni extrait de notice.
+> The instructions and the OMR models stay outside the repository (`~/Documents/brick-lab-data/`). This document only contains **structural counts** (pages, step numbers, number of parts), with no image or excerpt from the instructions.
 
-## 1. Étude technique (phase A) : ce que contiennent vraiment les fichiers
+## 1. Technical study (phase A): what the files really contain
 
-### 1.1 Mesures
+### 1.1 Measurements
 
-Méthode : couche texte des PDF (`pdftotext -layout`, page par page), rendu basse définition de quelques pages pour vérification visuelle, analyse du MPD par le parser du dépôt (`analyzeModel`).
+Method: PDF text layer (`pdftotext -layout`, page by page), low-resolution rendering of a few pages for visual verification, MPD analysis with the repository's parser (`analyzeModel`).
 
-| Mesure | 31040 Desert Racers | 31009 Small Cottage |
+| Measurement | 31040 Desert Racers | 31009 Small Cottage |
 |---|---|---|
-| Livrets | 1 PDF (6145903), 32 p. | 3 PDF (6038244 : 84 p., 6038252 : 64 p., 6038254 : 64 p.) |
-| Modèles dans la notice | **3 modèles dans le même livret** : modèle 1 p. 2–12 (étapes 1–21), modèle 2 p. 13–22 (1–19), modèle 3 p. 23–30 (1–11) ; inventaire p. 31 | **1 livret par modèle alternatif** (vérifié sur les couvertures) ; le MPD correspond au livret 1 |
-| Étapes par page | 2 en général (p. 2–11), 1 en p. 12 | 1 à 2 ; pages sans étape (vues d'ensemble) |
-| Encadrés de sous-assemblage | Sous-étapes « 1, 2 » dans un encadré, rattachées à l'étape principale (p. 5 → étape 7 ; p. 8 → étape 14 avec « 2x » ; p. 10 → étape 17) | Nombreux encadrés « 1, 2, 3 » |
-| Multiplicateurs | « 2x » (sous-assemblage à faire deux fois), « 4x » (roues, étape 21) | « 2x », « 3x », « 4x » |
-| Numérotation | Recommence à 1 pour chaque modèle du livret | Livret 1 : étapes 1–36, puis **une séquence 1–25 insérée** (p. 46–68), puis 37–46. **Un numéro imprimé n'est pas unique dans un livret.** |
-| Étapes du MPD | 11 `ROOT_STEPS`, 65 occurrences, aucun sous-modèle | 77 `FLATTENED_STEPS`, 270 occurrences, 12 sous-modèles |
+| Booklets | 1 PDF (6145903), 32 pp. | 3 PDFs (6038244: 84 pp., 6038252: 64 pp., 6038254: 64 pp.) |
+| Models in the instructions | **3 models in the same booklet**: model 1 pp. 2–12 (steps 1–21), model 2 pp. 13–22 (1–19), model 3 pp. 23–30 (1–11); inventory p. 31 | **1 booklet per alternative model** (verified on the covers); the MPD matches booklet 1 |
+| Steps per page | 2 in general (pp. 2–11), 1 on p. 12 | 1 to 2; pages without a step (overviews) |
+| Subassembly callouts | Substeps "1, 2" in a box, attached to the main step (p. 5 → step 7; p. 8 → step 14 with "2x"; p. 10 → step 17) | Many "1, 2, 3" callouts |
+| Multipliers | "2x" (subassembly to be done twice), "4x" (wheels, step 21) | "2x", "3x", "4x" |
+| Numbering | Restarts at 1 for each model of the booklet | Booklet 1: steps 1–36, then **an inserted sequence 1–25** (pp. 46–68), then 37–46. **A printed number is not unique within a booklet.** |
+| MPD steps | 11 `ROOT_STEPS`, 65 occurrences, no submodel | 77 `FLATTENED_STEPS`, 270 occurrences, 12 submodels |
 
-### 1.2 Conséquences
+### 1.2 Consequences
 
-1. **Étape LDraw ≠ étape de notice ≠ page PDF.** 31040 : 11 étapes LDraw, 21 étapes officielles, 11 pages. La correspondance est **n-n** et ne peut être déduite d'aucun index.
-2. **Clé d'une étape de notice** = (livret, page PDF, numéro imprimé, encadré éventuel), et surtout sa **position dans la séquence**. Le numéro seul est ambigu (modèles successifs, séquences insérées).
-3. **Page imprimée vs page PDF** : on enregistre l'index de page **du fichier PDF**, celui qu'affiche le lecteur. Sur 31040, ils coïncident, mais rien ne le garantit.
-4. **Encadrés** : en 3D, toutes les pièces sont posées à leur position finale, donc le sous-assemblage est construit en place. L'utilisateur choisit sa granularité : soit une étape « 7 · encadré 1 », « 7 · encadré 2 », puis « 7 », soit tout regroupé dans « 7 ». Le schéma accepte les deux.
-5. **« 2x » / « 4x »** : dans le MPD, chaque copie a ses propres occurrences. Une étape « 4x » regroupe donc 4 × k occurrences. Le multiplicateur est enregistré à titre informatif et contrôlé (avertissement si le nombre d'occurrences n'est pas un multiple).
-6. **Modèles alternatifs (3-en-1)** : un mapping relie **un** MPD (son empreinte, son modèle principal) à **une plage** d'étapes de la notice. Pour 31040, seules les p. 2–12 concernent le MPD. Les autres modèles du livret ne sont pas référencés.
-7. **Plusieurs livrets** : un mapping référence une **liste ordonnée** de livrets. Chaque étape désigne son livret. La progression reste une séquence unique.
-8. **Sous-modèles et sous-assemblages LDraw** (31009) : le mapping travaille au niveau des **occurrences de pièces finales** (`occurrenceId`), indépendamment des sous-modèles LDraw. Le découpage LDraw sert seulement d'aide de saisie.
-9. **Fidélité d'inventaire** : une pièce de la notice absente du MPD (31009 : 5 éléments) ne peut pas être posée. C'est un écart documenté par une note sur l'étape, jamais inventé.
+1. **LDraw step ≠ instruction step ≠ PDF page.** 31040: 11 LDraw steps, 21 official steps, 11 pages. The mapping is **n-n** and cannot be deduced from any index.
+2. **Key of an instruction step** = (booklet, PDF page, printed number, possible callout), and above all its **position in the sequence**. The number alone is ambiguous (successive models, inserted sequences).
+3. **Printed page vs PDF page**: we record the **PDF file's** page index, the one the reader displays. On 31040 they coincide, but nothing guarantees it.
+4. **Callouts**: in 3D, all parts are placed at their final position, so the subassembly is built in place. The user chooses their granularity: either a step "7 · callout 1", "7 · callout 2", then "7", or everything grouped in "7". The schema accepts both.
+5. **"2x" / "4x"**: in the MPD, each copy has its own occurrences. A "4x" step therefore groups 4 × k occurrences. The multiplier is recorded for information and checked (warning if the number of occurrences is not a multiple).
+6. **Alternative models (3-in-1)**: a mapping links **one** MPD (its fingerprint, its main model) to **a range** of instruction steps. For 31040, only pp. 2–12 concern the MPD. The other models in the booklet are not referenced.
+7. **Several booklets**: a mapping references an **ordered list** of booklets. Each step designates its booklet. Progress remains a single sequence.
+8. **LDraw submodels and subassemblies** (31009): the mapping works at the level of **final part occurrences** (`occurrenceId`), independently of LDraw submodels. The LDraw split only serves as an input aid.
+9. **Inventory fidelity**: a part in the instructions that is absent from the MPD (31009: 5 elements) cannot be placed. This is a deviation documented by a note on the step, never invented.
 
-## 2. Modèle de correspondance (phase B)
+## 2. Mapping model (phase B)
 
-### 2.1 Schéma `brick-lab-instruction-mapping` v1 (JSON local, exportable)
+### 2.1 `brick-lab-instruction-mapping` v1 schema (local JSON, exportable)
 
 ```ts
 interface InstructionMappingV1 {
@@ -45,84 +45,84 @@ interface InstructionMappingV1 {
   steps: {
     id: string;                  // unique, stable ("s1", "s2"…)
     bookletId: string;
-    page: number;                // index de page DANS LE FICHIER PDF (1-based)
-    printedStep: string;         // numéro tel qu'imprimé ("7")
-    callout?: string;            // sous-étape d'encadré ("1", "2")
-    repeat?: number;             // multiplicateur imprimé ("2x" → 2)
-    occurrenceIds: string[];     // occurrences du MPD posées à cette étape
-    provenance: 'manual' | 'verified';  // verified = contrôlée visuellement contre la page
+    page: number;                // page index IN THE PDF FILE (1-based)
+    printedStep: string;         // number as printed ("7")
+    callout?: string;            // callout substep ("1", "2")
+    repeat?: number;             // printed multiplier ("2x" → 2)
+    occurrenceIds: string[];     // MPD occurrences placed at this step
+    provenance: 'manual' | 'verified';  // verified = visually checked against the page
     note?: string;
   }[];
   provenance: { method: 'manual'; tool: string; createdAtIso: string; updatedAtIso: string };
 }
 ```
 
-- **Empreinte du modèle** : SHA-256 des octets exacts du MPD, plus `rootName`, car les `occurrenceId` en dépendent, et le nombre d'occurrences.
-- **Identité de la notice** : SHA-256 des octets exacts de chaque PDF et son nombre de pages. **Aucun contenu de PDF** n'est stocké : ni texte, ni image.
-- **Provenance** : P6 ne propose que la saisie manuelle. `verified` signifie que l'utilisateur a coché « vérifiée contre la page » pour cette étape. Aucune méthode automatique n'existe dans ce lot.
-- **Avertissements** : ils ne sont **jamais lus depuis le fichier**, mais recalculés par `validateMapping` à chaque chargement.
+- **Model fingerprint**: SHA-256 of the exact bytes of the MPD, plus `rootName`, because the `occurrenceId`s depend on it, and the number of occurrences.
+- **Instructions identity**: SHA-256 of the exact bytes of each PDF and its page count. **No PDF content** is stored: neither text nor image.
+- **Provenance**: P6 only offers manual input. `verified` means the user ticked "vérifiée contre la page" (verified against the page) for this step. No automatic method exists in this batch.
+- **Warnings**: they are **never read from the file**, but recomputed by `validateMapping` on every load.
 
-### 2.2 Validation (bloquante pour activer le mode synchronisé)
+### 2.2 Validation (blocking for enabling synchronized mode)
 
-| Code | Gravité | Règle |
+| Code | Severity | Rule |
 |---|---|---|
-| `MODEL_MISMATCH` | erreur | empreinte, modèle principal ou nombre d'occurrences différents du MPD importé |
-| `UNKNOWN_OCCURRENCE` | erreur | id absent du modèle |
-| `DUPLICATE_OCCURRENCE` | erreur | occurrence assignée deux fois (même étape ou deux étapes) |
-| `UNASSIGNED_OCCURRENCE` | erreur | couverture incomplète : chaque occurrence doit être assignée **exactement une fois** |
-| `UNKNOWN_BOOKLET`, `BOOKLET_UNBOUND` | erreur | étape vers un livret inconnu ; livret sans empreinte PDF |
-| `PAGE_OUT_OF_RANGE` | erreur | page hors du livret |
-| `NO_STEPS`, `DUPLICATE_STEP_ID` | erreur | — |
-| `EMPTY_STEP` | avertissement | étape sans pièce : ignorée en jeu |
-| `PAGE_ORDER` | avertissement | la séquence revient en arrière (livret ou page) |
-| `DUPLICATE_LABEL` | avertissement | même (livret, page, numéro, encadré) deux fois |
-| `REPEAT_MISMATCH` | avertissement | `repeat` > 1 et nombre d'occurrences non multiple |
-| `NOT_VERIFIED` | info | étapes non contrôlées visuellement |
+| `MODEL_MISMATCH` | error | fingerprint, main model or number of occurrences different from the imported MPD |
+| `UNKNOWN_OCCURRENCE` | error | id absent from the model |
+| `DUPLICATE_OCCURRENCE` | error | occurrence assigned twice (same step or two steps) |
+| `UNASSIGNED_OCCURRENCE` | error | incomplete coverage: each occurrence must be assigned **exactly once** |
+| `UNKNOWN_BOOKLET`, `BOOKLET_UNBOUND` | error | step pointing to an unknown booklet; booklet without PDF fingerprint |
+| `PAGE_OUT_OF_RANGE` | error | page outside the booklet |
+| `NO_STEPS`, `DUPLICATE_STEP_ID` | error | — |
+| `EMPTY_STEP` | warning | step without a part: ignored in play |
+| `PAGE_ORDER` | warning | the sequence goes backwards (booklet or page) |
+| `DUPLICATE_LABEL` | warning | same (booklet, page, number, callout) twice |
+| `REPEAT_MISMATCH` | warning | `repeat` > 1 and number of occurrences not a multiple |
+| `NOT_VERIFIED` | info | steps not visually checked |
 
-Un brouillon incomplet peut être **sauvegardé et exporté**, mais pas **activé**.
+An incomplete draft can be **saved and exported**, but not **activated**.
 
-### 2.3 Du mapping au jeu
+### 2.3 From mapping to play
 
-`mappingToStepPlan` produit un `StepPlan` de type `INSTRUCTION_STEPS` (provenance `USER_EDITED`). Chaque étape y porte sa référence de notice (livret, page, numéro). Les étapes vides sont retirées. Le moteur existant est réutilisé **sans modification de ses règles de pose** : un nouveau mode `synced` se comporte comme `guided` (candidats = étape active), avec ce plan.
+`mappingToStepPlan` produces a `StepPlan` of type `INSTRUCTION_STEPS` (provenance `USER_EDITED`). Each step carries its instruction reference (booklet, page, number). Empty steps are removed. The existing engine is reused **without modifying its placement rules**: a new `synced` mode behaves like `guided` (candidates = active step), with this plan.
 
-- **Étape active** = première étape non terminée, **dérivée** de l'ensemble des pièces posées. Elle n'est jamais stockée, donc ne peut pas être corrompue.
-- **Avance automatique** : quand la dernière pièce de l'étape est posée, l'étape suivante devient active et la notice saute à sa page.
-- **Retour en arrière** : (a) *consulter* une étape passée (page et pièces surlignées, sans rien retirer) ; (b) *reprendre depuis l'étape k* retire explicitement les pièces des étapes ≥ k ; (c) *Annuler* retire la dernière pièce.
-- **Changement de mode** en cours de partie : les pièces posées sont conservées et l'étape active est recalculée.
+- **Active step** = first unfinished step, **derived** from the set of placed parts. It is never stored, so it cannot be corrupted.
+- **Automatic advance**: when the last part of the step is placed, the next step becomes active and the instructions jump to its page.
+- **Going back**: (a) *view* a past step (page and parts highlighted, nothing removed); (b) *resume from step k* explicitly removes the parts of steps ≥ k; (c) *Annuler* (Undo) removes the last part.
+- **Mode change** during a game: placed parts are kept and the active step is recomputed.
 
-### 2.4 Persistance (locale uniquement)
+### 2.4 Persistence (local only)
 
-| Donnée | Clé `localStorage` | Contenu |
+| Data | `localStorage` key | Content |
 |---|---|---|
-| Progression | `brick-lab:progress:<sha MPD>` (schéma v2, lit encore la v1 de P5) | mode (`guided`/`freeManual`/`synced`), pièces posées, page, livret actif, empreinte du mapping utilisé |
-| Mapping | `brick-lab:mapping:<sha MPD>` | le JSON ci-dessus (ids et numéros, aucun contenu tiers) |
-| PDF | — | **jamais stocké** : réimport demandé, empreinte vérifiée |
+| Progress | `brick-lab:progress:<MPD sha>` (schema v2, still reads P5's v1) | mode (`guided`/`freeManual`/`synced`), placed parts, page, active booklet, fingerprint of the mapping used |
+| Mapping | `brick-lab:mapping:<MPD sha>` | the JSON above (ids and numbers, no third-party content) |
+| PDF | — | **never stored**: re-import requested, fingerprint checked |
 
-Export : `<modèle>.brick-mapping.json` téléchargé localement. Réimport : validation stricte du fichier (taille ≤ 1 Mo, types, longueurs, bornes) **puis** confrontation au MPD importé.
+Export: `<model>.brick-mapping.json` downloaded locally. Re-import: strict validation of the file (size ≤ 1 MB, types, lengths, bounds) **then** confrontation with the imported MPD.
 
-## 3. Risques de correspondance
+## 3. Mapping risks
 
-| # | Risque | Probabilité | Parade dans P6 |
+| # | Risk | Probability | Mitigation in P6 |
 |---|---|---|---|
-| R1 | Supposer étape LDraw = étape notice | élevée (prouvé faux) | Aucun mapping implicite : sans mapping valide, le mode synchronisé n'est pas proposé |
-| R2 | Numéro imprimé ambigu (séquences insérées, modèles successifs) | élevée (31009, 31040) | Étape identifiée par sa position et son id, numéro = libellé ; avertissement `DUPLICATE_LABEL` |
-| R3 | Notice d'une autre édition (langue, réimpression) : pages décalées | moyenne | Empreinte SHA-256 stricte du PDF : refus explicite, aucune page « approximative » |
-| R4 | MPD modifié ou autre modèle principal : ids différents | moyenne | Empreinte, `rootName` et nombre d'occurrences contrôlés ; ids inconnus = erreur |
-| R5 | Pièces de la notice absentes du MPD (31009) | réelle | Note par étape ; l'inventaire reste « indéterminé » (P5) |
-| R6 | Occurrences oubliées ou en double | élevée en saisie manuelle | Validation bloquante, liste des pièces non affectées et des doublons dans l'éditeur |
-| R7 | Ordre physiquement impossible (pièce posée avant son support) | faible | Non vérifié automatiquement (limite) ; le moteur de surface permet déjà la pose « en l'air » sur la cible |
-| R8 | Sous-assemblage « 2x » mal découpé | moyenne | Avertissement `REPEAT_MISMATCH` |
-| R9 | Coût de saisie (270 pièces pour 31009) | élevée | Aides : affecter au clic en 3D, affecter un groupe pièce/couleur, importer toute une étape LDraw ; reconnaissance PDF exclue de P6 |
-| R10 | Diffusion de données tierces | faible | Le mapping ne contient que des ids, des numéros et des empreintes ; mappings réels conservés hors dépôt |
+| R1 | Assuming LDraw step = instruction step | high (proven false) | No implicit mapping: without a valid mapping, synchronized mode is not offered |
+| R2 | Ambiguous printed number (inserted sequences, successive models) | high (31009, 31040) | Step identified by its position and id, number = label; `DUPLICATE_LABEL` warning |
+| R3 | Instructions of another edition (language, reprint): shifted pages | medium | Strict SHA-256 fingerprint of the PDF: explicit refusal, no "approximate" page |
+| R4 | Modified MPD or another main model: different ids | medium | Fingerprint, `rootName` and number of occurrences checked; unknown ids = error |
+| R5 | Parts in the instructions absent from the MPD (31009) | real | Note per step; the inventory remains "undetermined" (P5) |
+| R6 | Forgotten or duplicate occurrences | high in manual input | Blocking validation, list of unassigned parts and duplicates in the editor |
+| R7 | Physically impossible order (part placed before its support) | low | Not checked automatically (limit); the surface engine already allows "in the air" placement on the target |
+| R8 | Badly split "2x" subassembly | medium | `REPEAT_MISMATCH` warning |
+| R9 | Input cost (270 parts for 31009) | high | Aids: assign by click in 3D, assign a part/color group, import a whole LDraw step; PDF recognition excluded from P6 |
+| R10 | Distribution of third-party data | low | The mapping only contains ids, numbers and fingerprints; real mappings kept outside the repository |
 
-## 4. Composants
+## 4. Components
 
 ```
-src/domain/instructions/mapping.ts      schéma, parse (entrée non fiable), validation, plan, édition pure
-src/domain/build/engine.ts              + mode 'synced', rewindToStep
-src/domain/build/progress.ts            schéma v2 (lit v1)
-src/infra/persistence/local-mapping.ts  stockage local du mapping
-src/components/pdf/                     livrets multiples, empreinte, page pilotée
-src/components/mapping/MappingEditor    éditeur (navigation, affectation, doublons, export/import, validation)
-src/components/BrickLabApp.tsx          3e mode, panneau d'étape synchronisée
+src/domain/instructions/mapping.ts      schema, parse (untrusted input), validation, plan, pure editing
+src/domain/build/engine.ts              + 'synced' mode, rewindToStep
+src/domain/build/progress.ts            schema v2 (reads v1)
+src/infra/persistence/local-mapping.ts  local mapping storage
+src/components/pdf/                     multiple booklets, fingerprint, driven page
+src/components/mapping/MappingEditor    editor (navigation, assignment, duplicates, export/import, validation)
+src/components/BrickLabApp.tsx          3rd mode, synchronized step panel
 ```

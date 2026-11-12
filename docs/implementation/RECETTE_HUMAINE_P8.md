@@ -1,83 +1,83 @@
-# Recette humaine P8 — production, Chrome puis Safari (à faire par le propriétaire)
+# P8 manual acceptance test — production, Chrome then Safari (to be done by the owner)
 
-> Les tests automatisés simulent l'OMR et pilotent la souris par script ; la recette réelle de Claude (31045) a été faite dans un dossier **isolé**. Ici, tout se passe sur **ta vraie collection**, avec le serveur de **production**. Le téléchargement OMR sur clic est approuvé (06/11/2026, cadre dans [P8_ARCHITECTURE_IMPORT.md](P8_ARCHITECTURE_IMPORT.md) § 3). La PR #5 n'est pas fusionnée.
+> The automated tests simulate the OMR and drive the mouse by script; Claude's real acceptance test (31045) was done in an **isolated** folder. Here, everything happens on **your real collection**, with the **production** server. The OMR download on click is approved (2026-11-06, framework in [P8_ARCHITECTURE_IMPORT.md](P8_ARCHITECTURE_IMPORT.md) section 3). PR #5 is not merged.
 
-Durée estimée : 40–50 min. Rapport : [P8_RAPPORT.md](P8_RAPPORT.md).
+Estimated duration: 40–50 min. Report: [P8_RAPPORT.md](P8_RAPPORT.md).
 
-## Résultats consignés (06/11/2026, relevé de Claude à 19:15)
+## Recorded results (2026-11-06, Claude's survey at 19:15)
 
-> Claude n'a pas vu ton écran : ce tableau distingue ce que **les données prouvent** de ce que **seul ton témoignage** peut établir. Aucun point n'est validé tant que tu ne l'as pas confirmé. Heures locales (UTC+1).
+> Claude did not see your screen: this table distinguishes what **the data proves** from what **only your testimony** can establish. No point is validated until you have confirmed it. Local times (UTC+1).
 
-**Traces relevées** (lecture seule de `~/Documents/brick-lab-data`, terminal du serveur) :
+**Traces collected** (read-only on `~/Documents/brick-lab-data`, server terminal):
 
-- Serveur de production démarré **une seule fois** (onglet du terminal : un seul « Ready », aucun arrêt ni relance).
-- Index : révision 2 → **3** (une seule écriture, 19:08:40). Set **31039-1 « Blue Power Jet »** ajouté, 1 construction « Modèle principal », 2 fichiers ajoutés : modèle `31039-1.mpd` (copie de la bibliothèque, provenance **OMR** : `…/media/omr_models/206/31039-1.mpd`, page `…/omr/set/31039-1`, auteur Merlijn Wissink [legolijntje], licence CCAL 2.0, téléchargé à 19:07:25) et notice `6127618.pdf` (25,8 Mo, **224 pages**, déposée). Aucun autre set, aucun doublon, `staging/` vide, pas de corbeille.
-- Modèle 31039 : **609 pièces** dans le fichier OMR (402 dans le modèle principal + 11 sous-modèles utilisés), **sans étapes LDraw** → montage libre uniquement (le protocole le présentait à tort comme un petit set ; nombre de pièces de la boîte non vérifié).
-- Construction 31039 : progression créée à 19:08:51 en **montage libre**, notice `6127618.pdf` ouverte, page 1 → **page 4** (19:09:08), **0 pièce posée**. Un brouillon de correspondances **vide** (0 livret, 0 étape, source « éditeur ») a été créé depuis l'atelier à 19:08:54 — pas par l'import.
-- 31040 : progression **inchangée** (25/65, notice synchronisée, page 6, révision 37 du 06/11 à 16:27). 31009 : toujours aucune progression.
-- `models/`, `instructions/`, `mappings/` : empreintes **identiques** à l'inventaire d'avant la recette.
+- Production server started **only once** (terminal tab: a single "Ready", no stop or restart).
+- Index: revision 2 → **3** (a single write, 19:08:40). Set **31039-1 "Blue Power Jet"** added, 1 build "Modèle principal" (Main model), 2 files added: model `31039-1.mpd` (library copy, **OMR** provenance: `…/media/omr_models/206/31039-1.mpd`, page `…/omr/set/31039-1`, author Merlijn Wissink [legolijntje], license CCAL 2.0, downloaded at 19:07:25) and instructions `6127618.pdf` (25.8 MB, **224 pages**, dropped). No other set, no duplicate, `staging/` empty, no trash.
+- Model 31039: **609 parts** in the OMR file (402 in the main model + 11 submodels used), **no LDraw steps** → free building only (the protocol wrongly presented it as a small set; box part count not verified).
+- Build 31039: progress created at 19:08:51 in **free building**, instructions `6127618.pdf` opened, page 1 → **page 4** (19:09:08), **0 parts placed**. An **empty** mappings draft (0 booklets, 0 steps, source "éditeur" (editor)) was created from the workshop at 19:08:54 — not by the import.
+- 31040: progress **unchanged** (25/65, synchronized instructions, page 6, revision 37 of 11-06 at 16:27). 31009: still no progress.
+- `models/`, `instructions/`, `mappings/`: fingerprints **identical** to the inventory from before the acceptance test.
 
-| Point | Ce que prouvent les traces | Confirmation du propriétaire |
+| Point | What the traces prove | Owner's confirmation |
 |---|---|---|
-| 1. Recherche par numéro | Indirect : un modèle de la page OMR de 31039-1 a été téléchargé, ce qui suppose la recherche | à renseigner |
-| 2. Téléchargement OMR par clic | **Oui** : fichier OMR de 31039-1 avec source, auteur, licence et empreinte | à renseigner |
-| 3. Import manuel de la notice PDF | **Oui** : `6127618.pdf` déposée et associée ; qu'il s'agisse du bon livret n'est pas vérifiable par Claude | à renseigner |
-| 4. Fiche de compatibilité | Aucune trace (affichage seulement) | à renseigner |
-| 5. Ajout et reprise après redémarrage | Ajout **oui** ; montage libre ouvert, 0 pièce posée ; **aucun redémarrage du serveur** constaté | à renseigner |
-| 6. Absence de doublons | Aucun doublon dans la collection ; **aucune trace d'un essai** de doublon (pas de nouveau téléchargement ni dépôt) | à renseigner |
-| 7. Import hors ligne | **Aucune trace** (pas de fichier préparé, pas de set 31028) | à renseigner |
-| 8. Non-régression 31040 / 31009 | Données intactes ; ouverture non traçable ; aucune pièce posée sur 31040 | à renseigner |
-| Chrome / Safari | Non traçable (le serveur ne journalise pas les navigateurs) | à renseigner |
+| 1. Search by number | Indirect: a model from the OMR page of 31039-1 was downloaded, which implies the search | to be filled in |
+| 2. OMR download by click | **Yes**: OMR file of 31039-1 with source, author, license and fingerprint | to be filled in |
+| 3. Manual import of the PDF instructions | **Yes**: `6127618.pdf` dropped and associated; whether it is the right booklet cannot be verified by Claude | to be filled in |
+| 4. Compatibility sheet | No trace (display only) | to be filled in |
+| 5. Add and resume after restart | Add **yes**; free building opened, 0 parts placed; **no server restart** observed | to be filled in |
+| 6. No duplicates | No duplicate in the collection; **no trace of a trial** of a duplicate (no new download or drop) | to be filled in |
+| 7. Offline import | **No trace** (no prepared file, no set 31028) | to be filled in |
+| 8. Non-regression 31040 / 31009 | Data intact; opening not traceable; no part placed on 31040 | to be filled in |
+| Chrome / Safari | Not traceable (the server does not log browsers) | to be filled in |
 
-## Parcours de clôture — 6 contrôles restants (≈ 15 min)
+## Closure flow — 6 remaining checks (≈ 15 min)
 
-> Aucun contrôle n'est coché par Claude : renseigne la colonne « Résultat » (OK / KO + remarque). Aucune modification de code ni relance de tests n'est prévue sauf défaut nouveau.
+> No check is ticked by Claude: fill in the "Résultat" (Result) column (OK / KO + remark). No code change or test re-run is planned unless a new defect appears.
 
-**Avant de commencer (fait par Claude, 06/11/2026 19:19)** : état vérifié — index révision 3, 3 sets ; 31040 **25/65**, notice synchronisée, page 6 ; 31039 **0/609**, montage libre, page 4 ; aucun fichier en préparation. Nouvelle sauvegarde **vérifiée** (39 fichiers identiques après extraction) : `~/Documents/brick-lab-data/backups-p8/library-2026-11-06T19-19-12-avant-cloture-p8.tar.gz` (+ inventaire `donnees-2026-11-06T19-19-12.sha256`). Le serveur de production tourne dans l'onglet « Brick Build prod (P8) » du terminal. **Ne touche pas à 31040** pendant ce parcours.
+**Before starting (done by Claude, 2026-11-06 19:19)**: state verified — index revision 3, 3 sets; 31040 **25/65**, synchronized instructions, page 6; 31039 **0/609**, free building, page 4; no file in staging. New **verified** backup (39 identical files after extraction): `~/Documents/brick-lab-data/backups-p8/library-2026-11-06T19-19-12-avant-cloture-p8.tar.gz` (+ inventory `donnees-2026-11-06T19-19-12.sha256`). The production server runs in the terminal tab "Brick Build prod (P8)". **Do not touch 31040** during this flow.
 
-Ordre conseillé : C6 → C5 → C1 → C2 → C3 → C4 (Chrome d'abord, Safari en C3).
+Recommended order: C6 → C5 → C1 → C2 → C3 → C4 (Chrome first, Safari in C3).
 
-| # | Contrôle | Gestes | Attendu | Résultat |
+| # | Check | Steps | Expected | Result |
 |---|---|---|---|---|
-| C6 | **Notice** du 31039 | Collection → 31039 « Construire » → onglet **Notice PDF** ; parcourir la couverture et quelques pages | `6127618.pdf` (224 p.) s'ouvre sans sélection de fichier ; c'est bien le livret du modèle que tu veux construire (Blue Power Jet, modèle principal). *Si ce n'est pas le bon :* détail du set → « Dissocier » (confirmer ; le fichier n'est pas supprimé) → « Associer une ou plusieurs notices » avec le bon PDF | |
-| C5 | **Compatibilité** du 31039 (montage libre, sans étapes) | Toujours dans l'atelier, puis « Détails » du set | Atelier : pas de « Commencer — mode guidé » (s'il propose les boutons de départ) et « Étapes non disponibles dans ce fichier : aucune séquence n'est inventée. » ; carte : seul le mode **« Montage libre »** ; détail : Qualité **« Montage libre uniquement (pas d'étapes) »**. La fiche de la page d'ajout ne réapparaît pas pour un modèle déjà dans la collection (il ne peut plus être coché) : si tu te souviens de celle vue à l'import, note-le ; la même règle est revue en C4 sur 31028 (« Pas d'étapes LDraw dans ce fichier : montage libre uniquement ») | |
-| C1 | **Reprise après redémarrage** | Atelier 31039 en montage libre : poser **au moins une pièce** (choisir une pièce dans la barre du bas, la poser à un emplacement compatible) ; afficher une page de notice précise (ex. p. 10) ; attendre « Enregistré dans la bibliothèque » ; « ← Ma collection » ; dans l'onglet du terminal : **Ctrl+C**, puis `npm run start` ; recharger Chrome | Carte 31039 : **x/609 pièces posées**, « En cours », « Reprendre » ; « Reprendre » → « Progression restaurée : x/609 », mode **Montage libre**, onglet Notice PDF sur la **même page**, sans aucune sélection de fichier. 31040 toujours 25/65 | |
-| C2 | **Doublons** | « Ajouter un set » → `31039` → « Rechercher » → « Chercher en ligne (OMR) » → « Télécharger » le modèle principal → **ne rien confirmer** → « ← Ma collection » | « Ce set est déjà dans ta collection : 31039-1 « Blue Power Jet » (1 construction) » ; sur le modèle : « **Ce modèle existe déjà dans ta collection** : 31039-1 Blue Power Jet — « Modèle principal » », case désactivée, bouton d'ajout inactif (« Coche au moins une construction. ») ; de retour : toujours **3 sets**, 31039 toujours **x/609**. (Le fichier retéléchargé reste en préparation hors collection ; supprimé automatiquement après 7 jours) | |
-| C3 | **Safari** | Ouvrir http://127.0.0.1:3000 dans Safari ; 31039 « Reprendre » (ne rien poser) ; puis « Ajouter un set » → `31039` → « Rechercher » | Mêmes 3 sets et mêmes progressions (31040 25/65, 31039 x/609) ; reprise identique (mode, page) ; la page d'ajout fonctionne : variante « 31039-1 », ressources, « Ce set est déjà dans ta collection ». Fermer sans confirmer | |
-| C4 | **Hors ligne** (sans ajout) | **Couper le Wi-Fi** ; « Ajouter un set » (page neuve) ; « Choisir des fichiers » : `~/Documents/brick-lab-data/models/31028-1/31028-1.mpd`, `~/Documents/brick-lab-data/instructions/31009-1/31009-1_notice_6038252.pdf` et `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json`, **ensemble** ; puis saisir `31028` → « Rechercher » → « Chercher en ligne » ; **ne pas confirmer** → « ← Ma collection » ; rallumer le Wi-Fi | Modèle 31028 analysé (53 pièces, sans étapes → « Pas d'étapes LDraw dans ce fichier : montage libre uniquement ») ; PDF listé avec son nombre de pages ; correspondances de 31040 **refusées** (« concernent un autre modèle ») ; numéro proposé 31028-1 ; recherche en ligne : « **OMR indisponible** : … » et lien vers la page ; collection inchangée (**3 sets**). Les fichiers choisis sont lus, jamais déplacés | |
+| C6 | **Instructions** of 31039 | Collection → 31039 "Construire" (Build) → **Notice PDF** tab; browse the cover and a few pages | `6127618.pdf` (224 p.) opens without file selection; it is indeed the booklet of the model you want to build (Blue Power Jet, main model). *If it is not the right one:* set detail → "Dissocier" (Dissociate) (confirm; the file is not deleted) → "Associer une ou plusieurs notices" (Associate one or more instruction booklets) with the right PDF | |
+| C5 | **Compatibility** of 31039 (free building, no steps) | Still in the workshop, then "Détails" (Details) of the set | Workshop: no "Commencer — mode guidé" (Start — guided mode) (if it offers the start buttons) and "Étapes non disponibles dans ce fichier : aucune séquence n'est inventée." (Steps not available in this file: no sequence is invented.); card: only the **"Montage libre"** (Free building) mode; detail: Quality **"Montage libre uniquement (pas d'étapes)"** (Free building only (no steps)). The add page's sheet does not reappear for a model already in the collection (it can no longer be checked): if you remember the one seen at import, note it; the same rule is reviewed in C4 on 31028 ("Pas d'étapes LDraw dans ce fichier : montage libre uniquement") | |
+| C1 | **Resume after restart** | Workshop 31039 in free building: place **at least one part** (choose a part in the bottom bar, place it at a compatible location); display a specific instruction page (e.g. p. 10); wait for "Enregistré dans la bibliothèque" (Saved in the library); "← Ma collection"; in the terminal tab: **Ctrl+C**, then `npm run start`; reload Chrome | Card 31039: **x/609 pièces posées** (parts placed), "En cours" (In progress), "Reprendre" (Resume); "Reprendre" → "Progression restaurée : x/609" (Progress restored: x/609), **Montage libre** mode, Notice PDF tab on the **same page**, with no file selection. 31040 still 25/65 | |
+| C2 | **Duplicates** | "Ajouter un set" → `31039` → "Rechercher" (Search) → "Chercher en ligne (OMR)" (Search online (OMR)) → "Télécharger" (Download) the main model → **confirm nothing** → "← Ma collection" | "Ce set est déjà dans ta collection : 31039-1 "Blue Power Jet" (1 construction)" (This set is already in your collection: 31039-1 "Blue Power Jet" (1 build)); on the model: "**Ce modèle existe déjà dans ta collection**" (This model already exists in your collection): 31039-1 Blue Power Jet — "Modèle principal"", checkbox disabled, add button inactive ("Coche au moins une construction." (Check at least one build.)); back: still **3 sets**, 31039 still **x/609**. (The re-downloaded file stays in staging outside the collection; deleted automatically after 7 days) | |
+| C3 | **Safari** | Open http://127.0.0.1:3000 in Safari; 31039 "Reprendre" (place nothing); then "Ajouter un set" → `31039` → "Rechercher" | Same 3 sets and same progress (31040 25/65, 31039 x/609); identical resume (mode, page); the add page works: variant "31039-1", resources, "Ce set est déjà dans ta collection". Close without confirming | |
+| C4 | **Offline** (without adding) | **Turn off Wi-Fi**; "Ajouter un set" (new page); "Choisir des fichiers" (Choose files): `~/Documents/brick-lab-data/models/31028-1/31028-1.mpd`, `~/Documents/brick-lab-data/instructions/31009-1/31009-1_notice_6038252.pdf` and `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json`, **together**; then enter `31028` → "Rechercher" → "Chercher en ligne"; **do not confirm** → "← Ma collection"; turn Wi-Fi back on | Model 31028 analyzed (53 parts, no steps → "Pas d'étapes LDraw dans ce fichier : montage libre uniquement"); PDF listed with its page count; mappings of 31040 **rejected** ("concernent un autre modèle" (concern another model)); number proposed 31028-1; online search: "**OMR indisponible** : …" (OMR unavailable) and link to the page; collection unchanged (**3 sets**). The chosen files are read, never moved | |
 
-**Résultats (06/11/2026)** : les six contrôles sont déclarés **OK par le propriétaire** à l'issue de sa recette humaine (Chrome, puis Safari pour C3). Claude n'a pas observé l'écran et ne rapporte aucune mesure de cette recette.
+**Results (2026-11-06)**: the six checks are declared **OK by the owner** at the end of his manual acceptance test (Chrome, then Safari for C3). Claude did not observe the screen and reports no measurement from this acceptance test.
 
-**Écart entre la déclaration et les traces**, relevé par Claude avant la fusion (lecture seule, vers 19:45) et présenté au propriétaire :
+**Discrepancy between the declaration and the traces**, noted by Claude before the merge (read-only, around 19:45) and presented to the owner:
 
-| Contrôle | Trace attendue | Trace observée |
+| Check | Expected trace | Observed trace |
 |---|---|---|
-| C1 | 31039 ≥ 1/609, enregistré après 19:19 ; second démarrage du serveur | 31039 **0/609**, dernier enregistrement **19:09** ; un seul démarrage du serveur (même processus) |
-| C2 | Modèle retéléchargé gardé dans `library/staging/` jusqu'à confirmation | `staging/` vide |
-| C4 | Fichiers déposés gardés dans `library/staging/` | `staging/` vide |
+| C1 | 31039 ≥ 1/609, saved after 19:19; second server start | 31039 **0/609**, last save **19:09**; a single server start (same process) |
+| C2 | Re-downloaded model kept in `library/staging/` until confirmation | `staging/` empty |
+| C4 | Dropped files kept in `library/staging/` | `staging/` empty |
 
-Les autres contrôles (C3, C5, C6) ne laissent pas de trace dans les données. Données intactes : index révision 3, 3 sets, 31040 25/65 (inchangé), `models/`, `instructions/`, `mappings/` identiques à l'inventaire de 19:19. **Décision du propriétaire : fusionner malgré cet écart** (« Merge anyway », 06/11/2026). Les contrôles C1, C2 et C4 reposent donc sur sa seule déclaration ; ils restent couverts par les tests automatiques (reprise après redémarrage en recette réelle isolée 31045, doublons et import hors ligne en unitaires et E2E).
+The other checks (C3, C5, C6) leave no trace in the data. Data intact: index revision 3, 3 sets, 31040 25/65 (unchanged), `models/`, `instructions/`, `mappings/` identical to the 19:19 inventory. **Owner's decision: merge despite this discrepancy** ("Merge anyway", 2026-11-06). Checks C1, C2 and C4 therefore rest on his declaration alone; they remain covered by the automatic tests (resume after restart in the isolated real acceptance test 31045, duplicates and offline import in unit and E2E tests).
 
-**À la fin** : envoie-moi la colonne « Résultat ». Je vérifierai les traces (index, progressions, intégrité de `models/`, `instructions/`, `mappings/` contre l'inventaire de 19:19), consignerai la recette et préparerai la fusion de la PR #5 **par rebase**, sans la lancer avant ton GO.
+**At the end**: send me the "Résultat" column. I will verify the traces (index, progress, integrity of `models/`, `instructions/`, `mappings/` against the 19:19 inventory), record the acceptance test and prepare the merge of PR #5 **by rebase**, without launching it before your GO.
 
-## 0. État avant la recette et sauvegarde (fait par Claude le 06/11/2026, 18:17)
+## 0. State before the acceptance test and backup (done by Claude on 2026-11-06, 18:17)
 
-**État vérifié** (lecture seule de `~/Documents/brick-lab-data/library/`) :
+**State verified** (read-only on `~/Documents/brick-lab-data/library/`):
 
-| Élément | Valeur de référence |
+| Item | Reference value |
 |---|---|
-| Index | révision 2, 2 sets, 2 constructions, 5 fichiers, tous présents et d'empreinte SHA-256 correcte |
-| 31040-1 Desert Racers | 65 pièces, **25/65 posées**, mode **notice synchronisée**, page **6**, livret 6145903, correspondances **24/24 vérifiées** (valides) ; modes : synchronisé, guidé, libre |
-| 31009-1 Small Cottage | 270 pièces, **aucune progression**, notice 6038244 ; modes : guidé, libre |
-| Fichiers des sets | laissés en place dans `models/`, `instructions/`, `mappings/` |
+| Index | revision 2, 2 sets, 2 builds, 5 files, all present with correct SHA-256 fingerprint |
+| 31040-1 Desert Racers | 65 parts, **25/65 placed**, **synchronized instructions** mode, page **6**, booklet 6145903, mappings **24/24 verified** (valid); modes: synchronized, guided, free |
+| 31009-1 Small Cottage | 270 parts, **no progress**, instructions 6038244; modes: guided, free |
+| Set files | left in place in `models/`, `instructions/`, `mappings/` |
 
-**Sauvegarde** : `~/Documents/brick-lab-data/backups-p8/library-2026-11-06T18-17-15-avant-recette-p8.tar.gz` (dossiers `library/` et `mappings/`, SHA-256 de l'archive `80c14800…bbe8`), **vérifiée** par extraction séparée : 33 fichiers identiques. Inventaire des empreintes de `library/`, `models/`, `instructions/`, `mappings/` : `backups-p8/donnees-2026-11-06T18-17-15.sha256`.
+**Backup**: `~/Documents/brick-lab-data/backups-p8/library-2026-11-06T18-17-15-avant-recette-p8.tar.gz` (folders `library/` and `mappings/`, archive SHA-256 `80c14800…bbe8`), **verified** by separate extraction: 33 identical files. Inventory of the fingerprints of `library/`, `models/`, `instructions/`, `mappings/`: `backups-p8/donnees-2026-11-06T18-17-15.sha256`.
 
-**Contrôle du build de production** (sans rien modifier, `library.json` inchangé) : écoute sur `127.0.0.1:3000` uniquement, bibliothèque LDraw configurée, `/ajouter` répond, 31040 propose bien le mode synchronisé (25/65), 31009 guidé/libre, aucun problème signalé ; recherche en ligne refusée (403) sans l'en-tête de l'application.
+**Production build check** (without modifying anything, `library.json` unchanged): listening on `127.0.0.1:3000` only, LDraw library configured, `/ajouter` responds, 31040 does offer the synchronized mode (25/65), 31009 guided/free, no problem reported; online search rejected (403) without the application header.
 
-> Si tu as joué depuis 18:17, refais une sauvegarde (§ 6, première commande) avant de commencer.
+> If you have played since 18:17, make a new backup (section 6, first command) before starting.
 
-## 1. Lancement (production)
+## 1. Launch (production)
 
 ```bash
 cd ~/Documents/brick-build-worktrees/p8-simplified-import
@@ -85,68 +85,68 @@ npm run build
 npm run start
 ```
 
-Le terminal affiche `http://127.0.0.1:3000`. Ouvre-le dans **Chrome**. (Facultatif : `REBRICKABLE_API_KEY=<ta clé>` dans `.env.local` avant `npm run start` pour voir le nom, l'année et le nombre de pièces annoncé.)
+The terminal displays `http://127.0.0.1:3000`. Open it in **Chrome**. (Optional: `REBRICKABLE_API_KEY=<your key>` in `.env.local` before `npm run start` to see the name, year and announced part count.)
 
-**Set conseillé : 31039 Blue Power Jet** (Creator 3-en-1) : présent sur l'OMR avec son modèle principal et deux alternatifs (Helicopter, Speedboat), **absent** de ta collection et de ton dossier `models/`. *Correction après la recette : le fichier OMR compte 609 pièces et n'a pas d'étapes LDraw (montage libre uniquement), ce n'est pas un petit set.* Remplaçant : 31038 Changing Seasons. (Les sets 31027, 31028, 31031, 31045… sont déjà dans `models/` : leur fichier serait trouvé localement et le clic OMR ne ferait pas de nouvelle copie.)
+**Recommended set: 31039 Blue Power Jet** (Creator 3-in-1): present on the OMR with its main model and two alternates (Helicopter, Speedboat), **absent** from your collection and from your `models/` folder. *Correction after the acceptance test: the OMR file has 609 parts and no LDraw steps (free building only), it is not a small set.* Replacement: 31038 Changing Seasons. (Sets 31027, 31028, 31031, 31045… are already in `models/`: their file would be found locally and the OMR click would not make a new copy.)
 
-## 2. Non-régression 31040 et 31009 (point 8)
+## 2. Non-regression 31040 and 31009 (point 8)
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 2.1 | Page d'accueil | « Ma collection » : 31040 « 25/65 pièces posées », En cours ; 31009 « 0/270 », Jamais commencé | |
-| 2.2 | 31040 → « Reprendre » | « Progression restaurée : 25/65 » ; mode **Notice synchronisée** ; page 6 ; livret ouvert **sans sélection de fichier** | |
-| 2.3 | Poser 1 ou 2 pièces, « ← Ma collection » | « Enregistré dans la bibliothèque » ; la carte suit | |
-| 2.4 | 31009 → « Construire » | Modèle (270 pièces) et notice ouverts sans import ; inventaire « indéterminé » toujours signalé | |
+| 2.1 | Home page | "Ma collection": 31040 "25/65 pièces posées", En cours; 31009 "0/270", Jamais commencé (Never started) | |
+| 2.2 | 31040 → "Reprendre" | "Progression restaurée : 25/65"; **Notice synchronisée** (synchronized instructions) mode; page 6; booklet open **without file selection** | |
+| 2.3 | Place 1 or 2 parts, "← Ma collection" | "Enregistré dans la bibliothèque"; the card follows | |
+| 2.4 | 31009 → "Construire" | Model (270 parts) and instructions opened without import; "indeterminate" inventory still flagged | |
 
-## 3. Nouveau set par son numéro (points 1 à 4)
+## 3. New set by its number (points 1 to 4)
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 3.1 | « Ajouter un set » → `31039` → « Rechercher » (point 1) | « Lu comme 31039-1 (variante -1 supposée…) » ; Dossier de données : « rien pour ce numéro » ; ligne LEGO « Notice disponible sur LEGO.com, mais téléchargement manuel nécessaire » | |
-| 3.2 | Essai : `31039; x` puis `31039-2` | Le premier est refusé (« n'est pas un numéro de set ») ; le second est lu comme une **autre** boîte (31039-2) ; revenir à `31039` | |
-| 3.3 | « Chercher en ligne (OMR) » (point 2) | « 3 modèle(s) 3D sur l'OMR, dont 2 alternatif(s) » ; principal puis Helicopter, Speedboat, avec l'auteur | |
-| 3.4 | « Télécharger » le **modèle principal** seulement | « téléchargé ✓ » ; une carte : nom du fichier, taille, « téléchargé depuis l'OMR », **auteur et licence lus dans le fichier**, pièces, étapes LDraw | |
-| 3.5 | Facultatif : « Télécharger » un alternatif | Deuxième construction nommée d'après l'OMR (« Helicopter »…) ; message « Plusieurs constructions : coche pour chaque notice… » | |
-| 3.6 | « Ouvrir la page LEGO ↗ » (point 3) : télécharge la notice du modèle principal dans ton navigateur, puis **dépose-la** dans « Import local rapide » | Notice listée avec son **nombre de pages** ; « association proposée, non vérifiée » (une seule construction) ou case à cocher (plusieurs) | |
-| 3.7 | Fiche de compatibilité (point 4) | Modes réellement disponibles (guidé seulement si le fichier a des étapes) ; « Montage libre avec notice » ; « **Notice synchronisée indisponible : aucune correspondance validée** » ; « Pièces vérifiées » ou la liste des références absentes ; « Inventaire indéterminé » | |
-| 3.8 | « Détails avancés » | SHA-256 du fichier, diagnostics, choix d'un autre modèle du fichier | |
+| 3.1 | "Ajouter un set" → `31039` → "Rechercher" (point 1) | "Lu comme 31039-1 (variante -1 supposée…)" (Read as 31039-1 (variant -1 assumed…)); Data folder: "rien pour ce numéro" (nothing for this number); LEGO line "Notice disponible sur LEGO.com, mais téléchargement manuel nécessaire" | |
+| 3.2 | Trial: `31039; x` then `31039-2` | The first is rejected ("n'est pas un numéro de set" (is not a set number)); the second is read as **another** box (31039-2); go back to `31039` | |
+| 3.3 | "Chercher en ligne (OMR)" (point 2) | "3 modèle(s) 3D sur l'OMR, dont 2 alternatif(s)"; main then Helicopter, Speedboat, with the author | |
+| 3.4 | "Télécharger" the **main model** only | "téléchargé ✓" (downloaded ✓); one card: file name, size, "téléchargé depuis l'OMR" (downloaded from the OMR), **author and license read from the file**, parts, LDraw steps | |
+| 3.5 | Optional: "Télécharger" an alternate | Second build named after the OMR ("Helicopter"…); message "Plusieurs constructions : coche pour chaque notice…" (Several builds: check for each instruction booklet…) | |
+| 3.6 | "Ouvrir la page LEGO ↗" (Open the LEGO page ↗) (point 3): download the main model's instructions in your browser, then **drop them** in "Import local rapide" (Quick local import) | Instructions listed with their **page count**; "association proposée, non vérifiée" (one build only) or checkbox (several) | |
+| 3.7 | Compatibility sheet (point 4) | Modes actually available (guided only if the file has steps); "Montage libre avec notice"; "**Notice synchronisée indisponible : aucune correspondance validée**"; "Pièces vérifiées" or the list of missing references; "Inventaire indéterminé" | |
+| 3.8 | "Détails avancés" (Advanced details) | SHA-256 of the file, diagnostics, choice of another model from the file | |
 
-## 4. Ajout, construction, reprise après redémarrage (point 5)
+## 4. Add, build, resume after restart (point 5)
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 4.1 | Nom proposé (« Blue Power Jet » ou celui de l'OMR) → « Ajouter à ma collection » | « Ajouté à ta collection » ; nombre de fichiers ajoutés ; bouton « Construire « Modèle principal » » | |
-| 4.2 | « Construire » → « Commencer — mode guidé » (ou « Montage libre (avec notice) »), poser **au moins 5 pièces** | « Enregistré dans la bibliothèque » ; la notice déposée s'ouvre dans l'onglet Notice PDF | |
-| 4.3 | « ← Ma collection » | Nouvelle carte 31039-1 avec miniature, x/N pièces, « En cours » ; 31040 et 31009 inchangés | |
-| 4.4 | **Quitter Chrome** (⌘Q), arrêter le serveur (Ctrl+C), `npm run start`, rouvrir Chrome | Même collection, même progression | |
-| 4.5 | 31039 → « Reprendre » | « Progression restaurée : x/N », même mode, notice ouverte sans import | |
-| 4.6 | « Détails » de 31039 | Fichier modèle « copie de la bibliothèque », notice associée, « Vérifier les empreintes » OK | |
+| 4.1 | Proposed name ("Blue Power Jet" or the OMR's) → "Ajouter à ma collection" (Add to my collection) | "Ajouté à ta collection" (Added to your collection); number of files added; button "Construire "Modèle principal"" | |
+| 4.2 | "Construire" → "Commencer — mode guidé" (or "Montage libre (avec notice)"), place **at least 5 parts** | "Enregistré dans la bibliothèque"; the dropped instructions open in the Notice PDF tab | |
+| 4.3 | "← Ma collection" | New card 31039-1 with thumbnail, x/N parts, "En cours"; 31040 and 31009 unchanged | |
+| 4.4 | **Quit Chrome** (⌘Q), stop the server (Ctrl+C), `npm run start`, reopen Chrome | Same collection, same progress | |
+| 4.5 | 31039 → "Reprendre" | "Progression restaurée : x/N", same mode, instructions opened without import | |
+| 4.6 | "Détails" of 31039 | Model file "copie de la bibliothèque" (library copy), associated instructions, "Vérifier les empreintes" (Verify fingerprints) OK | |
 
-## 5. Doublons (point 6) et Safari
+## 5. Duplicates (point 6) and Safari
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 5.1 | « Ajouter un set » → `31039` → « Rechercher » | « Ce set est déjà dans ta collection : 31039-1 … » ; choix « Ajouter les constructions cochées à ce set » coché | |
-| 5.2 | « Chercher en ligne » → « Télécharger » le principal | « **Ce modèle existe déjà dans ta collection** » ; sa case est désactivée ; le bouton d'ajout reste inactif (« Coche au moins une construction. ») | |
-| 5.3 | Déposer de nouveau la même notice | « déjà dans la bibliothèque » (pas de nouvelle copie) | |
-| 5.4 | Facultatif : télécharger un alternatif, « Ajouter 1 construction(s) à 31039-1 » | Le set a une construction de plus ; la progression du modèle principal est **inchangée** | |
-| 5.5 | Ouvrir http://127.0.0.1:3000 dans **Safari** | Même collection (31040, 31009, 31039) et mêmes progressions | |
-| 5.6 | Safari : 31039 → « Reprendre », poser 1 pièce ; puis « Ajouter un set » → `31039` | Reprise sans import ; mêmes messages de doublon qu'en 5.1–5.2 | |
+| 5.1 | "Ajouter un set" → `31039` → "Rechercher" | "Ce set est déjà dans ta collection : 31039-1 …"; choice "Ajouter les constructions cochées à ce set" (Add the checked builds to this set) checked | |
+| 5.2 | "Chercher en ligne" → "Télécharger" the main | "**Ce modèle existe déjà dans ta collection**"; its checkbox is disabled; the add button stays inactive ("Coche au moins une construction.") | |
+| 5.3 | Drop the same instructions again | "déjà dans la bibliothèque" (already in the library) (no new copy) | |
+| 5.4 | Optional: download an alternate, "Ajouter 1 construction(s) à 31039-1" (Add 1 build(s) to 31039-1) | The set has one more build; the main model's progress is **unchanged** | |
+| 5.5 | Open http://127.0.0.1:3000 in **Safari** | Same collection (31040, 31009, 31039) and same progress | |
+| 5.6 | Safari: 31039 → "Reprendre", place 1 part; then "Ajouter un set" → `31039` | Resume without import; same duplicate messages as in 5.1–5.2 | |
 
-## 6. Import hors ligne (point 7)
+## 6. Offline import (point 7)
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 6.1 | **Couper le Wi-Fi** | — | |
-| 6.2 | « Ajouter un set » → `31039` → « Rechercher » | Résultat local immédiat (set déjà présent) | |
-| 6.3 | « Chercher en ligne » | « OMR indisponible : … » et lien vers la page ; rien d'autre ne se bloque | |
-| 6.4 | Revenir à « Ajouter un set » (page neuve) ; « Choisir des fichiers » ou glisser **d'un coup** `~/Documents/brick-lab-data/models/31028-1/31028-1.mpd` et un PDF quelconque, plus `mappings/31040-1.brick-mapping.json` | Le modèle (53 pièces) est analysé ; le PDF est listé avec ses pages ; le mapping de 31040 est **refusé** (« concernent un autre modèle ») ; numéro proposé 31028-1 | |
-| 6.5 | Au choix : « ← Ma collection » **sans confirmer** (rien n'est ajouté) **ou** confirmer (set 31028 ajouté hors ligne, fichier laissé en place) | Collection conforme au choix | |
-| 6.6 | Rallumer le Wi-Fi | — | |
+| 6.1 | **Turn off Wi-Fi** | — | |
+| 6.2 | "Ajouter un set" → `31039` → "Rechercher" | Immediate local result (set already present) | |
+| 6.3 | "Chercher en ligne" | "OMR indisponible : …" and link to the page; nothing else blocks | |
+| 6.4 | Go back to "Ajouter un set" (new page); "Choisir des fichiers" or drag **all at once** `~/Documents/brick-lab-data/models/31028-1/31028-1.mpd` and any PDF, plus `mappings/31040-1.brick-mapping.json` | The model (53 parts) is analyzed; the PDF is listed with its pages; the 31040 mapping is **rejected** ("concernent un autre modèle"); number proposed 31028-1 | |
+| 6.5 | Your choice: "← Ma collection" **without confirming** (nothing is added) **or** confirm (set 31028 added offline, file left in place) | Collection matches the choice | |
+| 6.6 | Turn Wi-Fi back on | — | |
 
-## 7. Après la recette
+## 7. After the acceptance test
 
-Arrêter le serveur, puis comparer les fichiers de tes sets avec l'inventaire d'avant (seul `library/` doit avoir changé) :
+Stop the server, then compare your sets' files with the inventory from before (only `library/` should have changed):
 
 ```bash
 cd ~/Documents/brick-lab-data
@@ -154,9 +154,9 @@ find models instructions mappings -type f -exec shasum -a 256 {} \; | sort -k2 >
 grep -E " (models|instructions|mappings)/" backups-p8/donnees-2026-11-06T18-17-15.sha256 | diff - /tmp/apres.sha256 && echo "Fichiers des sets inchangés"
 ```
 
-Pour retirer un set de recette : détail du set → « Retirer le set de la collection », puis « Confirmer » (il part dans `library/trash/`, rien n'est effacé).
+To remove an acceptance-test set: set detail → "Retirer le set de la collection" (Remove the set from the collection), then "Confirmer" (Confirm) (it goes to `library/trash/`, nothing is erased).
 
-**Revenir à l'état d'avant la recette** (si besoin) : arrêter le serveur, mettre de côté le dossier actuel (ne pas le supprimer), puis restaurer :
+**Return to the state before the acceptance test** (if needed): stop the server, set aside the current folder (do not delete it), then restore:
 
 ```bash
 cd ~/Documents/brick-lab-data
@@ -164,6 +164,6 @@ mv library library-apres-recette-p8
 tar -xzf backups-p8/library-2026-11-06T18-17-15-avant-recette-p8.tar.gz -C ~/Documents/brick-lab-data
 ```
 
-(Refaire une sauvegarde à tout moment : `tar -czf backups-p8/library-$(date +%Y-%m-%dT%H-%M-%S).tar.gz library mappings`, serveur arrêté.)
+(Make a backup at any time: `tar -czf backups-p8/library-$(date +%Y-%m-%dT%H-%M-%S).tar.gz library mappings`, server stopped.)
 
-Note chaque écart (capture, message exact, navigateur) dans les tableaux ; ils seront traités avant toute fusion. Le GO final de fusion de la PR #5 reste à toi.
+Note each deviation (screenshot, exact message, browser) in the tables; they will be handled before any merge. The final GO to merge PR #5 remains yours.

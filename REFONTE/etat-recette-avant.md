@@ -1,39 +1,39 @@
-# État initial de la recette (avant refonte)
+# Initial state of the acceptance test (before the redesign)
 
-- Branche `claude/brick-lab-ui-refonte-188be7`, worktree `.claude/worktrees/brick-lab-ui-refonte-188be7`, base `a1309a4` = `origin/main` (fetch du 09/11/2026).
-- Machine : macOS 25.6.0, Apple M2 Pro, Node 24.5.0, Chromium 156 (Playwright 1.64.1).
-- Bibliothèque LDraw : `~/Documents/brick-lab-data/ldraw` (`.env.local` créé dans le worktree selon le README, non versionné ; `npm run check:ldraw` OK).
+- Branch `claude/brick-lab-ui-refonte-188be7`, worktree `.claude/worktrees/brick-lab-ui-refonte-188be7`, base `a1309a4` = `origin/main` (fetched 2026-11-09).
+- Machine: macOS 25.6.0, Apple M2 Pro, Node 24.5.0, Chromium 156 (Playwright 1.64.1).
+- LDraw library: `~/Documents/brick-lab-data/ldraw` (`.env.local` created in the worktree per the README, not versioned; `npm run check:ldraw` OK).
 
-## `npm run recette` — réussie (code 0)
+## `npm run recette` — passed (exit code 0)
 
-| Étape | Résultat |
+| Step | Result |
 |---|---|
-| `check:spec` | OK (manifeste de spécification intact) |
+| `check:spec` | OK (specification manifest intact) |
 | `typecheck` | OK |
-| `npm test` (Vitest) | 17 fichiers, **317 réussis, 1 ignoré** (318) |
-| `npm run test:e2e` (Playwright, Chromium + contextes WebKit) | **86 réussis**, 0 échec, 0 ignoré, 19,2 min |
+| `npm test` (Vitest) | 17 files, **317 passed, 1 skipped** (318) |
+| `npm run test:e2e` (Playwright, Chromium + WebKit contexts) | **86 passed**, 0 failed, 0 skipped, 19.2 min |
 
-Les suites sur sets réels (`*-omr.spec.ts`) ont tourné : les fichiers 31040, 31009, 31039 sont présents dans le dossier de données. Aucun échec préexistant à signaler.
+The real-set suites (`*-omr.spec.ts`) ran: the files for 31040, 31009, 31039 are present in the data folder. No pre-existing failures to report.
 
-## `npm run perf` — réussie (build de production, port 3100)
+## `npm run perf` — passed (production build, port 3100)
 
-| Set | Import → 1re image | Géométrie | FPS repos / orbite | Tas JS | Requêtes LDraw (dont 404) |
+| Set | Import → first frame | Geometry | FPS idle / orbit | JS heap | LDraw requests (of which 404) |
 |---|---|---|---|---|---|
-| 31040-1 | 1 131 ms | 546 ms | 60 / 60 | 26 Mo | 490 (171) |
-| 31009-1 | 1 152 ms | 736 ms | 60 / 60 | 68 Mo | 812 (293) |
+| 31040-1 | 1,131 ms | 546 ms | 60 / 60 | 26 MB | 490 (171) |
+| 31009-1 | 1,152 ms | 736 ms | 60 / 60 | 68 MB | 812 (293) |
 
-Moyenne sur 3 passes, ANGLE Metal (M2 Pro). Détail complet : `REFONTE/perf-avant.json`. Le test écrit aussi `~/Documents/brick-lab-data/proofs/p5/perf.json` (écrasé par ce passage ; la version du 04/11 a été copiée à part avant, hors dépôt).
+Average over 3 passes, ANGLE Metal (M2 Pro). Full details: `REFONTE/perf-avant.json`. The test also writes `~/Documents/brick-lab-data/proofs/p5/perf.json` (overwritten by this run; the 2026-11-04 version was copied aside beforehand, outside the repository).
 
-**Seuil de non-régression retenu pour la phase 5** : import → 1re image ≤ ~1,2 s (± 10 %) et 60 FPS au repos et en orbite sur les deux sets.
+**Non-regression threshold adopted for phase 5**: import → first frame ≤ ~1.2 s (± 10%) and 60 FPS at idle and in orbit on both sets.
 
-## Couverture E2E manquante sur des parcours de l'inventaire
+## Missing E2E coverage of inventory flows
 
-Phase 3 : couverte par `tests/e2e/filet-refonte.spec.ts` (6 tests, verts sur l'UI d'avant), sauf le panoramique et le zoom de la caméra (P2, P3), vérifiés à la main en phase 5 (le geste de molette n'a pas d'effet observable stable sans instrumenter la caméra).
+Phase 3: covered by `tests/e2e/filet-refonte.spec.ts` (6 tests, green on the old UI), except camera pan and zoom (P2, P3), checked by hand in phase 5 (the wheel gesture has no stable observable effect without instrumenting the camera).
 
 
-- Mode hors ligne `BRICK_LAB_ONLINE=0` dans l'UI (Q11) : testé seulement en unitaire.
-- Bibliothèque LDraw absente (Q10) : aucun E2E.
-- Abandon dans l'atelier autonome (K10) et dans l'atelier bibliothèque (confirmation) : seulement indirect.
-- Retirer une construction / un set (C19), vérifier les empreintes (C11), exporter les correspondances depuis le détail (C15).
-- Raccourcis G (grille) et Q (axes locaux) (O14, O16), panoramique/zoom caméra (P2, P3).
-- Éditeur : supprimer/monter/descendre une étape (M8), tout effacer + restaurer (M18, M19).
+- Offline mode `BRICK_LAB_ONLINE=0` in the UI (Q11): tested only at unit level.
+- LDraw library missing (Q10): no E2E.
+- Abandoning in the standalone workshop (K10) and in the library workshop (confirmation): only indirect.
+- Removing a build / a set (C19), verifying fingerprints (C11), exporting the mappings from the detail page (C15).
+- G (grid) and Q (local axes) shortcuts (O14, O16), camera pan/zoom (P2, P3).
+- Editor: delete/move up/move down a step (M8), clear all + restore (M18, M19).

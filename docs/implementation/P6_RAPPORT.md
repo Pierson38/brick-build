@@ -1,28 +1,28 @@
-# P6 — Notice officielle et construction 3D synchronisée : rapport
+# P6 — Official instructions and synchronized 3D building: report
 
-**Date :** 04/11/2026. Branche `feat/p6-instructions-sync`, worktree dédié, base `origin/main` = `5e03680` (P5 fusionné).
-**Machine :** Mac Apple M2 Pro, macOS 26.6.2, Node 24.5.0, Chromium (Playwright 1.64.1).
+**Date:** 2026-11-04. Branch `feat/p6-instructions-sync`, dedicated worktree, base `origin/main` = `5e03680` (P5 merged).
+**Machine:** Mac Apple M2 Pro, macOS 26.6.2, Node 24.5.0, Chromium (Playwright 1.64.1).
 
-Architecture, schéma et risques : [P6_ARCHITECTURE_NOTICE_SYNC.md](P6_ARCHITECTURE_NOTICE_SYNC.md). Décisions : [JOURNAL_DECISIONS.md](JOURNAL_DECISIONS.md#journal--04112026-lot-p6-notice--3d-synchronisée).
+Architecture, schema and risks: [P6_ARCHITECTURE_NOTICE_SYNC.md](P6_ARCHITECTURE_NOTICE_SYNC.md). Decisions: [JOURNAL_DECISIONS.md](JOURNAL_DECISIONS.md#journal--2026-11-04-batch-p6-instructions--3d-synchronized).
 
-> Aucun contenu LEGO n'est ajouté au dépôt : ni PDF, ni image ou texte de notice, ni MPD de set, ni mapping réel. La fixture P6 est originale (CC0). Le mapping de 31040, les captures et les mesures restent dans `~/Documents/brick-lab-data/` (`mappings/`, `proofs/p6/`).
+> No LEGO content is added to the repository: no PDF, no instruction image or text, no set MPD, no real mapping. The P6 fixture is original (CC0). The 31040 mapping, the screenshots and the measurements stay in `~/Documents/brick-lab-data/` (`mappings/`, `proofs/p6/`).
 
-## 1. Ce qui est livré
+## 1. What is delivered
 
-| Phase | Livré | Preuve |
+| Phase | Delivered | Evidence |
 |---|---|---|
-| A — Étude | Mesures sur 31040 (1 livret, 3 modèles, 21 étapes du modèle 1 sur 11 pages, encadrés, « 2x/4x ») et 31009 (3 livrets = 3 modèles, séquence insérée, numéros non uniques) | `P6_ARCHITECTURE_NOTICE_SYNC.md` § 1 |
-| B — Modèle | Schéma `brick-lab-instruction-mapping` v1 : empreinte du MPD (SHA-256, modèle principal, nombre de pièces), livrets (SHA-256 et pages du PDF), entrées (livret, page PDF, numéro imprimé, encadré, multiplicateur, `occurrenceIds`, provenance `manual`/`verified`, note). Parsing borné d'une entrée non fiable ; validation recalculée (doublons, couverture, pages, ordre). | `src/domain/instructions/mapping.ts`, 23 tests unitaires |
-| C — Éditeur | Onglet **Correspondances** : livrets liés au PDF affiché, navigation ◀ ▶ entre les étapes, nouvelle étape préremplie (page affichée, numéro suivant), affectation par clic 3D sur un fantôme, retrait par clic sur une pièce surlignée, déplacement explicite par ⌥-clic, boutons +1 / +n par pièce/couleur, aide « pièces libres d'une étape LDraw », aperçu 3D (construit jusqu'à l'étape, étape en ambre, non affectées en fantôme), doublons avec correction, validation détaillée, sauvegarde locale automatique, export et réimport du fichier personnel | `src/components/mapping/MappingEditor.tsx`, E2E « editor » |
-| D — Jeu | Mode **Notice synchronisée** proposé seulement si le mapping est valide. Bandeau d'étape (libellé imprimé, livret, page, rang sur la page), page tournée automatiquement, seules les pièces de l'étape dans le bac, avance automatique, consultation d'une étape passée, « reprendre depuis cette étape », annulation, changement de mode qui conserve les pièces, reprise après rechargement, contrôle d'empreinte du PDF réimporté. Sans mapping valide : retour **explicite** au montage libre, pièces conservées. | `BrickLabApp.tsx`, `SyncStepBanner.tsx`, E2E « synchronised build », « fallback » |
+| A — Study | Measurements on 31040 (1 booklet, 3 models, 21 steps of model 1 over 11 pages, callouts, "2x/4x") and 31009 (3 booklets = 3 models, inserted sequence, non-unique numbers) | `P6_ARCHITECTURE_NOTICE_SYNC.md` § 1 |
+| B — Model | `brick-lab-instruction-mapping` v1 schema: MPD fingerprint (SHA-256, main model, part count), booklets (PDF SHA-256 and pages), entries (booklet, PDF page, printed number, callout, multiplier, `occurrenceIds`, `manual`/`verified` provenance, note). Bounded parsing of untrusted input; recomputed validation (duplicates, coverage, pages, order). | `src/domain/instructions/mapping.ts`, 23 unit tests |
+| C — Editor | **Correspondances** (Mappings) tab: booklets linked to the displayed PDF, ◀ ▶ navigation between steps, new prefilled step (displayed page, next number), assignment by 3D click on a ghost, removal by click on a highlighted part, explicit move by ⌥-click, +1 / +n buttons per part/color, "free parts of an LDraw step" aid, 3D preview (built up to the step, step in amber, unassigned as ghost), duplicates with correction, detailed validation, automatic local save, export and re-import of the personal file | `src/components/mapping/MappingEditor.tsx`, E2E "editor" |
+| D — Play | **Notice synchronisée** (Synchronized instructions) mode offered only if the mapping is valid. Step banner (printed label, booklet, page, rank on the page), page turned automatically, only the parts of the step in the tray, automatic advance, viewing a past step, "reprendre depuis cette étape" (resume from this step), undo, mode change that keeps the parts, resume after reload, fingerprint check of the re-imported PDF. Without a valid mapping: **explicit** return to free building, parts kept. | `BrickLabApp.tsx`, `SyncStepBanner.tsx`, E2E "synchronised build", "fallback" |
 
-## 2. Essai réel sur 31040 (modèle 1, livret 6145903, p. 2–12)
+## 2. Real trial on 31040 (model 1, booklet 6145903, pp. 2–12)
 
-**Saisie.** Claude a saisi le mapping en lisant chaque page (rendu local du PDF), selon la méthode de l'éditeur : 24 entrées pour 21 étapes imprimées (les encadrés des étapes 7, 14 et 18 sont découpés en sous-étapes), soit 65/65 occurrences affectées une fois. Le validateur ne signale **aucun avertissement**, seulement « 24/24 non vérifiées visuellement ».
+**Input.** Claude entered the mapping by reading each page (local PDF rendering), following the editor's method: 24 entries for 21 printed steps (the callouts of steps 7, 14 and 18 are split into substeps), i.e. 65/65 occurrences assigned once. The validator reports **no warning**, only "24/24 not visually verified".
 
-| Étapes LDraw (fichier OMR) | Entrées de notice | Correspondance |
+| LDraw steps (OMR file) | Instruction entries | Match |
 |---|---|---|
-| 1 (5 pièces) | 1, 2 (p. 2) | 2 + 3 |
+| 1 (5 parts) | 1, 2 (p. 2) | 2 + 3 |
 | 2 (7) | 3, 4 (p. 3), 5 (p. 4) | 2 + 4 + 1 |
 | 3 (3) | 6 (p. 4) | 3 |
 | 4 (8) | 7·1, 7·2, 8 (p. 5) | 1 + 3 + 4 |
@@ -34,65 +34,65 @@ Architecture, schéma et risques : [P6_ARCHITECTURE_NOTICE_SYNC.md](P6_ARCHITECT
 | 10 (5) | 19, 20 (p. 11) | 3 + 2 |
 | 11 (8) | 21 ×4 (p. 12) | 8 |
 
-Chaque étape LDraw se découpe **exactement** en étapes de notice consécutives : l'auteur OMR a fusionné des étapes, sans changer l'ordre. Ce constat vaut pour 31040, pas en général (31009 : sous-modèles, minifig en dernier).
+Each LDraw step splits **exactly** into consecutive instruction steps: the OMR author merged steps without changing the order. This finding holds for 31040, not in general (31009: submodels, minifig last).
 
-**Points incertains**, notés dans le mapping et à vérifier par le propriétaire :
-- étapes 9, 16 et 19 : la notice dessine **une** pièce avec deux flèches, alors que le fichier en contient deux, identiques et symétriques ;
-- frontière entre les étapes 4 et 5 (plaques gris foncé 1×4).
+**Uncertain points**, noted in the mapping and to be verified by the owner:
+- steps 9, 16 and 19: the instructions draw **one** part with two arrows, whereas the file contains two, identical and symmetric;
+- boundary between steps 4 and 5 (dark gray 1×4 plates).
 
-**Construction réelle** (`tests/e2e/instructions-sync-omr.spec.ts`, joueur scripté P5, pointeur et clavier uniquement, emplacements de l'étape affichés par défaut) :
+**Real build** (`tests/e2e/instructions-sync-omr.spec.ts`, P5 scripted player, pointer and keyboard only, step locations displayed by default):
 
-| Mesure | Résultat |
+| Measurement | Result |
 |---|---|
-| Pièces posées | **65/65**, 65 clics, **0 refus**, 0 secours PageUp/PageDown |
-| Entrées de notice parcourues | **24/24, dans l'ordre du mapping** |
-| Page affichée = page de l'étape, sans clic sur le PDF | **24/24** (11 pages, de la p. 2 à la p. 12) |
-| Pièces proposées hors de l'étape active | **0** (contrôlé avant chaque pose) |
-| Reprise après rechargement à 30/65 | OK : même entrée, livret à réimporter, page retrouvée |
-| Poses en orientation équivalente / changements d'orientation (O) / rotations de caméra | 18 / 25 / 7 |
-| Durée de la construction scriptée | 34 s |
-| Aperçu de l'éditeur à l'étape 13 (p. 8) | 33 pièces construites, 4 surlignées, 0 fantôme |
+| Parts placed | **65/65**, 65 clicks, **0 refusals**, 0 PageUp/PageDown fallbacks |
+| Instruction entries traversed | **24/24, in mapping order** |
+| Displayed page = step page, without clicking on the PDF | **24/24** (11 pages, from p. 2 to p. 12) |
+| Parts offered outside the active step | **0** (checked before each placement) |
+| Resume after reload at 30/65 | OK: same entry, booklet to re-import, page found again |
+| Placements in equivalent orientation / orientation changes (O) / camera rotations | 18 / 25 / 7 |
+| Duration of the scripted build | 34 s |
+| Editor preview at step 13 (p. 8) | 33 parts built, 4 highlighted, 0 ghost |
 
-**Contrôle visuel** (capture hors dépôt `proofs/p6/31040-1-synced-step8.png`) : à l'étape 8, la 3D correspond à l'état de l'étape 7 dessiné page 5, et le bac ne propose que les 4 pièces dessinées à l'étape 8.
+**Visual check** (screenshot outside the repository `proofs/p6/31040-1-synced-step8.png`): at step 8, the 3D matches the state of step 7 drawn on page 5, and the tray only offers the 4 parts drawn at step 8.
 
-**Mesure ayant changé une décision** : avec les emplacements masqués, le joueur scripté échouait à la 52e pièce (tuile posée sur la face arrière, cachée de la caméra). Les emplacements de l'étape sont désormais affichés par défaut, comme en mode guidé. La case reste décochable.
+**Measurement that changed a decision**: with the locations hidden, the scripted player failed at the 52nd part (tile placed on the back face, hidden from the camera). The step locations are now displayed by default, as in guided mode. The checkbox can still be unchecked.
 
-## 3. Tests réellement exécutés
+## 3. Tests actually run
 
-Voir § 6 (sortie de `npm run recette`). Nouveaux tests :
-- **unitaires** `tests/unit/mapping.test.ts` (23) : couverture complète et incomplète, doublons dans une étape et entre étapes, autre modèle, autre modèle principal, autre nombre de pièces, pièces, livrets et pages inconnus, ordre des pages, libellés répétés, multiplicateur, étape vide, plusieurs livrets, sous-modèles, édition sans doublon silencieux, aller-retour export/import exact, entrées malformées ou hors bornes, champs inconnus et `__proto__` ignorés, plan synchronisé (page et rang), avance, annulation, retour arrière, changement de mode, progression v2 et relecture de la v1, empreinte du mapping ;
-- **E2E synthétiques** `tests/e2e/instructions-sync.spec.ts` (4) : éditeur complet (y compris clics 3D réels et ⌥-clic), jeu synchronisé (2 étapes sur une page, encadré, « 2x », tournage de page, consultation, reprise depuis une étape, annulation entre étapes, rechargement, mauvaise notice, retour à la page), absence de mode synchronisé sans mapping valide, repli explicite, progression P5 v1 ;
-- **essai réel** `tests/e2e/instructions-sync-omr.spec.ts` (2, ignorés si les fichiers hors dépôt manquent).
+See § 6 (output of `npm run recette`). New tests:
+- **unit** `tests/unit/mapping.test.ts` (23): complete and incomplete coverage, duplicates within a step and between steps, another model, another main model, another part count, unknown parts, booklets and pages, page order, repeated labels, multiplier, empty step, several booklets, submodels, editing without silent duplicates, exact export/import round trip, malformed or out-of-bounds entries, unknown fields and `__proto__` ignored, synchronized plan (page and rank), advance, undo, going back, mode change, v2 progress and re-reading of v1, mapping fingerprint;
+- **synthetic E2E** `tests/e2e/instructions-sync.spec.ts` (4): complete editor (including real 3D clicks and ⌥-click), synchronized play (2 steps on a page, callout, "2x", page turning, viewing, resume from a step, undo between steps, reload, wrong instructions, return to the page), absence of synchronized mode without a valid mapping, explicit fallback, P5 v1 progress;
+- **real trial** `tests/e2e/instructions-sync-omr.spec.ts` (2, skipped if the files outside the repository are missing).
 
-Le joueur scripté de P5 a été **déplacé sans modification** dans `tests/e2e/scripted-player.ts` ; la spec P5 `omr-validation` l'importe et repasse en entier (§ 6).
+The P5 scripted player was **moved without modification** to `tests/e2e/scripted-player.ts`; the P5 `omr-validation` spec imports it and passes again in full (§ 6).
 
-## 4. Limites
+## 4. Limits
 
-- **Saisie manuelle uniquement** : aucune reconnaissance de la notice. Pour 31040, 24 entrées et 65 pièces ; pour 31009, il faudrait environ 80 entrées et 270 pièces (non fait dans ce lot).
-- **Mapping 31040** : saisi par Claude, puis contrôlé par le propriétaire contre la notice (§ 7). Les 24 entrées sont `verified` sur sa confirmation ; les 4 points incertains sont conservés tels quels, sans correction. Les notes « à confirmer » des étapes 9, 16 et 19 restent dans le fichier.
-- **Empreinte stricte** : une autre édition ou langue de la même notice (autre SHA-256) est refusée, même si ses pages sont identiques. Il faut relier à nouveau le livret dans l'éditeur, ce qui remet en cause la vérification.
-- **Aucune vérification physique de l'ordre** (pièce posée avant son support) : la pose « en l'air » de P5 le permet.
-- **Étapes vides** (assemblage d'un encadré, retournement) : signalées puis sautées en jeu ; leur page n'est pas montrée séparément.
-- **Encadrés** : construits en place, à la position finale, et non à part comme sur la notice.
-- **Raccourci « +1 »** : il prend la première pièce libre dans l'ordre du fichier, pas forcément celle de la page. Le clic 3D est la méthode exacte.
-- **Recette humaine P6** : OK (§ 7), mais grille détaillée et navigateurs testés non transmis.
-- **31009 non essayé** en mode synchronisé (le schéma multi-livret est testé sur fixtures et en unitaire).
+- **Manual input only**: no recognition of the instructions. For 31040, 24 entries and 65 parts; for 31009, about 80 entries and 270 parts would be needed (not done in this batch).
+- **31040 mapping**: entered by Claude, then checked by the owner against the instructions (§ 7). The 24 entries are `verified` on their confirmation; the 4 uncertain points are kept as is, without correction. The "à confirmer" (to be confirmed) notes of steps 9, 16 and 19 remain in the file.
+- **Strict fingerprint**: another edition or language of the same instructions (other SHA-256) is refused, even if its pages are identical. The booklet must be linked again in the editor, which invalidates the verification.
+- **No physical verification of the order** (part placed before its support): P5's "in the air" placement allows it.
+- **Empty steps** (assembly of a callout, flipping): flagged then skipped in play; their page is not shown separately.
+- **Callouts**: built in place, at the final position, and not separately as in the instructions.
+- **"+1" shortcut**: it takes the first free part in file order, not necessarily the one on the page. The 3D click is the exact method.
+- **P6 manual acceptance test**: OK (§ 7), but detailed grid and browsers tested not reported.
+- **31009 not tried** in synchronized mode (the multi-booklet schema is tested on fixtures and in unit tests).
 
 ## 5. Verdict
 
-**GO** (05/11/2026, après recette humaine ; verdict initial du 04/11 : GO sous conditions).
+**GO** (2026-11-05, after manual acceptance test; initial verdict of 11-04: conditional GO).
 
-Démontré : le schéma de correspondance garantit « chaque occurrence exactement une fois ». L'éditeur permet une saisie réelle, et le mode synchronisé fait construire 31040 de bout en bout au rythme de sa notice officielle, page par page, sans pièce hors étape, avec reprise après rechargement. Aucune régression P5 (§ 6). Rien n'est inventé sans mapping valide.
+Demonstrated: the mapping schema guarantees "each occurrence exactly once". The editor allows real input, and synchronized mode has 31040 built end to end at the pace of its official instructions, page by page, with no part outside the step, with resume after reload. No P5 regression (§ 6). Nothing is invented without a valid mapping.
 
-Conditions posées le 04/11, levées le 05/11 (§ 7) :
-1. ✅ **Recette humaine P6** selon `RECETTE_HUMAINE_P6.md` : OK.
-2. ✅ **Vérification du mapping 31040** par le propriétaire contre la notice : 24/24 entrées confirmées, sans correction.
+Conditions set on 11-04, lifted on 11-05 (§ 7):
+1. ✅ **P6 manual acceptance test** per `RECETTE_HUMAINE_P6.md`: OK.
+2. ✅ **Verification of the 31040 mapping** by the owner against the instructions: 24/24 entries confirmed, without correction.
 
-La fusion reste soumise au GO explicite du propriétaire.
+Merging remains subject to the owner's explicit GO.
 
-Hors conditions, à décider : saisie de 31009 (coût de saisie, R9) ; aide à la création des étapes depuis la couche texte du PDF (numéros d'étape), jamais d'affectation automatique des pièces.
+Outside the conditions, to be decided: input of 31009 (input cost, R9); aid for creating steps from the PDF text layer (step numbers), never automatic part assignment.
 
-## 6. Sortie de la recette (04/11/2026, `npm run recette`, sortie 0)
+## 6. Acceptance test output (2026-11-04, `npm run recette`, exit 0)
 
 ```
 check:spec   15 OK, 2 DÉCLARÉ (écarts P5 inchangés), 0 écart nouveau
@@ -107,19 +107,18 @@ playwright   28 passed (11.9m)
 npm run build   OK (production)
 ```
 
-Non exécuté dans ce lot : `npm run perf` (P6 ne touche ni au rendu ni au chargement ; seul un matériau surligné est ajouté, et uniquement dans l'éditeur et la consultation).
+Not run in this batch: `npm run perf` (P6 touches neither rendering nor loading; only a highlighted material is added, and only in the editor and viewing).
 
-## 7. Recette humaine et vérification du mapping (05/11/2026)
+## 7. Manual acceptance test and mapping verification (2026-11-05)
 
-**Conditions.** Serveur de production local (`npm run build && npm run start`, `127.0.0.1:3000`), code de la PR #3 au commit `4ebe7ce`. Fichiers locaux : MPD `2036218e4555…`, notice `38e9cd4e32da…`, mapping préparé (24 entrées, 0 `verified`). Aide fournie : fiche locale `brick-lab-data/proofs/p6/verification-31040/index.html`, générée hors dépôt. Pour chaque entrée, elle donne la page, le numéro, l'encadré et le multiplicateur, les pièces (référence, désignation LDraw, couleur, nombre, position) et la 3D avant/après sous deux angles. Les 4 incertitudes y sont signalées.
+**Conditions.** Local production server (`npm run build && npm run start`, `127.0.0.1:3000`), code of PR #3 at commit `4ebe7ce`. Local files: MPD `2036218e4555…`, instructions `38e9cd4e32da…`, prepared mapping (24 entries, 0 `verified`). Aid provided: local sheet `brick-lab-data/proofs/p6/verification-31040/index.html`, generated outside the repository. For each entry, it gives the page, the number, the callout and the multiplier, the parts (reference, LDraw designation, color, count, position) and the before/after 3D from two angles. The 4 uncertainties are flagged there.
 
-**Résultat communiqué par le propriétaire :**
-- recette (protocole `RECETTE_HUMAINE_P6.md`) : « C'est tout bon ». Aucun KO ni point pénible signalé ; la grille détaillée et la liste des navigateurs n'ont pas été transmises (le protocole prévoit Chrome puis Safari) ;
-- vérification du mapping : « Yes, all 24 » (les 24 entrées contrôlées contre la notice).
+**Result reported by the owner:**
+- acceptance test (`RECETTE_HUMAINE_P6.md` protocol): "C'est tout bon" (It's all good). No KO or annoyance reported; the detailed grid and the list of browsers were not sent (the protocol plans Chrome then Safari);
+- mapping verification: "Yes, all 24" (the 24 entries checked against the instructions).
 
-**Mapping vérifié.**
-- **Fichier exporté depuis l'application** (5 nov., 16:25). Validation : 65/65, 0 doublon, empreinte PDF reconnue. Affectations et ordre **identiques** au mapping préparé (même `mappingDigest`) : aucune correction. 1 entrée sur 24 cochée « Vérifiée » dans l'interface.
-- **Marquage des 23 autres entrées** : passées en `verified` **sur la confirmation explicite du propriétaire** (« Yes, all 24 »), par script, sans aucun autre changement. Résultat : 24/24 `verified`, validation sans remarque, empreinte des affectations inchangée.
-- **Rangement, hors dépôt** : `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json` (SHA-256 `7639e54c1370…`). La version préparée par Claude est conservée dans `31040-1.prepared-by-claude.brick-mapping.json`.
-- **Points incertains** (étapes 4, 9, 16, 19) : validés tels que saisis. Aucune modification de code ni de spécification pendant la recette.
-
+**Verified mapping.**
+- **File exported from the application** (Nov 5, 16:25). Validation: 65/65, 0 duplicates, PDF fingerprint recognized. Assignments and order **identical** to the prepared mapping (same `mappingDigest`): no correction. 1 entry out of 24 ticked "Vérifiée" (Verified) in the interface.
+- **Marking of the other 23 entries**: set to `verified` **on the owner's explicit confirmation** ("Yes, all 24"), by script, with no other change. Result: 24/24 `verified`, validation with no remark, assignment fingerprint unchanged.
+- **Filing, outside the repository**: `~/Documents/brick-lab-data/mappings/31040-1.brick-mapping.json` (SHA-256 `7639e54c1370…`). The version prepared by Claude is kept in `31040-1.prepared-by-claude.brick-mapping.json`.
+- **Uncertain points** (steps 4, 9, 16, 19): validated as entered. No change to code or specification during the acceptance test.

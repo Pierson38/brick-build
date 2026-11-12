@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   verifications:
-    name: Vérifications (${{ matrix.os }})
+    name: Checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -32,9 +32,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Spécification figée
+      - name: Frozen specification
         run: npm run check:spec
       - name: TypeScript strict
         run: npm run typecheck
-      - name: Tests unitaires
+      - name: Unit tests
         run: npm test

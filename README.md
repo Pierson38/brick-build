@@ -1,37 +1,40 @@
 # Brick Lab Local
 
-Application web **locale** (macOS, Windows en préversion) pour reconstruire virtuellement, pièce par pièce, des sets de briques à partir de fichiers **LDraw** (`.mpd` / `.ldr`) et de la notice PDF que tu as toi-même téléchargée.
+A **local** web app (macOS; Windows in preview) to rebuild brick sets virtually, part by part, from **LDraw** files (`.mpd` / `.ldr`) and the PDF instructions you downloaded yourself.
 
-![Atelier en montage libre : manipulateur 3D, panneau du modèle et bac de pièces](docs/implementation/preuves/libre/gizmo-fleches.png)
+![Workshop in free building mode: model with a selected assembly and the 3D manipulator, model panel and parts tray](docs/images/workshop-free-building.png)
 
-> **Projet personnel, non affilié au groupe LEGO.** LEGO® est une marque du groupe LEGO, qui ne parraine ni n'approuve ce projet. Le dépôt ne contient **aucune** notice, aucun modèle de set tiers ni aucune bibliothèque de pièces : tout est importé localement par l'utilisateur.
+> **Personal project, not affiliated with the LEGO Group.** LEGO® is a trademark of the LEGO Group, which does not sponsor or endorse this project. The repository contains **no** instructions, no third-party set models and no parts library: everything is imported locally by the user.
+>
+> The interface is available in French and English (FR/EN switch in the top bar); the documentation is in English.
 
-## Fonctionnalités
+## Features
 
-- **Ma collection** : bibliothèque personnelle de sets et de constructions, avec progression, miniatures, sauvegarde et restauration (stockée dans `~/Documents/brick-lab-data/`, ou `%USERPROFILE%\brick-lab-data\` sous Windows).
-- **Ajouter un set** : saisie d'un numéro (`31040` → `31040-1`), recherche dans tes fichiers locaux puis, sur clic uniquement, sur l'[OMR LDraw](https://library.ldraw.org/omr) ; lien vers la page officielle des notices ; métadonnées Rebrickable facultatives. Glisser-déposer de `.mpd`, `.ldr`, `.pdf` et `.brick-mapping.json` sans Internet.
-- **Diagnostic de compatibilité** avant import : étapes LDraw, sous-modèles, pièces absentes de la bibliothèque locale, licence et auteur lus dans le fichier, modes de jeu réellement disponibles et pourquoi.
-- **Mode guidé** : quand le fichier contient des étapes (`0 STEP`), les emplacements de l'étape s'affichent et chaque pièce s'aimante à sa cible.
-- **Montage libre** : construire dans l'ordre de son choix en suivant la notice, poser où l'on pointe, rotations X/Y/Z, manipulateur 3D (flèches et anneaux), sélection et déplacement d'assemblages connectés, aimantation tenon/réceptacle et goupille/trou entre pièces.
-- **Notice PDF** dans un panneau latéral redimensionnable (PDF.js), et **notice synchronisée** : éditeur de correspondances pages ↔ étapes 3D, exportable en `.brick-mapping.json`.
-- **Reprise** après rechargement ou redémarrage, annulation, abandon.
+- **My collection** ("Ma collection"): a personal library of sets and builds, with progress, thumbnails, backup and restore (stored in `~/Documents/brick-lab-data/`, or `%USERPROFILE%\brick-lab-data\` on Windows).
+- **Add a set**: type a set number (`31040` → `31040-1`), search your local files and then, only when you click, the [LDraw OMR](https://library.ldraw.org/omr); link to the official instructions page; optional Rebrickable metadata. Drag and drop `.mpd`, `.ldr`, `.pdf` and `.brick-mapping.json` files without Internet access.
+- **Compatibility check** before import: LDraw steps, submodels, parts missing from the local library, license and author read from the file, which play modes are actually available and why.
+- **Guided mode**: when the file contains steps (`0 STEP`), the step's target positions are shown and each part snaps to its target. The part in hand can be rotated around X, Y and Z.
+- **Free building**: build in any order while following the instructions, place parts where you point, X/Y/Z rotations down to the degree, 3D manipulator (arrows and rings), selection and moving of connected assemblies (Shift + double-click adds another assembly), stud/anti-stud and pin/pin-hole snapping between parts.
+- **PDF instructions** in a resizable side panel (PDF.js), and **synchronized instructions**: an editor mapping instruction pages ↔ 3D steps, exportable as `.brick-mapping.json`.
+- **Resume** after reload or restart, undo, abandon.
+- French and English interface, light and dark themes.
 
-## Principes
+## Principles
 
-- **Local uniquement** : le serveur écoute sur `127.0.0.1`, télémétrie Next.js désactivée, aucun compte, aucune analytics, aucun stockage cloud.
-- **Réseau minimal et explicite** : seules les actions « Chercher en ligne » et « Télécharger » contactent l'OMR (et Rebrickable si une clé est configurée), avec liste d'hôtes autorisés, tailles et délais bornés. `BRICK_LAB_ONLINE=0` coupe tout accès réseau. Les notices LEGO ne sont jamais téléchargées automatiquement.
-- **Fichiers non fiables** : parsing borné (taille, profondeur, cycles, chemins `../`, noms dupliqués, références absentes).
-- **Honnêteté sur les limites** : un modèle est signalé incomplet ou sans étapes plutôt que présenté comme jouable.
+- **Local only**: the server listens on `127.0.0.1`, Next.js telemetry is disabled, no account, no analytics, no cloud storage.
+- **Minimal, explicit networking**: only the "Search online" and "Download" actions contact the OMR (and Rebrickable if a key is configured), with an allowlist of hosts and bounded sizes and timeouts. `BRICK_LAB_ONLINE=0` disables all network access. LEGO instructions are never downloaded automatically.
+- **Untrusted files**: bounded parsing (size, depth, cycles, `../` paths, duplicate names, missing references).
+- **Honest about limits**: a model is flagged as incomplete or step-less rather than presented as playable.
 
-## Prérequis
+## Requirements
 
-- macOS, ou Windows 10/11 (préversion, voir [Windows](#windows-préversion)).
-- **Node.js ≥ 20.9** (testé avec 24.5) et npm ; **Git** (sous Windows : Git pour Windows).
-- La **bibliothèque de pièces LDraw** (gratuite, CC BY 4.0), à télécharger une fois et à conserver hors du dépôt.
+- macOS, or Windows 10/11 (preview, see [Windows](#windows-preview)).
+- **Node.js ≥ 20.9** (tested with 24.5) and npm; **Git** (on Windows: Git for Windows).
+- The **LDraw parts library** (free, CC BY 4.0), downloaded once and kept outside the repository.
 
 ## Installation
 
-### 1. Code et dépendances
+### 1. Code and dependencies
 
 ```bash
 git clone https://github.com/Pierson38/brick-build.git
@@ -45,56 +48,56 @@ cd brick-build
 npm ci
 ```
 
-### 2. Bibliothèque de pièces LDraw
+### 2. LDraw parts library
 
-Télécharge [`complete.zip`](https://library.ldraw.org/library/updates/complete.zip) et décompresse-le dans ton dossier de données ; il contient un dossier `ldraw/`.
+Download [`complete.zip`](https://library.ldraw.org/library/updates/complete.zip) and unzip it into your data folder; it contains an `ldraw/` folder.
 
-| | Dossier de données par défaut | Bibliothèque LDraw |
+| | Default data folder | LDraw library |
 |---|---|---|
 | macOS | `~/Documents/brick-lab-data` | `~/Documents/brick-lab-data/ldraw` |
 | Windows | `%USERPROFILE%\brick-lab-data` | `%USERPROFILE%\brick-lab-data\ldraw` |
 
-Sous Windows, dans PowerShell :
+On Windows, in PowerShell:
 
 ```powershell
 Expand-Archive "$HOME\Downloads\complete.zip" -DestinationPath "$HOME\brick-lab-data"
 ```
 
-### 3. Fichier `.env.local`
+### 3. `.env.local` file
 
-À la racine du projet, il indique où se trouve la bibliothèque LDraw. macOS :
+At the project root, it tells the app where the LDraw library is. macOS:
 
 ```bash
 printf 'LDRAW_LIBRARY_DIR=%s/Documents/brick-lab-data/ldraw\n' "$HOME" > .env.local
 ```
 
-Windows (PowerShell ; écrit le chemin avec des `/` et en UTF-8 sans BOM) :
+Windows (PowerShell; writes the path with `/` and as UTF-8 without BOM):
 
 ```powershell
 [IO.File]::WriteAllText("$PWD\.env.local", "LDRAW_LIBRARY_DIR=$($HOME -replace '\\', '/')/brick-lab-data/ldraw`n")
 ```
 
-Si tu l'écris à la main, enregistre-le en **UTF-8 sans BOM** sous le nom exact `.env.local` (le Bloc-notes peut ajouter `.txt`). Options facultatives :
+If you write it by hand, save it as **UTF-8 without BOM** under the exact name `.env.local` (Notepad may append `.txt`). Optional settings:
 
 ```dotenv
-# BRICK_LAB_DATA_DIR=/chemin/vers/mes/donnees   # autre dossier de données (évite un dossier synchronisé par OneDrive/iCloud)
-# REBRICKABLE_API_KEY=<clé personnelle>          # nom, année et nombre de pièces annoncé
-# BRICK_LAB_ONLINE=0                             # interdit tout accès Internet
+# BRICK_LAB_DATA_DIR=/path/to/my/data   # another data folder (avoid a folder synced by OneDrive/iCloud)
+# REBRICKABLE_API_KEY=<personal key>     # name, year and announced part count
+# BRICK_LAB_ONLINE=0                     # forbids any Internet access
 ```
 
-### 4. Vérification
+### 4. Check
 
 ```bash
 npm run check:ldraw
 ```
 
-## Lancement
+## Running
 
 ```bash
 npm run dev
 ```
 
-Puis ouvre <http://127.0.0.1:3000>. Pour un usage quotidien plus fluide, utilise le build de production, en deux commandes (Windows PowerShell 5.1 ne connaît pas `&&`) :
+Then open <http://127.0.0.1:3000>. For smoother everyday use, run the production build, in two commands (Windows PowerShell 5.1 does not support `&&`):
 
 ```bash
 npm run build
@@ -104,9 +107,9 @@ npm run build
 npm start
 ```
 
-Pages principales : `/` (Ma collection), `/ajouter` (ajouter un set), `/atelier` (atelier sans collection, pour essayer un fichier).
+Main pages: `/` (My collection), `/ajouter` (add a set), `/atelier` (standalone workshop, to try a file without adding it to the collection).
 
-Pour un premier essai sans rien télécharger d'autre que la bibliothèque de pièces, ouvre `/atelier` et importe `fixtures/mini-4-pieces.mpd`.
+For a first try without downloading anything but the parts library, open `/atelier` and import `fixtures/mini-4-pieces.mpd`.
 
 ## Tests
 
@@ -118,76 +121,77 @@ npx playwright install chromium
 npm run recette
 ```
 
-`recette` enchaîne le contrôle du manifeste de spécification, `tsc --noEmit`, Vitest et Playwright. Les suites E2E démarrent leur propre serveur sur un dossier temporaire et sur le port 3000 : arrête `npm run dev` (et tout autre serveur sur ce port) avant de les lancer, sinon elles le réutiliseraient.
+`recette` (acceptance) runs the specification manifest check, `tsc --noEmit`, Vitest and Playwright in sequence. The E2E suites start their own server on a temporary folder and on port 3000: stop `npm run dev` (and any other server on that port) before running them, otherwise they would reuse it.
 
-| Commande | Rôle |
+| Command | Purpose |
 |---|---|
-| `npm run typecheck` | TypeScript strict |
-| `npm test` | Tests unitaires (parseur, moteur, connexions, bibliothèque, import, portabilité Windows) |
-| `npm run test:e2e` | Parcours Playwright sur fixtures synthétiques |
-| `npm run perf` | Mesures sur build de production |
-| `npm run compat-report -- <fichier.mpd>` | Rapport de compatibilité d'un modèle |
+| `npm run typecheck` | Strict TypeScript |
+| `npm test` | Unit tests (parser, engine, connections, library, import, Windows portability) |
+| `npm run test:e2e` | Playwright journeys on synthetic fixtures |
+| `npm run perf` | Measurements on a production build |
+| `npm run compat-report -- <file.mpd>` | Compatibility report for a model |
 
-Les tests sur sets réels (`*-omr.spec.ts`, `tests/recette/`) lisent des fichiers placés dans le dossier de données par défaut (ou dans la variable d'environnement `BRICK_LAB_DATA`) et sont ignorés quand ils sont absents.
+Tests on real sets (`*-omr.spec.ts`, `tests/recette/`) read files placed in the default data folder (or in the `BRICK_LAB_DATA` environment variable) and are skipped when those files are absent.
 
 ## Stack
 
-Next.js (App Router) · React · TypeScript strict · Three.js + `@react-three/fiber` / `drei` (`LDrawLoader`) · PDF.js · Vitest · Playwright.
+Next.js (App Router) · React · strict TypeScript · Three.js + `@react-three/fiber` / `drei` (`LDrawLoader`) · PDF.js · Vitest · Playwright.
 
 ```text
 src/
-  app/          pages et routes API locales
-  components/   atelier, collection, import, PDF, scène 3D
-  domain/       parseur LDraw, moteur de construction, connexions, import (sans Three.js)
-  infra/        accès à la bibliothèque LDraw, persistance, miniatures
-  server/       bibliothèque personnelle, accès réseau encadré, sources en ligne
-fixtures/       petits modèles LDraw originaux (CC0)
-tests/          unitaires, E2E, performance, recettes réelles
-docs/           spécification et notes d'implémentation
+  app/          pages and local API routes
+  components/   workshop, collection, import, PDF, 3D scene
+  domain/       LDraw parser, build engine, connections, import (no Three.js)
+  infra/        LDraw library access, persistence, thumbnails
+  server/       personal library, guarded network access, online sources
+fixtures/       small original LDraw models (CC0)
+tests/          unit, E2E, performance, real-set acceptance tests
+docs/           specification and implementation notes
 ```
 
 ## Documentation
 
-- [`docs/01` à `docs/09`](docs/) : spécification initiale v1.0 (produit, architecture, LDraw, UX, plan, tests, droits, schéma de données, risques), figée et contrôlée par `npm run check:spec`.
-- [`docs/implementation/`](docs/implementation/README.md) : notes de lots, journal des décisions, écarts, rapports de recette et captures.
-- [`CLAUDE.md`](CLAUDE.md) et [`PROMPT_CLAUDE_CODE.md`](PROMPT_CLAUDE_CODE.md) : consignes de développement (le projet est développé avec Claude Code).
+- [`docs/01` to `docs/09`](docs/): initial v1.0 specification (product, architecture, LDraw, UX, plan, tests, rights, data schema, risks), frozen and checked by `npm run check:spec`. File names are kept in French so the manifest stays traceable.
+- [`docs/implementation/`](docs/implementation/README.md): batch notes, decision log, deviations, acceptance reports and screenshots.
+- [`REFONTE/`](REFONTE/rapport.md): UI redesign report, with before/after screenshots.
+- [`CLAUDE.md`](CLAUDE.md) and [`PROMPT_CLAUDE_CODE.md`](PROMPT_CLAUDE_CODE.md): development guidelines (the project is developed with Claude Code).
 
-## Limites connues
+## Known limitations
 
-- Tous les sets ne sont pas jouables : cela dépend de la qualité du fichier LDraw (étapes, sous-modèles, pièces disponibles).
-- L'inventaire d'un fichier OMR n'est pas garanti identique à celui de la boîte.
-- Aucune conversion automatique d'une notice PDF en données 3D : la synchronisation notice ↔ 3D repose sur des correspondances saisies.
-- L'aimantation reconnaît tenons, réceptacles, goupilles et trous de goupille ; axes, clips, barres et charnières ne le sont pas encore.
-- Testé sur macOS avec Chromium et WebKit. La prise en charge de Windows est une **préversion** : voir ci-dessous.
+- Not every set is playable: it depends on the quality of the LDraw file (steps, submodels, available parts).
+- The inventory of an OMR file is not guaranteed to match the one in the box.
+- No automatic conversion of PDF instructions into 3D data: instructions ↔ 3D synchronization relies on manually entered mappings.
+- Snapping recognizes studs, anti-studs, pins and pin holes; axles, clips, bars and hinges are not supported yet.
+- Tested on macOS with Chromium and WebKit. Windows support is a **preview**: see below.
 
-## Windows (préversion)
+## Windows (preview)
 
-Les commandes npm sont les mêmes que sur Mac, dans PowerShell ou l'invite de commandes : les scripts npm et Playwright passent par `scripts/run-next.mjs` et n'utilisent plus de syntaxe propre à macOS/Linux. Ce qui change sous Windows :
+The npm commands are the same as on Mac, in PowerShell or the command prompt: npm and Playwright scripts go through `scripts/run-next.mjs` and no longer use macOS/Linux-specific syntax. What changes on Windows:
 
-- **Dossier de données** : `%USERPROFILE%\brick-lab-data` par défaut, et non `Documents`, souvent déplacé dans OneDrive, dont la synchronisation verrouille les fichiers. Évite aussi un dossier synchronisé pour `BRICK_LAB_DATA_DIR`.
-- **Noms de fichiers** : les noms réservés par Windows (`con`, `nul`, `com1`…, même avec une extension) et ceux qui finissent par un point ou une espace sont refusés.
-- **Fins de ligne** : `.gitattributes` impose LF, quel que soit `core.autocrlf` ; sans cela, `npm run check:spec` échouerait.
-- **Écritures** : un renommage bloqué un instant par un antivirus, l'indexeur ou OneDrive est réessayé ; sur un disque sans liens physiques (FAT/exFAT), les fichiers sont copiés puis renommés.
-- **Droits** : les fichiers de la bibliothèque héritent des droits du dossier du profil (le mode `600` de macOS n'existe pas sous Windows).
+- **Data folder**: `%USERPROFILE%\brick-lab-data` by default, not `Documents`, which is often moved into OneDrive, whose syncing locks files. Also avoid a synced folder for `BRICK_LAB_DATA_DIR`.
+- **File names**: names reserved by Windows (`con`, `nul`, `com1`…, even with an extension) and names ending with a dot or a space are rejected.
+- **Line endings**: `.gitattributes` enforces LF regardless of `core.autocrlf`; otherwise `npm run check:spec` would fail.
+- **Writes**: a rename briefly blocked by an antivirus, the indexer or OneDrive is retried; on a disk without hard links (FAT/exFAT), files are copied then renamed.
+- **Permissions**: library files inherit the permissions of the profile folder (the macOS `600` mode does not exist on Windows).
 
-Ces adaptations sont testées sur macOS avec une plateforme simulée ; **aucune exécution sur une vraie machine Windows n'a encore été faite**. Les retours sont bienvenus.
+The unit tests run on Windows in CI; **the app itself has not yet been run on a real Windows machine**. Feedback is welcome.
 
-## Contenus tiers et droits
+## Third-party content and rights
 
-- La **bibliothèque de pièces LDraw** et les **modèles de l'OMR** sont des contributions communautaires sous leurs propres licences (CC BY 2.0/4.0 selon les fichiers) ; l'application lit et affiche la licence déclarée dans chaque fichier.
-- Les **notices** sont protégées par le droit d'auteur : télécharge-les toi-même sur le site officiel, pour ton usage personnel, et ne les redistribue pas.
-- Ne commite jamais de notice, de modèle de set tiers ou de bibliothèque de pièces dans ce dépôt (`.gitignore` exclut `local-models/`, `local-instructions/`, `local-ldraw-library/`).
+- The **LDraw parts library** and **OMR models** are community contributions under their own licenses (CC BY 2.0/4.0 depending on the file); the app reads and displays the license declared in each file.
+- **Instructions** are protected by copyright: download them yourself from the official website, for your personal use, and do not redistribute them.
+- Never commit instructions, third-party set models or a parts library to this repository (`.gitignore` excludes `local-models/`, `local-instructions/`, `local-ldraw-library/`).
 
-Détails : [`docs/07_DROITS_ET_SOURCES.md`](docs/07_DROITS_ET_SOURCES.md). Ce document n'est pas un avis juridique.
+Details: [`docs/07_DROITS_ET_SOURCES.md`](docs/07_DROITS_ET_SOURCES.md). This document is not legal advice.
 
-## Contribuer
+## Contributing
 
-Les issues et les pull requests sont les bienvenues : lis d'abord [`CONTRIBUTING.md`](CONTRIBUTING.md) (règle d'or : aucun contenu tiers dans le dépôt, les issues ou les PR). Une faille de sécurité se signale en privé, voir [`SECURITY.md`](SECURITY.md). Les échanges suivent le [code de conduite](CODE_OF_CONDUCT.md).
+Issues and pull requests are welcome: read [`CONTRIBUTING.md`](CONTRIBUTING.md) first (golden rule: no third-party content in the repository, issues or PRs). Report security vulnerabilities privately, see [`SECURITY.md`](SECURITY.md). Interactions follow the [code of conduct](CODE_OF_CONDUCT.md).
 
-## Licence
+## License
 
-Code sous licence [MIT](LICENSE). Les fixtures de `fixtures/` et `tests/fixtures/` sont des créations originales sous CC0-1.0.
+Code under the [MIT](LICENSE) license. The fixtures in `fixtures/` and `tests/fixtures/` are original works under CC0-1.0.
 
-La licence MIT couvre uniquement le code et la documentation de ce dépôt. Elle ne s'étend ni à la bibliothèque de pièces LDraw, ni aux modèles de l'OMR, ni aux notices ou marques LEGO, qui restent soumis à leurs propres conditions.
+The MIT license covers only the code and documentation of this repository. It does not extend to the LDraw parts library, OMR models, or LEGO instructions or trademarks, which remain subject to their own terms.
 
-La version d'origine de ce README (dossier de spécification v1.0) reste consultable dans le commit `b019989` (`git show b019989:README.md`).
+The original version of this README (v1.0 specification dossier, in French) is still available in commit `b019989` (`git show b019989:README.md`).

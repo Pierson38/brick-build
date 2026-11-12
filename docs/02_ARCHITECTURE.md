@@ -1,48 +1,48 @@
-# 02 — Architecture proposée
+# 02 — Proposed architecture
 
-## Choix techniques
+## Technical choices
 
-- **UI** : Next.js (App Router) + React + TypeScript strict ; composants client pour WebGL/PDF.
-- **3D** : Three.js + `@react-three/fiber`; `@react-three/drei` pour caméra/contrôles si pertinent.
-- **Lecture géométrique** : `LDrawLoader` officiel (`three/addons/loaders/LDrawLoader.js`), **à vérifier par spike** pour les occurrences individuelles. Il peut créer une scène agrégée : ne pas assimiler les meshes à une ligne type 1.
-- **Parser structurel** : code TS maison isolé et testable, sans Three.js ; lecture des lignes type 1, MPD, STEP, sous-modèles, couleur héritée.
-- **PDF** : PDF.js (`pdfjs-dist`) en client-only, worker correctement configuré selon la version réellement installée ; pas de requête au serveur LEGO.
-- **État** : Zustand ou React state léger ; ne pas imposer Redux.
-- **Persistance** : IndexedDB si nécessaire pour données structurées volumineuses, ou localStorage pour petit état de progression, avec version de schéma, hash du fichier et contrôles de taille.
-- **Tests** : Vitest (parseur et règles de progression), Playwright (parcours import et jeu), tests visuels manuels ciblés.
+- **UI**: Next.js (App Router) + React + strict TypeScript; client components for WebGL/PDF.
+- **3D**: Three.js + `@react-three/fiber`; `@react-three/drei` for camera/controls if relevant.
+- **Geometry reading**: official `LDrawLoader` (`three/addons/loaders/LDrawLoader.js`), **to be verified by a spike** for individual occurrences. It may create an aggregated scene: do not equate meshes with a type 1 line.
+- **Structural parser**: in-house TS code, isolated and testable, without Three.js; reads type 1 lines, MPD, STEP, submodels, inherited color.
+- **PDF**: PDF.js (`pdfjs-dist`) client-only, worker configured correctly for the version actually installed; no request to the LEGO server.
+- **State**: Zustand or lightweight React state; do not impose Redux.
+- **Persistence**: IndexedDB if needed for large structured data, or localStorage for small progress state, with schema version, file hash, and size checks.
+- **Tests**: Vitest (parser and progression rules), Playwright (import and game flows), targeted manual visual tests.
 
-## Domaines
+## Domains
 
-1. `model-import`: File API, validation, sélection du modèle racine, diagnostics.
-2. `ldraw-parser`: représentation sémantique des occurrences (ne rend rien).
-3. `geometry-catalog`: pièces LDraw et géométries ; gestion des références manquantes.
-4. `build-plan`: étapes jouables ou absence d'étapes, ordre conservé, sous-assemblages.
-5. `build-engine`: choix de pièce, état de pose, snap / tolérances, undo, complétion ; deux stratégies distinctes `guided` (étape active) et `freeManual` (toutes les cibles restantes compatibles).
-6. `viewer-3d`: scène, caméra, ghost piece, interactions.
-7. `pdf-viewer`: aperçu local, pages, zoom, mémoire de page.
-8. `persistence`: sérialisation, migration, hash, reprise.
+1. `model-import`: File API, validation, root model selection, diagnostics.
+2. `ldraw-parser`: semantic representation of occurrences (renders nothing).
+3. `geometry-catalog`: LDraw parts and geometries; handling of missing references.
+4. `build-plan`: playable steps or absence of steps, preserved order, subassemblies.
+5. `build-engine`: part choice, placement state, snap / tolerances, undo, completion; two distinct strategies `guided` (active step) and `freeManual` (all remaining compatible targets).
+6. `viewer-3d`: scene, camera, ghost piece, interactions.
+7. `pdf-viewer`: local preview, pages, zoom, page memory.
+8. `persistence`: serialization, migration, hash, resume.
 
-## Flux de données
+## Data flow
 
 ```text
-Utilisateur importe un fichier .mpd/.ldr
-  → validation et hash
-  → parser structurel : MPD, type-1, STEP, hiérarchie
-  → résolution des références vers la bibliothèque de pièces locale
-  → diagnostic de complétude + préparation des étapes
-  → renderer 3D + moteur de jeu
+User imports a .mpd/.ldr file
+  → validation and hash
+  → structural parser: MPD, type-1, STEP, hierarchy
+  → resolution of references against the local part library
+  → completeness diagnostic + step preparation
+  → 3D renderer + game engine
 
-Utilisateur importe PDF
-  → validation PDF locale
-  → PDF.js, panneau notice
-  → navigation pages indépendante
+User imports PDF
+  → local PDF validation
+  → PDF.js, instructions panel
+  → independent page navigation
 
-Moteur de jeu
-  → liste des occurrences posées + progression
-  → stockage local lié au hash du modèle
+Game engine
+  → list of placed occurrences + progress
+  → local storage tied to the model hash
 ```
 
-## Proposition d'arborescence de l'application
+## Proposed application tree
 
 ```text
 src/
@@ -64,17 +64,17 @@ src/
   tests/...
 ```
 
-Ceci est une proposition ; adapter aux conventions existantes. Éviter les dépendances serveurs inutiles.
+This is a proposal; adapt it to existing conventions. Avoid unnecessary server dependencies.
 
-## Note essentielle sur le rendu
+## Essential note on rendering
 
-Les groupes renvoyés par `LDrawLoader` ne garantissent pas automatiquement une correspondance 1 groupe = 1 brique. Pour rendre les briques manipulables séparément, faire **un spike expérimental** : identifier les capacités du loader moderne ou assembler les géométries par occurrence à partir du parser. Les étapes sont fournies par le parser, jamais déduites naïvement du nombre de meshes.
+The groups returned by `LDrawLoader` do not automatically guarantee a 1 group = 1 brick mapping. To make bricks individually manipulable, run **an experimental spike**: identify the capabilities of the modern loader or assemble geometries per occurrence from the parser. Steps are provided by the parser, never naively deduced from the number of meshes.
 
-Le modèle d'occurrences est la source de vérité pour le gameplay ; Three.js ne sert qu'à l'affichage et à l'interaction.
+The occurrence model is the source of truth for gameplay; Three.js is only used for display and interaction.
 
-## Performance et sûreté
+## Performance and safety
 
-- Commencer avec 4 pièces, puis 50, puis 300 ; mesurer temps d'import, premier rendu, FPS, mémoire.
-- Réutiliser les géométries des références identiques ; `InstancedMesh` si le mode sélection/ghosting le permet, sinon simplifier pour la V1.
-- Borner les tailles d'uploads, le nombre de sections, le nombre de pièces, la profondeur de sous-modèles, et le travail sur thread principal.
-- Ne pas construire une API distante ou exposer le serveur sur `0.0.0.0` par défaut.
+- Start with 4 parts, then 50, then 300; measure import time, first render, FPS, memory.
+- Reuse geometries for identical references; `InstancedMesh` if the selection/ghosting mode allows it, otherwise simplify for V1.
+- Bound upload sizes, the number of sections, the number of parts, the submodel depth, and main-thread work.
+- Do not build a remote API or expose the server on `0.0.0.0` by default.

@@ -1,10 +1,10 @@
-# Recette humaine P7 — à faire par le propriétaire (Chrome puis Safari, Mac)
+# P7 manual acceptance test — to be done by the owner (Chrome then Safari, Mac)
 
-> Les tests Playwright pilotent la souris par script, et WebKit de Playwright n'est pas l'application Safari : ils ne remplacent pas un essai réel.
+> The Playwright tests drive the mouse by script, and Playwright's WebKit is not the Safari application: they do not replace a real trial.
 
-Durée estimée : 30–40 min.
+Estimated duration: 30–40 min.
 
-## 0. Préparation
+## 0. Preparation
 
 ```bash
 cd <worktree feat/p7-personal-library>
@@ -13,67 +13,67 @@ npm run build
 npm run start
 ```
 
-Ouvrir http://127.0.0.1:3000 dans **Chrome**. La collection utilise `~/Documents/brick-lab-data/library/` (créé par P7). Pendant le développement, Claude y a ajouté 31040 « Desert Racers » et 31009 « Small Cottage » et posé 12 pièces de 31040. **Ne fais pas les étapes 1.2–1.3 si les deux sets sont déjà là** ; passe directement au § 2. Une copie de sécurité du dossier `library/` a été faite avant ta recette (voir le rapport, § 7) ; Claude n'a rien renommé ni supprimé.
+Open http://127.0.0.1:3000 in **Chrome**. The collection uses `~/Documents/brick-lab-data/library/` (created by P7). During development, Claude added 31040 "Desert Racers" and 31009 "Small Cottage" to it and placed 12 parts of 31040. **Do not do steps 1.2–1.3 if both sets are already there**; go straight to section 2. A safety copy of the `library/` folder was made before your acceptance test (see the report, section 7); Claude did not rename or delete anything.
 
 ## 1. Collection
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 1.1 | Ouvrir l'application | Page « Ma collection » ; si elle est vide, un bandeau jaune « set(s) trouvé(s) dans ton dossier de données » | |
-| 1.2 | Déplier le bandeau | 31040 : notice cochée, correspondances `31040-1.brick-mapping.json` (24/24 vérifiées) présélectionnées ; 31009 : 3 notices proposées | |
-| 1.3 | Ajouter 31040 (nom « Desert Racers ») et 31009 (« Small Cottage », ne garder que la notice 6038244) | Deux cartes avec miniature 3D, nombre de pièces, fichiers, modes, « Jamais commencé » | |
-| 1.4 | Vérifier que `models/`, `instructions/`, `mappings/` n'ont pas changé (Finder, dates) | Rien de copié ni déplacé | |
-| 1.5 | Rechercher « 31040 », puis « cottage » ; filtres En cours / Terminés / Non commencés | Filtrage correct | |
+| 1.1 | Open the application | "Ma collection" (My collection) page; if it is empty, a yellow banner "set(s) trouvé(s) dans ton dossier de données" (set(s) found in your data folder) | |
+| 1.2 | Expand the banner | 31040: instructions checked, mappings `31040-1.brick-mapping.json` (24/24 verified) preselected; 31009: 3 instruction booklets offered | |
+| 1.3 | Add 31040 (name "Desert Racers") and 31009 ("Small Cottage", keep only the instructions 6038244) | Two cards with 3D thumbnail, part count, files, modes, "Jamais commencé" (Never started) | |
+| 1.4 | Check that `models/`, `instructions/`, `mappings/` have not changed (Finder, dates) | Nothing copied or moved | |
+| 1.5 | Search "31040", then "cottage"; filters "En cours" (In progress) / "Terminés" (Completed) / "Non commencés" (Not started) | Correct filtering | |
 
-## 2. Reprise de 31040 en notice synchronisée (critère principal)
+## 2. Resuming 31040 in synchronized instructions mode (main criterion)
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 2.1 | Carte 31040 → « Construire » | Atelier : modèle chargé **sans sélection de fichier** | |
-| 2.2 | « Commencer — notice synchronisée » | Onglet Notice : livret 6145903 ouvert tout seul, p. 2, étape 1 | |
-| 2.3 | Poser une dizaine de pièces | La page suit les étapes ; en haut « Enregistré dans la bibliothèque » | |
-| 2.4 | « ← Ma collection » | Carte : x/65 pièces posées, « En cours », bouton « Reprendre » | |
-| 2.5 | **Quitter Chrome** (⌘Q), arrêter le serveur (Ctrl+C), le relancer (`npm run start`), rouvrir Chrome | Même carte, même progression | |
-| 2.6 | « Reprendre » | « Progression restaurée », mode Notice synchronisée, même étape, même page, livret ouvert sans import | |
+| 2.1 | 31040 card → "Construire" (Build) | Workshop: model loaded **without file selection** | |
+| 2.2 | "Commencer — notice synchronisée" (Start — synchronized instructions) | Notice tab (instructions): booklet 6145903 opens by itself, p. 2, step 1 | |
+| 2.3 | Place about ten parts | The page follows the steps; at the top "Enregistré dans la bibliothèque" (Saved in the library) | |
+| 2.4 | "← Ma collection" | Card: x/65 parts placed, "En cours", "Reprendre" (Resume) button | |
+| 2.5 | **Quit Chrome** (⌘Q), stop the server (Ctrl+C), restart it (`npm run start`), reopen Chrome | Same card, same progress | |
+| 2.6 | "Reprendre" | "Progression restaurée" (Progress restored), Notice synchronisée mode, same step, same page, booklet open without import | |
 
-## 3. Safari, même bibliothèque
+## 3. Safari, same library
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 3.1 | Ouvrir http://127.0.0.1:3000 dans **Safari** | Même collection, même progression | |
-| 3.2 | Reprendre 31040, poser 2 pièces | Enregistré ; la notice suit | |
-| 3.3 | Revenir dans Chrome (onglet resté ouvert sur l'atelier) et poser une pièce | Message « enregistrée entre-temps depuis un autre onglet ou navigateur… Recharger » : **rien n'est écrasé** ; après « Recharger », la progression Safari est là | |
+| 3.1 | Open http://127.0.0.1:3000 in **Safari** | Same collection, same progress | |
+| 3.2 | Resume 31040, place 2 parts | Saved; the instructions follow | |
+| 3.3 | Go back to Chrome (tab left open on the workshop) and place a part | Message "enregistrée entre-temps depuis un autre onglet ou navigateur… Recharger" (saved in the meantime from another tab or browser… Reload): **nothing is overwritten**; after "Recharger", the Safari progress is there | |
 
-## 4. Détail d'un set et gestion
+## 4. Set detail and management
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 4.1 | « Détails » de 31040 | Aperçu 3D, fichiers « disponible / laissé en place », correspondances valides 24/24, modes, diagnostics | |
-| 4.2 | Renommer le set, « Enregistrer » | Nom changé, progression conservée | |
-| 4.3 | « Vérifier les empreintes » | « fichier(s) vérifié(s) : empreintes SHA-256 identiques » | |
-| 4.4 | Détail de 31009 → « Associer une ou plusieurs notices » (6038252) puis « Dissocier » (confirmer) | Notice ajoutée puis retirée ; le fichier n'est pas supprimé | |
-| 4.5 | « Ajouter un set » avec un autre MPD de `models/` (ex. 31028) et un fichier de correspondances de 31040 | Correspondances refusées (« concerne un autre modèle ») | |
-| 4.6 | Retirer ce set de test (confirmer) | Il disparaît ; il est dans `library/trash/` | |
+| 4.1 | "Détails" (Details) of 31040 | 3D preview, files "disponible / laissé en place" (available / left in place), valid mappings 24/24, modes, diagnostics | |
+| 4.2 | Rename the set, "Enregistrer" (Save) | Name changed, progress kept | |
+| 4.3 | "Vérifier les empreintes" (Verify fingerprints) | "fichier(s) vérifié(s) : empreintes SHA-256 identiques" (file(s) verified: identical SHA-256 fingerprints) | |
+| 4.4 | Detail of 31009 → "Associer une ou plusieurs notices" (Associate one or more instruction booklets) (6038252) then "Dissocier" (Dissociate) (confirm) | Instructions added then removed; the file is not deleted | |
+| 4.5 | "Ajouter un set" (Add a set) with another MPD from `models/` (e.g. 31028) and a mappings file of 31040 | Mappings rejected ("concerne un autre modèle" (concerns another model)) | |
+| 4.6 | Remove this test set (confirm) | It disappears; it is in `library/trash/` | |
 
-## 5. Sauvegardes P5/P6 du navigateur (ta partie P6 de Chrome)
+## 5. P5/P6 browser saves (your Chrome P6 game)
 
-La bibliothèque contient déjà 12/65 pièces de 31040 (essais de Claude). Ta partie P6 est dans le `localStorage` de Chrome.
+The library already contains 12/65 parts of 31040 (Claude's trials). Your P6 game is in Chrome's `localStorage`.
 
-| # | Action | Attendu | OK/KO |
+| # | Action | Expected | OK/KO |
 |---|---|---|---|
-| 5.1 | Chrome → « Ma collection » | Encadré « Parties enregistrées dans ce navigateur » : ta partie 31040, avec un lien « comparer et récupérer dans le détail de 31040-1 » (si elle diffère de la bibliothèque) | |
-| 5.2 | « Reprendre » 31040 | Écran « Deux sauvegardes différentes » : tableau Bibliothèque / Ce navigateur (pièces posées, mode, page, livret, correspondances), lignes différentes surlignées, **même si ta partie est plus ancienne** | |
-| 5.3 | « Reprendre ce navigateur » | Ta partie P6 est restaurée (pièces, mode, page) ; bandeau « version précédente gardée dans l'historique » | |
-| 5.4 | (variante) « Reprendre la bibliothèque », puis Détail de 31040 → « Reprendre la sauvegarde de ce navigateur » → Confirmer | Même résultat, à tout moment | |
-| 5.5 | Vérifier dans le Finder `~/Documents/brick-lab-data/library/builds/<id>/history/` | La version 12/65 y est (fichier `progress-…json`) | |
-| 5.6 | Ouvrir « Atelier sans collection » | Atelier P5/P6 inchangé (import manuel, sessions récentes) | |
+| 5.1 | Chrome → "Ma collection" | Box "Parties enregistrées dans ce navigateur" (Games saved in this browser): your 31040 game, with a link "comparer et récupérer dans le détail de 31040-1" (compare and recover in the detail of 31040-1) (if it differs from the library) | |
+| 5.2 | "Reprendre" 31040 | "Deux sauvegardes différentes" (Two different saves) screen: Bibliothèque (Library) / Ce navigateur (This browser) table (placed parts, mode, page, booklet, mappings), differing rows highlighted, **even if your game is older** | |
+| 5.3 | "Reprendre ce navigateur" (Resume this browser) | Your P6 game is restored (parts, mode, page); banner "version précédente gardée dans l'historique" (previous version kept in the history) | |
+| 5.4 | (variant) "Reprendre la bibliothèque" (Resume the library), then Detail of 31040 → "Reprendre la sauvegarde de ce navigateur" (Resume this browser's save) → Confirm | Same result, at any time | |
+| 5.5 | Check in the Finder `~/Documents/brick-lab-data/library/builds/<id>/history/` | The 12/65 version is there (file `progress-…json`) | |
+| 5.6 | Open "Atelier sans collection" (Workshop without collection) | P5/P6 workshop unchanged (manual import, recent sessions) | |
 
-## 6. Ressenti
+## 6. Impressions
 
-Interface agréable sur MacBook ? Points pénibles ? Lenteurs ?
+Pleasant interface on a MacBook? Painful points? Slowness?
 
-## Résultat
+## Result
 
-À compléter par le propriétaire : date, navigateurs (version de Safari), OK/KO, remarques.
+To be completed by the owner: date, browsers (Safari version), OK/KO, remarks.
 
-**06/11/2026, Chrome et Safari** (résultats communiqués par le propriétaire ; version de Safari non communiquée) : récupération de la sauvegarde P6 OK ; collection et reprise dans Chrome OK ; même collection et reprise dans Safari OK ; gestion des conflits entre navigateurs OK. Détail : [P7_RAPPORT.md](P7_RAPPORT.md) § 8.
+**2026-11-06, Chrome and Safari** (results reported by the owner; Safari version not reported): P6 save recovery OK; collection and resume in Chrome OK; same collection and resume in Safari OK; conflict handling between browsers OK. Details: [P7_RAPPORT.md](P7_RAPPORT.md) section 8.
