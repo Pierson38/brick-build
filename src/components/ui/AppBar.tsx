@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Blocks, ChevronRight, Languages, Monitor, Moon, Sun } from 'lucide-react';
+import { Blocks, ChevronRight, Monitor, Moon, Sun } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { useI18n, useT } from '@/i18n/I18nProvider';
 import { LOCALE_NAME } from '@/i18n/locale';
@@ -29,7 +29,7 @@ export function LocaleToggle() {
   const label = t.app.language.toggle(LOCALE_NAME[locale], LOCALE_NAME[next]);
   return (
     <button type="button" className="ghost icon locale-toggle" aria-label={label} data-tip={label} data-tip-side="bottom" data-tip-align="end" data-testid="locale-toggle" lang={locale} onClick={() => setLocale(next)}>
-      <Languages size={16} aria-hidden /><span className="locale-code">{locale.toUpperCase()}</span>
+      <span className="locale-code" aria-hidden>{locale.toUpperCase()}</span>
     </button>
   );
 }

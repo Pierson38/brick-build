@@ -16,6 +16,7 @@ import { makeTestPdf } from './make-test-pdf';
  */
 const fixture = (rel: string) => fileURLToPath(new URL(`../../${rel}`, import.meta.url));
 const SYNC8_BYTES = readFileSync(fixture('tests/fixtures/notice-sync-8.mpd'));
+const MINI_BYTES = readFileSync(fixture('fixtures/mini-4-pieces.mpd'));
 const PDF = makeTestPdf(3);
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 const W = { origin: 'http://127.0.0.1:3000', 'x-brick-lab': '1' };
@@ -64,7 +65,7 @@ function mappingText(): string {
   return serializeMapping(m);
 }
 
-const DATA = ['test-booklet.pdf', 'notice-sync-8.mpd', 'Booklet 1', 'Lighthouse', 'Main build'];
+const DATA = ['Français', 'test-booklet.pdf', 'notice-sync-8.mpd', 'Booklet 1', 'Lighthouse', 'Main build'];
 
 test.describe.configure({ mode: 'serial' });
 
@@ -103,7 +104,7 @@ test('the switch turns the main screens to English, and back to French', async (
   expect(await frenchLeft(page, DATA)).toEqual([]);
 
   // set detail (texts computed by the server: modes, compatibility)
-  await page.getByTestId('set-card-90070-1').getByRole('link', { name: 'Details' }).click();
+  await page.getByTestId('set-card-90070-1').getByRole('link', { name: 'Details', exact: true }).click();
   await expect(page.getByTestId('detail-modes')).toBeVisible({ timeout: 60_000 });
   await expect(page).toHaveTitle(/^Set details/);
   await page.locator('details').evaluateAll((all) => all.forEach((d) => { (d as HTMLDetailsElement).open = true; }));
@@ -115,11 +116,12 @@ test('the switch turns the main screens to English, and back to French', async (
   expect(await frenchLeft(page, DATA)).toEqual([]);
   await page.getByTestId('search-number').fill('90071');
   await page.getByTestId('quick-input').setInputFiles([
-    { name: 'notice-sync-8.mpd', mimeType: 'text/plain', buffer: SYNC8_BYTES },
+    { name: 'mini-4-pieces.mpd', mimeType: 'text/plain', buffer: MINI_BYTES },
     { name: 'test-booklet.pdf', mimeType: 'application/pdf', buffer: PDF },
   ]);
   await expect(page.getByTestId('compat-headline')).toBeVisible({ timeout: 30_000 });
-  expect(await frenchLeft(page, [...DATA, 'Lighthouse'])).toEqual([]);
+  // the title line of the model file is user data (written in French in this fixture)
+  expect(await frenchLeft(page, [...DATA, 'mini-4-pieces.mpd', 'Miniature de test — 4 briques, 2 étapes'])).toEqual([]);
 
   // workshop: start panel, then synchronised, guided and free modes
   await page.goto('/');
@@ -157,7 +159,10 @@ test('a browser that asks for English gets English without choosing', async ({ b
   expect(await frenchLeft(page, DATA)).toEqual([]);
   // server messages follow the request language too
   const r = await page.request.post('/api/library/sets', { data: { setNumber: '!', name: 'x', builds: [] }, headers: { ...W, 'accept-language': 'en-US' } });
-  expect(r.status()).toBe(400);
-  expect(JSON.stringify(await r.json())).not.toMatch(FRENCH);
+  expect(r.status()).toBe(422);
+  const { error } = (await r.json()) as { error: { code: string; message: string } };
+  expect(error.code).toBe('INVALID');
+  expect(error.message).toMatch(/^Invalid set number/);
+  expect(error.message).not.toMatch(FRENCH);
   await context.close();
 });
