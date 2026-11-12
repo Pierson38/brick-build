@@ -1,6 +1,27 @@
 {
   "name": "brick-lab-local",
   "version": "0.1.0",
+  "description": "Brick Lab Local: open-source, local-first LDraw viewer and virtual brick builder. Rebuild brick sets step by step in 3D from .mpd/.ldr files and your own PDF instructions.",
+  "keywords": [
+    "ldraw",
+    "ldraw-viewer",
+    "brick-builder",
+    "building-instructions",
+    "3d-viewer",
+    "threejs",
+    "react-three-fiber",
+    "nextjs",
+    "pdfjs",
+    "local-first"
+  ],
+  "homepage": "https://pierson38.github.io/brick-lab-ldraw/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pierson38/brick-lab-ldraw.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Pierson38/brick-lab-ldraw/issues"
+  },
   "private": true,
   "license": "MIT",
   "type": "module",

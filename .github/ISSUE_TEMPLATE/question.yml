@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have you read through the [README](https://github.com/Pierson38/brick-build/blob/main/README.md) (installation, known limitations)?
+        Have you read through the [README](https://github.com/Pierson38/brick-lab-ldraw/blob/main/README.md) (installation, known limitations)?
         Do not attach any instruction booklet, third-party set file or API key.
   - type: textarea
     id: question

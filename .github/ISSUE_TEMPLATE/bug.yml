@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for taking the time to report a problem!
         **Never attach** a LEGO instruction booklet, a third-party set file (`.mpd`, `.ldr`, including from the OMR) or a parts library: give the set number and the link to its page instead.
-        A security vulnerability must be reported privately: see [SECURITY.md](https://github.com/Pierson38/brick-build/blob/main/SECURITY.md).
+        A security vulnerability must be reported privately: see [SECURITY.md](https://github.com/Pierson38/brick-lab-ldraw/blob/main/SECURITY.md).
   - type: textarea
     id: description
     attributes:

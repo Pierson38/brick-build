@@ -208,3 +208,10 @@ Owner's request: all documentation and texts visible on GitHub in English, with 
 | The v1.0 specification (`docs/01…09`, `CLAUDE.md`, `PROMPT_CLAUDE_CODE.md`, `fixtures/README.md`) cannot change | It stays frozen in meaning: the translation is declared file by file in `spec-deviations.json`; the French originals remain in the manifest version (`b019989`). File names are kept, so the manifest paths and every existing link still work. | `npm run check:spec` |
 | UI labels quoted in the docs can be translated | No: the batch notes record the French interface as it was tested (French remains the reference language of the bilingual interface), so exact labels are kept verbatim with an English gloss on first use. Captured program output is left verbatim. | — |
 | The README screenshot shows the current app | It predated the interface redesign. → New capture, English interface, reproducible from original CC0 fixtures only: `npx tsx scripts/readme-screenshot.ts <baseUrl> docs/images/workshop-free-building.png` (`next dev` on an empty `BRICK_LAB_DATA_DIR`). | `docs/images/workshop-free-building.png` |
+
+## Journal — 2026-11-12, discoverability (search engines)
+
+| Assumption | Finding / decision | Evidence |
+|---|---|---|
+| The repository name `brick-build` is fine | It did not match the product name and carried no search keyword; the repository was not indexed by Google. → Renamed `Pierson38/brick-lab-ldraw` with the owner's approval (GitHub redirects the old URLs and remotes); description, homepage and 20 topics set on GitHub. The product keeps the name Brick Lab Local. | `gh repo view Pierson38/brick-lab-ldraw` |
+| "Local only: do not deploy or publish" (`CLAUDE.md`) forbids any website | The rule targets the app and third-party files. With the owner's approval, a **static presentation page** (`site/`, English + French, no script, no analytics, no third-party content: CC0-fixture screenshot only) is published on GitHub Pages by `.github/workflows/pages.yml`. The app is still never deployed. | `site/`, `.github/workflows/pages.yml` |

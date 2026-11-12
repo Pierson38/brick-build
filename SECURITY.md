@@ -6,7 +6,7 @@ The project does not have a published release yet: only the `main` branch is mai
 
 ## Reporting a vulnerability
 
-**Do not open a public issue.** Use GitHub's private reporting: the repository's **Security** tab, then **Report a vulnerability** ([direct link](https://github.com/Pierson38/brick-build/security/advisories/new)).
+**Do not open a public issue.** Use GitHub's private reporting: the repository's **Security** tab, then **Report a vulnerability** ([direct link](https://github.com/Pierson38/brick-lab-ldraw/security/advisories/new)).
 
 If possible, include:
 
