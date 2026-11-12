@@ -1,42 +1,48 @@
 'use client';
 
 import type { BuildMode } from '@/domain/build/engine';
-import type { BuildStatus, BuildView, FileState } from '@/domain/library/types';
-
-export const STATUS_LABEL: Record<BuildStatus, string> = { NOT_STARTED: 'Jamais commencé', IN_PROGRESS: 'En cours', DONE: 'Terminé' };
-export const MODE_SHORT: Record<BuildMode, string> = { synced: 'Notice synchronisée', guided: 'Guidé (étapes LDraw)', freeManual: 'Montage libre' };
-export const FILE_STATE_LABEL: Record<FileState, string> = {
-  OK: 'disponible', MISSING: 'introuvable', SIZE_CHANGED: 'modifié (taille)', HASH_MISMATCH: 'modifié (empreinte)', UNREADABLE: 'illisible',
-};
+import type { BuildStatus, BuildView } from '@/domain/library/types';
+import { useT } from '@/i18n/I18nProvider';
+import type { Locale } from '@/i18n/locale';
+import { currentLocale, msgs, type Messages } from '@/i18n/runtime';
 
 export function StatusBadge({ status }: { status: BuildStatus }) {
-  return <span className={`status status-${status}`} data-testid="status">{STATUS_LABEL[status]}</span>;
+  const t = useT();
+  return <span className={`status status-${status}`} data-testid="status">{t.library.labels.status[status]}</span>;
 }
 
-export function ProgressBar({ placed, total, label = 'Pièces posées' }: { placed: number; total: number; label?: string }) {
+export function ProgressBar({ placed, total, label }: { placed: number; total: number; label?: string }) {
+  const t = useT();
   const pct = total > 0 ? Math.round((100 * placed) / total) : 0;
   return (
-    <div className="progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={placed} aria-label={label}>
+    <div className="progressbar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={placed} aria-label={label ?? t.library.labels.piecesPlaced}>
       <div style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
 export function ModeChips({ modes }: { modes: readonly BuildMode[] }) {
-  if (modes.length === 0) return <span className="small error">Aucun mode : fichier à réparer</span>;
+  const t = useT();
+  if (modes.length === 0) return <span className="small error">{t.library.labels.noMode}</span>;
   return (
-    <ul className="chips modes" aria-label="Modes de construction disponibles">
-      {modes.map((m) => <li key={m} className={`mode-${m}`}>{MODE_SHORT[m]}</li>)}
+    <ul className="chips modes" aria-label={t.library.labels.modesAria}>
+      {modes.map((m) => <li key={m} className={`mode-${m}`}>{t.library.labels.modeShort[m]}</li>)}
     </ul>
   );
 }
 
 /** "Construire" for a build never started, "Reprendre" otherwise. */
-export const actionLabel = (b: Pick<BuildView, 'status'>) => (b.status === 'NOT_STARTED' ? 'Construire' : b.status === 'DONE' ? 'Revoir' : 'Reprendre');
-
-export const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+export const actionLabel = (b: Pick<BuildView, 'status'>, t: Messages = msgs()) => {
+  const a = t.library.labels.action;
+  return b.status === 'NOT_STARTED' ? a.build : b.status === 'DONE' ? a.review : a.resume;
 };
 
-export const formatBytes = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} Mo` : `${Math.max(1, Math.round(n / 1e3))} Ko`);
+const DATE_LOCALE: Record<Locale, string> = { fr: 'fr-FR', en: 'en-GB' };
+
+export const formatDate = (iso: string, locale: Locale = currentLocale()) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(DATE_LOCALE[locale], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
+export const formatBytes = (n: number, t: Messages = msgs()) =>
+  (n >= 1e6 ? t.library.labels.megabytes((n / 1e6).toFixed(1)) : t.library.labels.kilobytes(Math.max(1, Math.round(n / 1e3))));

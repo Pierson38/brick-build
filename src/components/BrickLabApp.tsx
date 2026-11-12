@@ -50,6 +50,8 @@ import { Loading, Note, Toast } from './ui/feedback';
 import { LdrawSetup } from './ui/LdrawSetup';
 import { SyncStepBanner } from './sync/SyncStepBanner';
 import { BuildCanvas, modelGroundY, type GizmoSpec, type HeldBrick } from './three/BuildCanvas';
+import { useT } from '@/i18n/I18nProvider';
+import { msgs, type Messages } from '@/i18n/runtime';
 
 const MAX_MODEL_BYTES = 8 * 1024 * 1024;
 
@@ -93,15 +95,13 @@ interface LoadedModel {
 
 type Message = { kind: 'ok' | 'error' | 'info'; text: string } | null;
 
-const MODE_LABEL: Record<BuildMode, string> = { guided: 'Guidé (étapes LDraw)', synced: 'Notice synchronisée', freeManual: 'Montage libre' };
-
 async function libraryStatus(): Promise<string | null> {
   try {
     const res = await fetch('/api/ldraw-status', { cache: 'no-store' });
     const body = (await res.json()) as { configured: boolean; reason?: string };
-    return body.configured ? null : body.reason ?? 'Bibliothèque LDraw non configurée.';
+    return body.configured ? null : body.reason ?? msgs().atelier.ldraw.notConfigured;
   } catch {
-    return 'Serveur local injoignable.';
+    return msgs().atelier.ldraw.unreachable;
   }
 }
 
@@ -122,43 +122,20 @@ export interface BrickLabAppProps {
   readonly banner?: ReactNode;
 }
 
-const FREE_FAILURE: Record<Exclude<FreeResult, { ok: true }>['reason'], string> = {
-  NOT_FREE_MODE: 'Pose libre possible seulement en montage libre.',
-  NO_STOCK: 'Plus de pièce de ce type dans le stock du set.',
-  UNKNOWN_PIECE: 'Cette pièce n’est plus dans la construction.',
-  INVALID_POSE: 'Position impossible à enregistrer.',
-};
-
-/** Why the pieces magnet proposes nothing (NONE_NEAR: nothing to say). */
-const SNAP_MISS: Record<Exclude<SnapMiss, 'NONE_NEAR'>, string> = {
-  NO_CONNECTOR: 'aimant : aucune connexion reconnue sur cette pièce (pose libre, Maj + clic pour l’assembler)',
-  AXES: 'aimant : connexion compatible tout près, mais axes non alignés — tourne la pièce (X / Y / Z)',
-  OCCUPIED: 'aimant : les connecteurs alignés tout près sont déjà occupés',
-};
+/** Why a free pose is refused: t.atelier.freeFailure. (Why the pieces magnet proposes nothing: t.atelier.snapMiss; NONE_NEAR: nothing to say.) */
+type FreeFailure = Exclude<FreeResult, { ok: true }>['reason'];
 
 /** "4 tenon(s) emboîté(s)", "2 goupille(s) emboîtée(s)"… from the kinds of the connections. */
-function connectionsLabel(e: Engagement): string {
-  const only = e.kinds.length === 1 ? e.kinds[0] : null;
-  return `${e.pairs} ${only === 'stud' ? 'tenon(s) emboîté(s)' : only === 'pin' ? 'goupille(s) emboîtée(s)' : only === 'axle' ? 'axe(s) engagé(s)' : 'connexion(s) emboîtée(s)'}`;
+function connectionsLabel(t: Messages, e: Engagement): string {
+  const only = e.kinds.length === 1 ? e.kinds[0]! : null;
+  return t.atelier.connections(e.pairs, only);
 }
 
-/** Free mode, stock used up: says what is true — the build is not compared with the official model. */
-function freeEndText(atModel: number, total: number): string {
-  return atModel >= total
-    ? `Toutes les pièces sont posées à leur place dans le modèle : modèle reconstruit (${total}/${total}).`
-    : `Toutes les pièces du set sont posées (${total}/${total}). Montage libre : ta construction n’est pas comparée au modèle officiel — ${atModel} pièce(s) à leur place dans le modèle.`;
-}
-
-const SAVE_LABEL = { idle: 'Enregistré dans la bibliothèque', saving: 'Enregistrement…', saved: 'Enregistré dans la bibliothèque' } as const;
-
-const NO_STEPS_TEXT = 'Étapes non disponibles dans ce fichier : aucune séquence n’est inventée.';
-/** Instructions of the scene legend (decision A6: instructions there, results in the toast). */
-const HINT_PICK_FREE = 'Pointe où tu veux : la pièce se pose sur la surface visée (grille d’un demi-tenon, G pour la retirer). Clic : poser · R : tourner · O : orientation · Monter / Descendre (PageUp / PageDown) : hauteur libre · Échap : lâcher.';
-const HINT_PICK = 'Survole le modèle : la pièce se pose sur la surface visée. Clic : poser · R : tourner · O : orientation · PageUp/PageDown : niveau manuel (A : auto) · Échap : lâcher.';
-const HINT_TAKEN = 'Pièce reprise : clic pour la reposer · R / O : la tourner · Monter / Descendre : hauteur · Suppr : la remettre dans le stock · Échap : la laisser où elle était.';
 const PANEL_KEY = 'brick-lab:panel-collapsed';
 
 export default function BrickLabApp({ store = browserStore, initial, crumbs = [], banner }: BrickLabAppProps = {}) {
+  const t = useT();
+  const freeFailure = (reason: FreeFailure) => t.atelier.freeFailure[reason];
   const catalog = useMemo(() => new PartCatalog(), []);
   // connection interfaces of the parts (studs, receptors, pins, pin holes), read in the background
   const connectorCatalog = useMemo(() => new ConnectorCatalog(), []);
@@ -335,12 +312,13 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   };
 
   const importText = useCallback(async (fileName: string, text: string, hash: string, rootName?: string) => {
-    setBusy('Analyse du modèle…');
+    // read when the text is produced: a language switch during the import applies to what follows
+    setBusy(msgs().atelier.busy.analyzing);
     const analysis = analyzeModel(text, fileName, rootName ? { rootName } : {});
     const libraryProblem = await libraryStatus();
     let geometry: GeometryLoadResult | null = null;
     if (!libraryProblem && analysis.model.occurrences.length > 0) {
-      setBusy('Chargement des géométries LDraw locales…');
+      setBusy(msgs().atelier.busy.loadingGeometry);
       geometry = await loadModelGeometry(catalog, analysis.model.occurrences, analysis.embeddedParts);
       setColoursReady(true);
     }
@@ -363,15 +341,16 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       const total = analysis.model.occurrences.length;
       let next = restored.session;
       const freeCount = freePiecesOf(next).length;
-      let text = `Progression restaurée : ${usedCount(next)}/${total} pièces posées${freeCount > 0 ? `, dont ${freeCount} posée(s) librement` : ''}.`;
+      const toast = msgs().atelier.toast;
+      let text = toast.restored(usedCount(next), total, freeCount);
       if (next.mode === 'synced') {
         const target = { sha256: hash, fileName, rootName: analysis.model.rootName, occurrences: analysis.model.occurrences };
         if (!restoredMapping || !validateMapping(restoredMapping, target).ok) {
           // never replay a synchronised build without a valid mapping: explicit fallback, bricks kept
           next = switchMode(next, 'freeManual');
-          text = `${text} Partie en mode notice synchronisée, mais aucune correspondance valide pour ce fichier : reprise en montage libre. Réimporte ton fichier de correspondances pour revenir au mode synchronisé.`;
+          text = `${text} ${toast.restoredSyncFallback}`;
         } else if (restored.mappingDigest && restored.mappingDigest !== mappingDigest(restoredMapping)) {
-          text = `${text} Les correspondances ont changé depuis la sauvegarde : l’étape en cours est recalculée à partir des pièces posées.`;
+          text = `${text} ${toast.restoredMappingChanged}`;
         }
       }
       setSession(next);
@@ -387,7 +366,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       setMessage(null);
     }
     setBusy(null);
-    if (storedMapping && !storedMapping.ok) setMessage({ kind: 'error', text: `Correspondances enregistrées illisibles, ignorées : ${storedMapping.errors.join(' ')}` });
+    if (storedMapping && !storedMapping.ok) setMessage({ kind: 'error', text: msgs().atelier.toast.storedMappingUnreadable(storedMapping.errors.join(' ')) });
   }, [catalog, tab, store]);
 
   // Library build: open the model and its booklets without asking for them. The booklet shown
@@ -415,8 +394,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onModelFile = async (file: File) => {
-    if (file.size > MAX_MODEL_BYTES) return setMessage({ kind: 'error', text: `Fichier trop volumineux (limite ${MAX_MODEL_BYTES / 1e6} Mo).` });
-    if (!/\.(ldr|mpd)$/i.test(file.name)) return setMessage({ kind: 'error', text: 'Formats acceptés : .ldr et .mpd (pas .io ni .lxf).' });
+    if (file.size > MAX_MODEL_BYTES) return setMessage({ kind: 'error', text: t.atelier.toast.fileTooLarge(MAX_MODEL_BYTES / 1e6) });
+    if (!/\.(ldr|mpd)$/i.test(file.name)) return setMessage({ kind: 'error', text: t.atelier.toast.badFormat });
     const bytes = await file.arrayBuffer();
     const text = new TextDecoder('utf-8').decode(bytes);
     await importText(file.name, text, await sha256Hex(bytes));
@@ -437,7 +416,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     setMapping(stamped);
     if (note) setMessage({ kind: 'info', text: note });
     void store.saveMapping(stamped).then((ok) => {
-      if (!ok) setMessage({ kind: 'error', text: library ? 'Correspondances non enregistrées dans la bibliothèque (voir l’état en haut).' : 'Sauvegarde locale des correspondances impossible (stockage plein ou indisponible).' });
+      if (!ok) setMessage({ kind: 'error', text: library ? msgs().atelier.toast.mappingNotSavedLibrary : msgs().atelier.toast.mappingNotSavedLocal });
     });
   }, [store, library]);
 
@@ -446,7 +425,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   useEffect(() => {
     if (session?.mode !== 'synced' || syncPlan || editing) return;
     setSession(switchMode(session, 'freeManual'));
-    setMessage({ kind: 'error', text: 'Correspondances absentes ou invalides : la partie continue en montage libre (pièces posées conservées).' });
+    setMessage({ kind: 'error', text: msgs().atelier.toast.syncFallback });
   }, [session, syncPlan, editing]);
 
   const layers = useMemo(() => {
@@ -454,11 +433,6 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     return ys.sort((a, b) => b - a); // LDraw -Y up: largest y is the lowest layer
   }, [ctx]);
 
-  const MODE_HINT: Record<BuildMode, string> = {
-    guided: 'Mode guidé : les emplacements de l’étape apparaissent en bleu.',
-    freeManual: 'Montage libre : prends une pièce et pose-la où tu veux, la notice reste consultable. Clic sur une pièce posée : la reprendre.',
-    synced: 'Notice synchronisée : la page de l’étape s’affiche, seules ses pièces sont proposées.',
-  };
   const start = (mode: BuildMode, keepPieces = false, dropUnmatched = false) => {
     let next = createSession(mode);
     let note = '';
@@ -468,7 +442,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
         const r = toStepped(ctx, session, mode, dropUnmatched);
         if (!r.ok) return setPendingSwitch({ mode, recognised: r.recognised, unmatched: r.unmatched });
         next = r.session;
-        note = ` ${r.recognised} pièce(s) posée(s) librement reconnue(s) à leur place dans le modèle${r.dropped > 0 ? `, ${r.dropped} remise(s) dans le stock` : ''}.`;
+        note = t.atelier.toast.recognisedOnSwitch(r.recognised, r.dropped);
       } else next = switchMode(session, mode);
     }
     setSession(next);
@@ -552,8 +526,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       setMessage({
         kind: 'info',
         text: keys.length > start.length
-          ? `Assemblage ajouté (${keys.length} pièces) : ${next.length} pièces sélectionnées en tout. Maj + double-clic sur un autre pour l’ajouter aussi.`
-          : `Aucune autre pièce reliée à celle-ci : ajoutée seule, ${next.length} pièces sélectionnées en tout.`,
+          ? t.atelier.toast.assemblyAdded(keys.length, next.length)
+          : t.atelier.toast.assemblyAddedAlone(next.length),
       });
       return;
     }
@@ -561,8 +535,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     setMessage({
       kind: 'info',
       text: keys.length > start.length
-        ? `Assemblage sélectionné : ${keys.length} pièces reliées par des connexions reconnues (tenons, goupilles, axes), visibles ou cachées. Glisse-le ou « Déplacer la sélection ».`
-        : 'Aucune autre pièce reliée par une connexion reconnue : ajoute-les avec Maj + clic (clips, barres, charnières… ne sont pas reconnus).',
+        ? t.atelier.toast.assemblySelected(keys.length)
+        : t.atelier.toast.assemblyNone,
     });
   };
 
@@ -606,13 +580,13 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     commitFree(removePieces(session, refs));
     setHeld(null);
     setSelection([]);
-    setMessage({ kind: 'ok', text: refs.length === 1 ? 'Pièce remise dans le stock.' : `${refs.length} pièces remises dans le stock.` });
+    setMessage({ kind: 'ok', text: t.atelier.toast.removed(refs.length) });
   };
 
   const removeSelection = () => {
     if (!session || selection.length === 0 || held) return;
     commitFree(removePieces(session, selection));
-    setMessage({ kind: 'ok', text: selection.length === 1 ? 'Pièce remise dans le stock.' : `${selection.length} pièces remises dans le stock.` });
+    setMessage({ kind: 'ok', text: t.atelier.toast.removed(selection.length) });
     setSelection([]);
   };
 
@@ -663,10 +637,10 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     const group = makeGroup(members);
     const poses = rotatedInPlace(group, axisTurn(axis, steps * rotationStep), memberBottom);
     const r = moveGroup(ctx, session, group.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
-    if (!r.ok) return setMessage({ kind: 'error', text: `Rotation impossible : ${FREE_FAILURE[r.reason]}` });
+    if (!r.ok) return setMessage({ kind: 'error', text: t.atelier.toast.rotateFailed(freeFailure(r.reason)) });
     commitFree(r.session);
     setSelection([...r.refs]);
-    setMessage({ kind: 'ok', text: `${members.length > 1 ? `${members.length} pièces tournées` : 'Pièce tournée'} sur place (${axis.toUpperCase()} ${steps > 0 ? '+' : '−'}${Math.abs(steps) * rotationStep}°).` });
+    setMessage({ kind: 'ok', text: t.atelier.toast.rotated(members.length, axis.toUpperCase(), steps > 0 ? '+' : '−', Math.abs(steps) * rotationStep) });
   };
 
   const onRotationStep = (deg: number) => { if (isRotationStep(deg)) setRotationStep(deg); };
@@ -674,26 +648,26 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   const cancelHeld = () => {
     if (!held) return;
     setHeld(null);
-    if (held.moving || held.group) setMessage({ kind: 'info', text: held.group ? 'Groupe laissé où il était.' : 'Pièce laissée où elle était.' });
+    if (held.moving || held.group) setMessage({ kind: 'info', text: held.group ? t.atelier.toast.groupLeft : t.atelier.toast.pieceLeft });
   };
 
   /** Free mode: result of a drop (new piece, moved piece, or the assisted placement). */
   const finishFree = (r: FreeResult) => {
     if (!ctx || !held) return;
-    if (!r.ok) return setMessage({ kind: 'error', text: FREE_FAILURE[r.reason] });
+    if (!r.ok) return setMessage({ kind: 'error', text: freeFailure(r.reason) });
     commitFree(r.session);
     previewRef.current = null;
     setPreview(null);
-    const where = matchToModel(ctx, r.session).byPiece.has(r.pieceId) ? ' à sa place dans le modèle' : ' librement';
+    const atModel = matchToModel(ctx, r.session).byPiece.has(r.pieceId);
     if (held.moving) {
       setHeld(null);
       setSelection([{ kind: 'free', id: r.pieceId }]);
-      return setMessage({ kind: 'ok', text: `Pièce déplacée${where}.` });
+      return setMessage({ kind: 'ok', text: t.atelier.toast.moved(atModel) });
     }
     if (stockLeft(ctx, r.session, held.partKey, held.colorCode) <= 0) setHeld(null);
     setMessage(isStockExhausted(ctx, r.session)
-      ? { kind: 'ok', text: freeEndText(atModelCount(r.session, matchToModel(ctx, r.session)), ctx.occurrences.length) }
-      : { kind: 'ok', text: `Pièce posée${where} (${usedCount(r.session)}/${ctx.occurrences.length}).` });
+      ? { kind: 'ok', text: t.atelier.freeEnd(atModelCount(r.session, matchToModel(ctx, r.session)), ctx.occurrences.length) }
+      : { kind: 'ok', text: t.atelier.toast.placedFree(atModel, usedCount(r.session), ctx.occurrences.length) });
   };
 
   const undoAction = () => {
@@ -712,15 +686,15 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     setSession(next);
     setConsultIdx(null);
     const placed = ctx.occurrences.find((o) => o.occurrenceId === occurrenceId)!;
-    const stillAvailable = tray(ctx, next).some((t) => t.key === trayKey(placed.partKey, placed.colorCode));
+    const stillAvailable = tray(ctx, next).some((item) => item.key === trayKey(placed.partKey, placed.colorCode));
     if (!stillAvailable) setHeld(null);
     const before = activeStepIndex(ctx, session);
     const after = activeStepIndex(ctx, next);
     const upcoming = ctx.plan.steps[after]?.instruction;
-    if (isComplete(ctx, next)) setMessage({ kind: 'ok', text: 'Bravo, modèle terminé !' });
+    if (isComplete(ctx, next)) setMessage({ kind: 'ok', text: t.atelier.toast.complete });
     else if (next.mode === 'synced' && after !== before && upcoming) {
-      setMessage({ kind: 'ok', text: `${ctx.plan.steps[before]?.instruction?.label ?? 'Étape'} terminée ! Suivante : ${upcoming.label}, p. ${upcoming.page}.` });
-    } else setMessage({ kind: 'ok', text: `Pièce posée (${next.placed.length}/${ctx.occurrences.length}).` });
+      setMessage({ kind: 'ok', text: t.atelier.toast.stepDone(ctx.plan.steps[before]?.instruction?.label ?? t.atelier.toast.stepFallback, upcoming.label, upcoming.page) });
+    } else setMessage({ kind: 'ok', text: t.atelier.toast.placed(next.placed.length, ctx.occurrences.length) });
   };
 
   const drop = () => {
@@ -732,13 +706,13 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       const poses = groupPoses(group, heldRotation(held), [shown.pose[12], shown.pose[13], shown.pose[14]]);
       const r = moveGroup(ctx, session, group.members.map((m, i) => ({ ref: m.ref, pose: poses[i]! })));
       if (process.env.NODE_ENV !== 'production') window.__brickLabLastDrop = { pose: [...shown.pose], layerY: shown.layerY, ok: r.ok, targetId: null };
-      if (!r.ok) return setMessage({ kind: 'error', text: `Groupe non déplacé : ${FREE_FAILURE[r.reason]}` });
+      if (!r.ok) return setMessage({ kind: 'error', text: t.atelier.toast.groupNotMoved(freeFailure(r.reason)) });
       commitFree(r.session);
       previewRef.current = null;
       setPreview(null);
       setHeld(null);
       setSelection([...r.refs]);
-      return setMessage({ kind: 'ok', text: `Groupe de ${group.members.length} pièces déplacé (« Annuler » le remet en place d’un coup).` });
+      return setMessage({ kind: 'ok', text: t.atelier.toast.groupMoved(group.members.length) });
     }
     if (session.mode === 'freeManual') {
       // no comparison with the model: the piece goes where it is shown
@@ -1026,27 +1000,28 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
   };
 
   const pickInEditor = (occurrenceId: string, { alt }: { alt: boolean }) => {
-    if (!mapping || !editStep) return setMessage({ kind: 'info', text: 'Crée d’abord une étape de notice (+ Nouvelle étape).' });
+    const tm = t.atelier.mapping;
+    if (!mapping || !editStep) return setMessage({ kind: 'info', text: tm.createStepFirst });
     const owners = assignmentIndex(mapping).get(occurrenceId) ?? [];
     const o = ctx?.occurrences.find((x) => x.occurrenceId === occurrenceId);
-    const name = o ? `${o.partRef.replace(/\.dat$/i, '')} (couleur ${o.colorCode})` : occurrenceId;
-    if (owners.includes(editStep.id)) return changeMapping(unassignFromStep(mapping, editStep.id, [occurrenceId]), `${name} retirée de ${stepLabel(editStep)}.`);
+    const name = o ? tm.partName(o.partRef.replace(/\.dat$/i, ''), o.colorCode) : occurrenceId;
+    if (owners.includes(editStep.id)) return changeMapping(unassignFromStep(mapping, editStep.id, [occurrenceId]), tm.removedFrom(name, stepLabel(editStep)));
     if (owners.length > 0 && !alt) {
       const other = mapping.steps.find((st) => st.id === owners[0]);
-      return setMessage({ kind: 'info', text: `${name} est déjà dans ${other ? `${stepLabel(other)} (p. ${other.page})` : 'une autre étape'} : ⌥-clic pour la déplacer ici.` });
+      return setMessage({ kind: 'info', text: tm.alreadyIn(name, other ? tm.stepWithPage(stepLabel(other), other.page) : tm.otherStep) });
     }
-    changeMapping(assignToStep(mapping, editStep.id, [occurrenceId], { move: alt }).mapping, `${name} ${alt && owners.length ? 'déplacée dans' : 'ajoutée à'} ${stepLabel(editStep)}.`);
+    changeMapping(assignToStep(mapping, editStep.id, [occurrenceId], { move: alt }).mapping, tm.added(name, Boolean(alt && owners.length), stepLabel(editStep)));
   };
 
   const importMappingFile = async (file: File) => {
     if (!target) return;
     const parsed = parseMappingText(await file.text());
-    if (!parsed.ok) return setMessage({ kind: 'error', text: `Import refusé : ${parsed.errors.join(' ')}` });
+    if (!parsed.ok) return setMessage({ kind: 'error', text: t.atelier.mapping.importRefused(parsed.errors.join(' ')) });
     const check = validateMapping(parsed.mapping, target);
     const mismatch = check.issues.find((i) => i.code === 'MODEL_MISMATCH');
-    if (mismatch) return setMessage({ kind: 'error', text: `Import refusé : ${mismatch.message}` });
+    if (mismatch) return setMessage({ kind: 'error', text: t.atelier.mapping.importRefused(mismatch.message) });
     if (mapping && mapping.steps.length > 0) setReplacedMapping(mapping);
-    changeMapping(parsed.mapping, `Correspondances importées : ${parsed.mapping.steps.length} étape(s), ${check.assigned}/${check.total} pièces affectées${check.ok ? ', valides.' : ' (brouillon, voir la validation).'}`);
+    changeMapping(parsed.mapping, t.atelier.mapping.imported(parsed.mapping.steps.length, check.assigned, check.total, check.ok));
     setEditStepId(parsed.mapping.steps[0]?.id ?? null);
   };
 
@@ -1054,7 +1029,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     if (!loaded || !target || !mapping) return;
     setReplacedMapping(mapping);
     store.clearMapping(loaded.hash);
-    changeMapping(createMapping(target), 'Correspondances effacées.');
+    changeMapping(createMapping(target), t.atelier.mapping.cleared);
     setEditStepId(null);
   };
 
@@ -1122,24 +1097,24 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     if (identity) return;
     const poses = applyDelta(delta, gizmo.members.map((m) => m.pose));
     const r = moveGroup(ctx, session, gizmo.members.map((m, i) => ({ ref: refOf(m.key), pose: poses[i]! })));
-    if (!r.ok) return setMessage({ kind: 'error', text: `${what} impossible : ${FREE_FAILURE[r.reason]}` });
+    if (!r.ok) return setMessage({ kind: 'error', text: t.atelier.toast.transformFailed(what, freeFailure(r.reason)) });
     commitFree(r.session);
     setSelection([...r.refs]);
-    setMessage({ kind: 'ok', text: `${gizmo.members.length > 1 ? `${gizmo.members.length} pièces` : 'Pièce'} : ${what} (« Annuler » revient en une fois).` });
+    setMessage({ kind: 'ok', text: t.atelier.toast.transformed(gizmo.members.length, what) });
   };
   const shown = gizmo ? shownCoords(gizmoLive ?? gizmo.pivot, groundY) : null;
   const applyTyped = () => {
     if (!gizmo || !typed) return;
-    const v = typed.map((t) => Number(t.replace(',', '.'))) as [number, number, number];
-    if (!v.every(Number.isFinite)) return setMessage({ kind: 'error', text: 'Coordonnées invalides.' });
-    transformSelection(deltaTo(gizmo.pivot, v, groundY), 'déplacée aux coordonnées saisies');
+    const v = typed.map((s) => Number(s.replace(',', '.'))) as [number, number, number];
+    if (!v.every(Number.isFinite)) return setMessage({ kind: 'error', text: t.atelier.toast.invalidCoords });
+    transformSelection(deltaTo(gizmo.pivot, v, groundY), t.atelier.transform.typed);
   };
 
   // orientation in words: the piece in hand, or the only selected piece
   const shownRotation = held && !held.group ? heldRotation(held)
     : !held && selection.length === 1 && ctx && session ? poseOf(ctx, session, selection[0]!) : null;
   const orientation = shownRotation ? orientationLabel(shownRotation) : null;
-  const orientationInfo = orientation && <span className="small muted" data-testid="orientation-info">Dessus : {orientation.top} · Avant : {orientation.front}</span>;
+  const orientationInfo = orientation && <span className="small muted" data-testid="orientation-info">{t.atelier.hud.orientationInfo(orientation.top, orientation.front)}</span>;
   if (editing && report) {
     // editor preview: built up to the current step, its bricks highlighted, unassigned as ghosts
     const before = mapping.steps.slice(0, Math.max(0, editIdx)).flatMap((st) => st.occurrenceIds);
@@ -1148,72 +1123,80 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
     highlightIds = new Set(editStep?.occurrenceIds ?? []);
     ghostIds = new Set([...report.unassigned, ...later]);
   }
-  const syncUnavailable = !loaded ? '' : !mapping || mapping.steps.length === 0 ? 'aucune correspondance notice ↔ 3D pour ce fichier.'
-    : report && !report.ok ? (report.issues.find((i) => i.severity === 'error')?.message ?? 'correspondances invalides.') : '';
+  const syncUnavailable = !loaded ? '' : !mapping || mapping.steps.length === 0 ? t.atelier.sync.noMapping
+    : report && !report.ok ? (report.issues.find((i) => i.severity === 'error')?.message ?? t.atelier.sync.invalid) : '';
   const renderStatus = !loaded ? ''
-    : loaded.libraryProblem ? `Rendu indisponible : ${loaded.libraryProblem}`
-      : geometry ? `Géométrie LDraw : ${geometry.templates.size} combinaison(s) pièce/couleur chargée(s), ${missing.length} référence(s) manquante(s), ${Math.round(geometry.durationMs)} ms.`
+    : loaded.libraryProblem ? t.atelier.status.renderUnavailable(loaded.libraryProblem)
+      : geometry ? t.atelier.status.geometry(geometry.templates.size, missing.length, Math.round(geometry.durationMs))
         : '';
 
   // status of the piece in hand, in the HUD at the top left of the 3D view (every mode)
+  const hud = t.atelier.hud;
+  const verified = snapInfo && snapInfo.engaged.pairs > 0 ? hud.verified(connectionsLabel(t, snapInfo.engaged)) : '';
   const heldInfo = held ? (
     <span className="small muted" data-testid="held-info">
-      {held.moving ? 'Pièce reprise · ' : held.group ? `Groupe de ${held.group.members.length} pièces · ` : ''}
-      {held.layerMode === 'auto' ? 'Niveau auto (surface)' : freeMode ? 'Hauteur manuelle (A : auto)' : `Niveau manuel ${layers.indexOf(held.layerY) + 1}/${layers.length} (A : auto)`}
-      {' · '}rotation {((held.quarterTurns % 4) + 4) % 4 * 90}° · {orientationIdx < 0 ? 'orientation hors modèle (O : revenir à celles du modèle)' : `orientation ${orientationIdx + 1}/${heldOrientations.length}`}
+      {held.moving ? hud.taken : held.group ? hud.group(held.group.members.length) : ''}
+      {held.layerMode === 'auto' ? hud.levelAuto : freeMode ? hud.heightManual : hud.levelManual(layers.indexOf(held.layerY) + 1, layers.length)}
+      {' · '}{hud.rotation(((held.quarterTurns % 4) + 4) % 4 * 90)} · {orientationIdx < 0 ? hud.orientationOff : hud.orientation(orientationIdx + 1, heldOrientations.length)}
       {snapInfo?.proposal
-        ? <strong className="ok" data-testid="snap-info"> · aimant : {connectionsLabel(snapInfo.proposal)} sur {snapInfo.proposal.targets.length} pièce(s) (⌥ : ignorer)</strong>
+        ? <strong className="ok" data-testid="snap-info">{hud.magnet(connectionsLabel(t, snapInfo.proposal), snapInfo.proposal.targets.length)}</strong>
         : preview?.targetId
-          ? <strong className="ok" data-testid="target-found"> · {freeMode ? 'à sa place dans le modèle' : 'emplacement trouvé'}{snapInfo && snapInfo.engaged.pairs > 0 ? ` · ${connectionsLabel(snapInfo.engaged)} vérifié(s)` : ''}, clic pour poser</strong>
-          : freeMode && preview ? <span data-testid="free-pose"> · pose libre{snapInfo && snapInfo.engaged.pairs > 0 ? ` · ${connectionsLabel(snapInfo.engaged)} vérifié(s)` : ''}, clic pour poser</span> : null}
-      {snapInfo?.miss && snapInfo.miss !== 'NONE_NEAR' && <span className="snap-miss" data-testid="snap-miss"> · {SNAP_MISS[snapInfo.miss]}</span>}
+          ? <strong className="ok" data-testid="target-found"> · {freeMode ? hud.atModel : hud.targetFound}{verified}{hud.clickToPlace}</strong>
+          : freeMode && preview ? <span data-testid="free-pose"> · {hud.freePose}{verified}{hud.clickToPlace}</span> : null}
+      {snapInfo?.miss && snapInfo.miss !== 'NONE_NEAR' && <span className="snap-miss" data-testid="snap-miss"> · {t.atelier.snapMiss[snapInfo.miss]}</span>}
     </span>
   ) : null;
 
   const sessionTotal = ctx?.occurrences.length ?? 0;
   const placedNow = session ? usedCount(session) : 0;
   const modeUnavailable: Partial<Record<BuildMode, string>> = loaded ? {
-    ...(syncPlan ? {} : { synced: syncUnavailable || 'aucune correspondance notice ↔ 3D validée.' }),
-    ...(availableModes(loaded.analysis.plan).includes('guided') ? {} : { guided: loaded.analysis.plan.kind === 'NO_STEPS' ? NO_STEPS_TEXT : 'étapes LDraw inutilisables.' }),
+    ...(syncPlan ? {} : { synced: syncUnavailable || t.atelier.mode.syncUnavailable }),
+    ...(availableModes(loaded.analysis.plan).includes('guided') ? {} : { guided: loaded.analysis.plan.kind === 'NO_STEPS' ? t.atelier.mode.noSteps : t.atelier.mode.guidedUnavailable }),
   } : {};
+  const hint = t.atelier.hint;
   const sceneHint = !session || editing ? null
-    : held ? (held.group ? `Groupe de ${held.group.members.length} pièces en main : déplace la souris, clic (ou relâche) pour le poser · R, X / Y / Z : tourner · Monter / Descendre : hauteur · Échap : le laisser où il était.`
-      : held.moving ? HINT_TAKEN : freeMode ? HINT_PICK_FREE : HINT_PICK)
-      : freeMode && selection.length > 0 ? `${selection.length} pièce(s) sélectionnée(s) · flèches X / Y / Z (W) ou anneaux (E) du manipulateur, ou glisse la pièce · Maj+clic : ajouter ou retirer · Suppr : remettre dans le stock · Échap : désélectionner.`
-        : MODE_HINT[session.mode];
+    : held ? (held.group ? hint.group(held.group.members.length)
+      : held.moving ? hint.taken : freeMode ? hint.pickFree : hint.pick)
+      : freeMode && selection.length > 0 ? hint.selection(selection.length)
+        : t.atelier.mode.hint[session.mode];
   const showLdrawSetup = Boolean(loaded?.libraryProblem && !geometry);
-  const restartText = `La progression (${placedNow}/${sessionTotal}) sera retirée de cette partie${library ? ' (copie gardée dans l’historique de la bibliothèque)' : ' et effacée de ce navigateur'}.`;
+  const restartText = t.atelier.confirm.restartText(placedNow, sessionTotal, library);
+  const modeLabel = t.atelier.mode.label;
+  const progressSub = ctx && session ? {
+    step: isStepped(session.mode) && stepIdx >= 0 ? t.atelier.progress.step(stepIdx + 1, ctx.plan.steps.length) : '',
+    free: match && freePiecesOf(session).length > 0 ? t.atelier.progress.free(freePiecesOf(session).length, atModelCount(session, match)) : '',
+  } : null;
   const panelCollapsed = collapsed && !editing;
 
   return (
     <div className="app">
-      <a className="skip-link" href="#panneau">Aller au panneau latéral</a>
+      <a className="skip-link" href="#panneau">{t.atelier.skipLink}</a>
       <div className="app-head">
       <AppBar crumbs={[...crumbs, ...(loaded && !initial ? [{ label: loaded.fileName, title: loaded.fileName }] : [])]}>
-        {ctx && session && (
+        {ctx && session && progressSub && (
           <>
-            <ModeSwitch value={session.mode} labels={MODE_LABEL} unavailable={modeUnavailable} onChange={(m) => start(m, true)} />
+            <ModeSwitch value={session.mode} labels={modeLabel} unavailable={modeUnavailable} onChange={(m) => start(m, true)} />
             <div className="atelier-progress">
               <div className="atelier-progress-main">
                 <ProgressBar placed={placedNow} total={ctx.occurrences.length} />
-                <span className="num" data-testid="progress">{placedNow}/{ctx.occurrences.length} pièces posées</span>
+                <span className="num" data-testid="progress">{t.atelier.progress.placed(placedNow, ctx.occurrences.length)}</span>
               </div>
-              <div className="atelier-progress-sub small muted" title={[isStepped(session.mode) && stepIdx >= 0 ? `Étape ${stepIdx + 1} / ${ctx.plan.steps.length}` : '', match && freePiecesOf(session).length > 0 ? `${freePiecesOf(session).length} posée(s) librement · ${atModelCount(session, match)} à leur place dans le modèle` : ''].filter(Boolean).join(' · ') || undefined}>
-                {isStepped(session.mode) && stepIdx >= 0 && <span data-testid="step-indicator">Étape {stepIdx + 1} / {ctx.plan.steps.length}</span>}
+              <div className="atelier-progress-sub small muted" title={[progressSub.step, progressSub.free].filter(Boolean).join(' · ') || undefined}>
+                {progressSub.step && <span data-testid="step-indicator">{progressSub.step}</span>}
                 {session.mode === 'synced' && ctx.plan.steps[stepIdx]?.instruction && (
-                  <span data-testid="notice-step">Notice : {ctx.plan.steps[stepIdx]!.instruction!.label}, p. {ctx.plan.steps[stepIdx]!.instruction!.page}</span>
+                  <span data-testid="notice-step">{t.atelier.progress.noticeStep(ctx.plan.steps[stepIdx]!.instruction!.label, ctx.plan.steps[stepIdx]!.instruction!.page)}</span>
                 )}
-                {match && freePiecesOf(session).length > 0 && (
-                  <span data-testid="free-info">{freePiecesOf(session).length} posée(s) librement · {atModelCount(session, match)} à leur place dans le modèle</span>
+                {progressSub.free && (
+                  <span data-testid="free-info">{progressSub.free}</span>
                 )}
               </div>
             </div>
             {library
               ? <span className={`small save-state save-${saveState.kind}`} data-testid="save-state" role={saveState.kind === 'error' || saveState.kind === 'conflict' ? 'alert' : undefined}>
                 {saveState.kind === 'saving' ? <LoaderCircle className="spinner" size={14} aria-hidden /> : saveState.kind === 'error' || saveState.kind === 'conflict' ? <CircleAlert size={14} aria-hidden /> : <Check size={14} aria-hidden />}
-                {saveState.kind === 'error' || saveState.kind === 'conflict' ? `Non enregistré : ${saveState.message}` : saveState.kind === 'saving' ? SAVE_LABEL.saving : <>Enregistré<span className="visually-hidden"> dans la bibliothèque</span></>}
+                {saveState.kind === 'error' || saveState.kind === 'conflict' ? t.atelier.save.notSaved(saveState.message) : saveState.kind === 'saving' ? t.atelier.save.saving : <>{t.atelier.save.saved}<span className="visually-hidden">{t.atelier.save.savedWhere}</span></>}
               </span>
-              : <span className="small save-state save-saved"><Check size={14} aria-hidden />Sauvegardé localement</span>}
+              : <span className="small save-state save-saved"><Check size={14} aria-hidden />{t.atelier.save.local}</span>}
           </>
         )}
         <HelpButton />
@@ -1221,7 +1204,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       {banner}
       {saveState.kind === 'conflict' && (
         <div className="banner error" role="alert" data-testid="save-conflict">
-          {saveState.message} <button type="button" onClick={() => window.location.reload()}>Recharger</button>
+          {saveState.message} <button type="button" onClick={() => window.location.reload()}>{t.atelier.save.reload}</button>
         </div>
       )}
       </div>
@@ -1241,7 +1224,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               onDrop={drop}
               {...(editing ? { onPick: pickInEditor } : {})}
               {...(freeMode && !editing ? { freePieces: freePiecesOf(session!), selectedFree, groupPreview, onSelect: select, onDragStart: dragStart, onDragEnd: dragEnd, onDoublePick: (ref: PieceRef, { shift }: { shift: boolean }) => selectAssembly([ref], { add: shift }), snapPoints: snapInfo?.engaged.points ?? null, xray: xray && selection.length > 0 && !held,
-                gizmo, onGizmoLive: setGizmoLive, onGizmoCommit: (d: Matrix4Tuple) => transformSelection(d, gizmoMode === 'rotate' ? 'tournée' : 'déplacée') } : {})}
+                gizmo, onGizmoLive: setGizmoLive, onGizmoCommit: (d: Matrix4Tuple) => transformSelection(d, gizmoMode === 'rotate' ? t.atelier.transform.rotated : t.atelier.transform.moved) } : {})}
               groundY={groundY}
               {...(freeMode && held && preview ? { axesAt: [preview.previewPose[12], preview.previewPose[13], preview.previewPose[14]] as const } : {})}
               recenterToken={recenter}
@@ -1253,7 +1236,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
           ) : initial ? (
             // library build: no manual import here, only what is being loaded (or why it cannot render)
             <div className="scene-screen" data-testid="library-loading">
-              {busy || !loaded ? <Loading>{busy ?? 'Chargement du modèle…'}</Loading> : null}
+              {busy || !loaded ? <Loading>{busy ?? t.atelier.busy.loadingModel}</Loading> : null}
               {loaded && !geometry && <Note tone="error" role="alert">{renderStatus}</Note>}
             </div>
           ) : (
@@ -1261,58 +1244,58 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
               onDragOver={(e) => { e.preventDefault(); setHomeDrag(true); }} onDragLeave={() => setHomeDrag(false)}
               onDrop={(e) => { e.preventDefault(); setHomeDrag(false); const f = e.dataTransfer.files[0]; if (f) void onModelFile(f); }}>
               <span className="empty-icon" aria-hidden><Box size={22} /></span>
-              <h1>Atelier sans collection</h1>
-              <p className="muted">Reconstruis virtuellement un modèle LDraw pièce par pièce, sans l’ajouter à ta collection : la progression reste dans ce navigateur. Tout reste sur ce Mac. Application non affiliée à LEGO.</p>
+              <h1>{t.atelier.home.title}</h1>
+              <p className="muted">{t.atelier.home.intro}</p>
               <div className="card-actions">
                 <label className="button primary lg">
-                  <Upload size={16} aria-hidden /> Importer un modèle (.mpd / .ldr)
+                  <Upload size={16} aria-hidden /> {t.atelier.home.importModel}
                   <input type="file" accept=".ldr,.mpd" className="visually-hidden" data-testid="model-input"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
                 </label>
-                <a className="button lg" href={`/atelier?demo=${DEMO_ID}`}><FlaskConical size={16} aria-hidden /> Essayer la démo</a>
+                <a className="button lg" href={`/atelier?demo=${DEMO_ID}`}><FlaskConical size={16} aria-hidden /> {t.atelier.home.demo}</a>
               </div>
-              <p className="small muted">ou dépose le fichier ici. <a href="https://www.lego.com/fr-fr/service/building-instructions" target="_blank" rel="noreferrer noopener">Trouver une notice sur LEGO.com</a> (ouvre le site, aucun téléchargement automatique)</p>
+              <p className="small muted">{t.atelier.home.dropHint} <a href={t.atelier.home.legoUrl} target="_blank" rel="noreferrer noopener">{t.atelier.home.legoLink}</a> {t.atelier.home.legoLinkNote}</p>
               {busy && <Loading>{busy}</Loading>}
               {loaded && !geometry && <Note tone="error" role="alert">{renderStatus}</Note>}
               {recent.length > 0 && (
                 <section className="recent">
-                  <h3 className="section-title">Sessions récentes de ce navigateur</h3>
-                  <ul>{recent.map((r) => <li key={r.hash}>{r.displayName} — {r.placed}/{r.total} pièces · réimporte le fichier pour reprendre</li>)}</ul>
+                  <h3 className="section-title">{t.atelier.home.recentTitle}</h3>
+                  <ul>{recent.map((r) => <li key={r.hash}>{t.atelier.home.recentItem(r.displayName, r.placed, r.total)}</li>)}</ul>
                 </section>
               )}
             </div>
           )}
           {ctx && session && !editing && (
-            <div className="scene-rail" role="toolbar" aria-label="Outils de la scène" aria-orientation="vertical">
-              <button type="button" className="ghost icon" aria-label="Centrer" data-tip="Centrer la vue" data-tip-side="left" onClick={() => setRecenter((n) => n + 1)}><Crosshair size={18} aria-hidden /></button>
-              <label className="tool-toggle" data-tip="Montrer les emplacements" data-tip-side="left">
-                <input type="checkbox" aria-label="Montrer les emplacements" checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} />
+            <div className="scene-rail" role="toolbar" aria-label={t.atelier.rail.label} aria-orientation="vertical">
+              <button type="button" className="ghost icon" aria-label={t.atelier.rail.center} data-tip={t.atelier.rail.centerTip} data-tip-side="left" onClick={() => setRecenter((n) => n + 1)}><Crosshair size={18} aria-hidden /></button>
+              <label className="tool-toggle" data-tip={t.atelier.rail.showTargets} data-tip-side="left">
+                <input type="checkbox" aria-label={t.atelier.rail.showTargets} checked={showTargets} onChange={(e) => setShowTargets(e.target.checked)} />
                 <Ghost size={18} aria-hidden />
               </label>
               {freeMode && (
                 <>
                   <hr />
-                  <label className="tool-toggle" data-tip="Grille d’un demi-tenon et niveaux de plaque (G)" data-tip-side="left">
-                    <input type="checkbox" aria-label="Grille (G)" data-testid="snap-grid" checked={snap.grid} onChange={(e) => setSnap({ ...snap, grid: e.target.checked })} />
+                  <label className="tool-toggle" data-tip={t.atelier.rail.gridTip} data-tip-side="left">
+                    <input type="checkbox" aria-label={t.atelier.rail.grid} data-testid="snap-grid" checked={snap.grid} onChange={(e) => setSnap({ ...snap, grid: e.target.checked })} />
                     <Grid3x3 size={18} aria-hidden />
                   </label>
-                  <label className="tool-toggle" data-tip="Aimant pièces : tenons, réceptacles, goupilles (⌥ pour l’ignorer)" data-tip-side="left">
-                    <input type="checkbox" aria-label="Aimant pièces" data-testid="snap-pieces" checked={snapPieces} onChange={(e) => setSnapPieces(e.target.checked)} />
+                  <label className="tool-toggle" data-tip={t.atelier.rail.magnetPiecesTip} data-tip-side="left">
+                    <input type="checkbox" aria-label={t.atelier.rail.magnetPieces} data-testid="snap-pieces" checked={snapPieces} onChange={(e) => setSnapPieces(e.target.checked)} />
                     <Magnet size={18} aria-hidden />
                   </label>
-                  <label className="tool-toggle" data-tip="Aimant modèle : se cale sur sa place dans le modèle" data-tip-side="left">
-                    <input type="checkbox" aria-label="Aimant modèle" data-testid="snap-model" checked={snap.magnet} onChange={(e) => setSnap({ ...snap, magnet: e.target.checked })} />
+                  <label className="tool-toggle" data-tip={t.atelier.rail.magnetModelTip} data-tip-side="left">
+                    <input type="checkbox" aria-label={t.atelier.rail.magnetModel} data-testid="snap-model" checked={snap.magnet} onChange={(e) => setSnap({ ...snap, magnet: e.target.checked })} />
                     <Target size={18} aria-hidden />
                   </label>
                 </>
               )}
               {freeMode && !held && selection.length > 0 && (
-                <button type="button" className="ghost icon" data-testid="xray" aria-pressed={xray} aria-label="Voir les connexions" data-tip="Voir les connexions : les autres pièces deviennent transparentes (affichage seulement)" data-tip-side="left" onClick={() => setXray(!xray)}><ScanEye size={18} aria-hidden /></button>
+                <button type="button" className="ghost icon" data-testid="xray" aria-pressed={xray} aria-label={t.atelier.rail.xray} data-tip={t.atelier.rail.xrayTip} data-tip-side="left" onClick={() => setXray(!xray)}><ScanEye size={18} aria-hidden /></button>
               )}
               {panelCollapsed && (
                 <>
                   <hr />
-                  <button type="button" className="ghost icon" aria-label="Afficher le panneau" data-tip="Afficher le panneau" data-tip-side="left" onClick={() => setPanelCollapsed(false)}><PanelRightOpen size={18} aria-hidden /></button>
+                  <button type="button" className="ghost icon" aria-label={t.atelier.rail.showPanel} data-tip={t.atelier.rail.showPanel} data-tip-side="left" onClick={() => setPanelCollapsed(false)}><PanelRightOpen size={18} aria-hidden /></button>
                 </>
               )}
             </div>
@@ -1330,17 +1313,17 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                 settingsOpen={manipSettings} onSettings={() => setManipSettings((o) => !o)}
                 settings={(
                   <>
-                    <label className="field-row" title="Pas des flèches : à l’horizontale ½ tenon (10 LDU) ou un tenon (20 LDU), à la verticale une plaque (8 LDU) ; ou 1 LDU partout. ⌥ pendant le glisser : sans pas.">
-                      <span>Pas des flèches</span>
+                    <label className="field-row" title={t.atelier.gizmo.stepTitle}>
+                      <span>{t.atelier.gizmo.step}</span>
                       <select data-testid="gizmo-step" value={gizmoStep} onChange={(e) => setGizmoStep(Number(e.target.value) as 10 | 20 | 1)}>
-                        <option value={10}>½ tenon</option>
-                        <option value={20}>tenon</option>
+                        <option value={10}>{t.atelier.gizmo.halfStud}</option>
+                        <option value={20}>{t.atelier.gizmo.stud}</option>
                         <option value={1}>1 LDU</option>
                       </select>
                     </label>
                       {shown && (
                       <fieldset className="coords">
-                        <legend>Coordonnées <span className="muted">(LDU, Y = hauteur)</span></legend>
+                        <legend>{t.atelier.gizmo.coords} <span className="muted">{t.atelier.gizmo.coordsUnit}</span></legend>
                         {(['X', 'Y', 'Z'] as const).map((axis, i) => (
                           <label key={axis}>{axis}{' '}
                             <input type="number" step="any" data-testid={`gizmo-${axis.toLowerCase()}`} value={typed ? typed[i] : String(shown[i])}
@@ -1348,7 +1331,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                               onKeyDown={(e) => { if (e.key === 'Enter') applyTyped(); }} />
                           </label>
                         ))}
-                        <button type="button" className="primary small" data-testid="gizmo-apply" onClick={applyTyped} disabled={!typed}>Appliquer</button>
+                        <button type="button" className="primary small" data-testid="gizmo-apply" onClick={applyTyped} disabled={!typed}>{t.atelier.gizmo.apply}</button>
                       </fieldset>
                     )}
                   </>
@@ -1359,7 +1342,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                 {heldInfo}
                 {freeMode && (heightAboveGround !== null || orientationInfo) && (
                   <div className="hud-line">
-                    {heightAboveGround !== null && <span className="small" data-testid="height-info">bas à {heightAboveGround} LDU du sol</span>}
+                    {heightAboveGround !== null && <span className="small" data-testid="height-info">{t.atelier.hud.height(heightAboveGround)}</span>}
                     {orientationInfo}
                   </div>
                 )}
@@ -1367,28 +1350,28 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             )}
             {freeMode && !editing && !held && selection.length > 0 && (
               <div className="hud">
-                <span className="small" data-testid="selection-info">{selection.length} pièce(s) sélectionnée(s)</span>
+                <span className="small" data-testid="selection-info">{t.atelier.hud.selection(selection.length)}</span>
                 {(orientationInfo || shown) && (
                   <div className="hud-line">
                     {orientationInfo}
-                    {shown && <span className="small" data-testid="gizmo-coords">X {shown[0]} · Y {shown[1]} (hauteur) · Z {shown[2]} LDU</span>}
+                    {shown && <span className="small" data-testid="gizmo-coords">{t.atelier.hud.coords(shown[0], shown[1], shown[2])}</span>}
                   </div>
                 )}
               </div>
             )}
           </div>
           {message && <Toast tone={message.kind} onClose={() => setMessage(null)}>{message.text}</Toast>}
-          {sceneHint && <p className="scene-legend" data-testid="scene-hint">{sceneHint} <span className="legend-help"><kbd>?</kbd> toutes les touches</span></p>}
+          {sceneHint && <p className="scene-legend" data-testid="scene-hint">{sceneHint} <span className="legend-help"><kbd>?</kbd> {t.atelier.hint.allKeys}</span></p>}
         </div>
 
         <Splitter side={panel.side} total={panel.total} context={editing ? 'editor' : 'atelier'} onResize={panel.setSide} />
         <aside className="side" id="panneau" tabIndex={-1} hidden={panelCollapsed}>
-          <div className="tabs" role="tablist" aria-label="Panneau latéral" onKeyDown={onTabKey}>
-            <button type="button" role="tab" id="tab-model" aria-controls="panel-model" aria-selected={tab === 'model'} tabIndex={tab === 'model' ? 0 : -1} onClick={() => setTab('model')}><Box size={15} aria-hidden /> Modèle</button>
-            <button type="button" role="tab" id="tab-pdf" aria-controls="panel-pdf" aria-selected={tab === 'pdf'} tabIndex={tab === 'pdf' ? 0 : -1} onClick={() => setTab('pdf')}><BookOpen size={15} aria-hidden /> Notice PDF</button>
-            {loaded && <button type="button" role="tab" id="tab-mapping" aria-controls="panel-pdf" aria-selected={tab === 'mapping'} tabIndex={tab === 'mapping' ? 0 : -1} onClick={openEditor}><Link2 size={15} aria-hidden /> Correspondances</button>}
+          <div className="tabs" role="tablist" aria-label={t.atelier.side.tabs} onKeyDown={onTabKey}>
+            <button type="button" role="tab" id="tab-model" aria-controls="panel-model" aria-selected={tab === 'model'} tabIndex={tab === 'model' ? 0 : -1} onClick={() => setTab('model')}><Box size={15} aria-hidden /> {t.atelier.side.model}</button>
+            <button type="button" role="tab" id="tab-pdf" aria-controls="panel-pdf" aria-selected={tab === 'pdf'} tabIndex={tab === 'pdf' ? 0 : -1} onClick={() => setTab('pdf')}><BookOpen size={15} aria-hidden /> {t.atelier.side.pdf}</button>
+            {loaded && <button type="button" role="tab" id="tab-mapping" aria-controls="panel-pdf" aria-selected={tab === 'mapping'} tabIndex={tab === 'mapping' ? 0 : -1} onClick={openEditor}><Link2 size={15} aria-hidden /> {t.atelier.side.mapping}</button>}
             <span className="spacer" />
-            {!editing && <button type="button" className="ghost icon small" aria-label="Replier le panneau" data-tip="Replier le panneau" data-tip-side="left" onClick={() => setPanelCollapsed(true)}><PanelRightClose size={16} aria-hidden /></button>}
+            {!editing && <button type="button" className="ghost icon small" aria-label={t.atelier.rail.hidePanel} data-tip={t.atelier.rail.hidePanel} data-tip-side="left" onClick={() => setPanelCollapsed(true)}><PanelRightClose size={16} aria-hidden /></button>}
           </div>
           <div role="tabpanel" id="panel-model" aria-labelledby="tab-model" hidden={tab !== 'model'} className="tab-panel">
             {loaded ? (
@@ -1396,8 +1379,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                 {!session && playable && ctx && <StartPanel unavailable={modeUnavailable} onStart={(m) => start(m)} />}
                 {!playable && loaded.quality.quality !== 'INVALID' && (
                   <Note tone="warning">
-                    Visualisation seulement tant que des pièces manquent.
-                    {loaded.libraryProblem && <> Cause : la bibliothèque de pièces LDraw de ce Mac (voir la zone 3D), pas ton fichier.</>}
+                    {t.atelier.side.viewOnly}
+                    {loaded.libraryProblem && <> {t.atelier.side.libraryCause}</>}
                   </Note>
                 )}
                 <ModelSummary
@@ -1409,30 +1392,30 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                   inventory={inventoryCheck(loaded.hash)}
                   {...(initial ? {} : { onChooseRoot: (name: string) => void importText(loaded.fileName, loaded.text, loaded.hash, name) })}
                 />
-                {loaded.analysis.plan.kind === 'NO_STEPS' && session && <p className="small muted">{NO_STEPS_TEXT}</p>}
+                {loaded.analysis.plan.kind === 'NO_STEPS' && session && <p className="small muted">{t.atelier.mode.noSteps}</p>}
                 {playable && (
                   <div className="sync-status small" data-testid="sync-availability">
                     {syncPlan
-                      ? <span className="ok">Notice synchronisée disponible : {syncPlan.steps.length} étape(s) de notice, correspondances validées.</span>
-                      : <span className="muted">Notice synchronisée indisponible : {syncUnavailable}</span>}
-                    {' '}<button type="button" className="small" onClick={openEditor}><Link2 size={14} aria-hidden /> {mapping && mapping.steps.length > 0 ? 'Modifier les correspondances' : 'Créer les correspondances'}</button>
+                      ? <span className="ok">{t.atelier.sync.available(syncPlan.steps.length)}</span>
+                      : <span className="muted">{t.atelier.sync.unavailable(syncUnavailable)}</span>}
+                    {' '}<button type="button" className="small" onClick={openEditor}><Link2 size={14} aria-hidden /> {mapping && mapping.steps.length > 0 ? t.atelier.sync.editMapping : t.atelier.sync.createMapping}</button>
                   </div>
                 )}
                 {!initial && (
                   <label className="button secondary small">
-                    <Upload size={14} aria-hidden /> Importer un autre modèle
+                    <Upload size={14} aria-hidden /> {t.atelier.side.importOther}
                     <input type="file" accept=".ldr,.mpd" className="visually-hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onModelFile(f); e.target.value = ''; }} />
                   </label>
                 )}
               </>
-            ) : <p className="muted small">Aucun modèle importé.</p>}
+            ) : <p className="muted small">{t.atelier.side.noModel}</p>}
           </div>
           <div role="tabpanel" id="panel-pdf" aria-labelledby={tab === 'mapping' ? 'tab-mapping' : 'tab-pdf'} hidden={tab === 'model'} className="tab-panel">
             <PdfPanel
               notice={notice}
               initialPage={restoredPdfPage.current}
               compact={editing}
-              caption={synced ? 'page pilotée par l’étape de notice en cours.' : editing ? 'page de l’étape éditée.' : 'page PDF indépendante des étapes 3D.'}
+              caption={synced ? t.atelier.side.captionSynced : editing ? t.atelier.side.captionEditing : t.atelier.side.captionFree}
               banner={synced && plan ? (
                 <SyncStepBanner
                   steps={plan.steps}
@@ -1447,7 +1430,7 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
                     if (!ctx || !session) return;
                     setSession(rewindToStep(ctx, session, i));
                     setConsultIdx(null);
-                    setMessage({ kind: 'info', text: `Reprise depuis ${plan.steps[i]?.instruction?.label ?? 'cette étape'} : les pièces des étapes suivantes ont été retirées.` });
+                    setMessage({ kind: 'info', text: t.atelier.toast.rewound(plan.steps[i]?.instruction?.label ?? t.atelier.toast.thisStep) });
                   }}
                   onShowStepPage={showStepPage}
                 />
@@ -1474,8 +1457,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             )}
             {editing && replacedMapping && (
               <Note tone="info">
-                Correspondances précédentes remplacées.{' '}
-                <button type="button" className="link" onClick={() => { changeMapping(replacedMapping, 'Correspondances précédentes restaurées.'); setEditStepId(replacedMapping.steps[0]?.id ?? null); setReplacedMapping(null); }}>Les restaurer</button>
+                {t.atelier.mapping.replaced}{' '}
+                <button type="button" className="link" onClick={() => { changeMapping(replacedMapping, t.atelier.mapping.restored); setEditStepId(replacedMapping.steps[0]?.id ?? null); setReplacedMapping(null); }}>{t.atelier.mapping.restore}</button>
               </Note>
             )}
           </div>
@@ -1488,14 +1471,14 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             {isComplete(ctx, session) ? (
               <div className="done">
                 <span className="done-icon" aria-hidden><Check size={20} /></span>
-                <strong>Modèle terminé : {ctx.occurrences.length}/{ctx.occurrences.length} pièces.</strong>
-                <button type="button" className="button primary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> Recommencer</button>
+                <strong>{t.atelier.tray.complete(ctx.occurrences.length)}</strong>
+                <button type="button" className="button primary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> {t.atelier.tray.restart}</button>
               </div>
             ) : freeMode && match && isStockExhausted(ctx, session) ? (
               <div className="done" data-testid="free-done">
                 <span className="done-icon" aria-hidden><Check size={20} /></span>
-                <strong>{freeEndText(atModelCount(session, match), ctx.occurrences.length)}</strong>
-                <button type="button" className="button secondary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> Recommencer</button>
+                <strong>{t.atelier.freeEnd(atModelCount(session, match), ctx.occurrences.length)}</strong>
+                <button type="button" className="button secondary" onClick={() => setConfirmRestart(true)}><RotateCcw size={16} aria-hidden /> {t.atelier.tray.restart}</button>
               </div>
             ) : (
               <PartsTray
@@ -1509,12 +1492,12 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
             )}
           </div>
           <div className="tray-actions">
-            <button type="button" aria-label="Annuler" data-tip="Annuler la dernière action (⌘Z)" data-tip-align="end" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}><Undo2 size={16} aria-hidden /> Annuler <kbd aria-hidden>⌘Z</kbd></button>
-            {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}><RotateCw size={16} aria-hidden /> Orientation suivante (O)</button>}
-            <button type="button" onClick={assistPlace} disabled={!held} data-tip="Aide / accessibilité : pose la pièce tenue à l’emplacement libre le plus proche" data-tip-align="end" data-testid="assist-place"><Target size={16} aria-hidden /> Poser à la position cible (aide)</button>
+            <button type="button" aria-label={t.atelier.tray.undo} data-tip={t.atelier.tray.undoTip} data-tip-align="end" onClick={undoAction} disabled={usedCount(session) === 0 && freeHistory.length === 0}><Undo2 size={16} aria-hidden /> {t.atelier.tray.undo} <kbd aria-hidden>⌘Z</kbd></button>
+            {held && heldOrientations.length > 1 && <button type="button" onClick={nextOrientation}><RotateCw size={16} aria-hidden /> {t.atelier.tray.nextOrientation}</button>}
+            <button type="button" onClick={assistPlace} disabled={!held} data-tip={t.atelier.tray.assistTip} data-tip-align="end" data-testid="assist-place"><Target size={16} aria-hidden /> {t.atelier.tray.assist}</button>
             <div className="tray-secondary">
-              {isStepped(session.mode) && <button type="button" className="ghost small" onClick={() => setSession(resetActiveStep(ctx, session))}>Réinitialiser l’étape</button>}
-              <button type="button" className="ghost small danger-text" onClick={() => setConfirmRestart(true)}><Trash2 size={14} aria-hidden /> Abandonner</button>
+              {isStepped(session.mode) && <button type="button" className="ghost small" onClick={() => setSession(resetActiveStep(ctx, session))}>{t.atelier.tray.resetStep}</button>}
+              <button type="button" className="ghost small danger-text" onClick={() => setConfirmRestart(true)}><Trash2 size={14} aria-hidden /> {t.atelier.tray.abandon}</button>
             </div>
           </div>
         </footer>
@@ -1522,8 +1505,8 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
 
       <ConfirmDialog
         open={confirmRestart && Boolean(session)}
-        title="Abandonner cette partie ?"
-        confirmLabel="Confirmer l’abandon"
+        title={t.atelier.confirm.restartTitle}
+        confirmLabel={t.atelier.confirm.restartConfirm}
         onConfirm={() => void restart()}
         onCancel={() => setConfirmRestart(false)}
         testId="confirm-restart"
@@ -1532,18 +1515,15 @@ export default function BrickLabApp({ store = browserStore, initial, crumbs = []
       </ConfirmDialog>
       <ConfirmDialog
         open={pendingSwitch !== null}
-        title={pendingSwitch ? `Passer en ${MODE_LABEL[pendingSwitch.mode]} ?` : ''}
-        confirmLabel="Retirer et changer de mode"
-        cancelLabel="Rester en montage libre"
+        title={pendingSwitch ? t.atelier.confirm.switchTitle(modeLabel[pendingSwitch.mode]) : ''}
+        confirmLabel={t.atelier.confirm.switchConfirm}
+        cancelLabel={t.atelier.confirm.switchCancel}
         onConfirm={() => pendingSwitch && start(pendingSwitch.mode, true, true)}
         onCancel={() => setPendingSwitch(null)}
         testId="mode-switch-confirm"
       >
         {pendingSwitch && (
-          <p>
-            {pendingSwitch.unmatched} pièce(s) posée(s) hors du modèle officiel : pour passer en {MODE_LABEL[pendingSwitch.mode]}, elles seront remises dans le stock
-            {pendingSwitch.recognised > 0 ? ` (${pendingSwitch.recognised} reconnue(s) à leur place, gardée(s))` : ''}.
-          </p>
+          <p>{t.atelier.confirm.switchText(pendingSwitch.unmatched, modeLabel[pendingSwitch.mode], pendingSwitch.recognised)}</p>
         )}
       </ConfirmDialog>
     </div>

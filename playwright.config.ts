@@ -14,11 +14,11 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:3000',
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 1280, height: 800 }, locale: 'fr-FR',
     screenshot: 'only-on-failure',
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, locale: 'fr-FR' } }],
   webServer: {
     // fresh Turbopack dev cache: a stale .next/dev made the page reload in a loop (HMR hash mismatch)
     command: 'node scripts/run-next.mjs dev --fresh-dev-cache -H 127.0.0.1 -p 3000',

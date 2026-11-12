@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '@/i18n/I18nProvider';
 
 /**
  * Modal dialog on the native <dialog>: focus trapped and Escape handled by the browser (same in
@@ -24,6 +25,7 @@ interface DialogProps {
 }
 
 function OpenDialog({ title, onClose, children, footer, wide = false, testId }: DialogProps) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -47,7 +49,7 @@ function OpenDialog({ title, onClose, children, footer, wide = false, testId }: 
       <div className="dialog-head">
         <h2 id={titleId}>{title}</h2>
         <span className="spacer" />
-        <button type="button" className="ghost icon small" aria-label="Fermer" onClick={onClose}><X size={16} aria-hidden /></button>
+        <button type="button" className="ghost icon small" aria-label={t.common.close} onClick={onClose}><X size={16} aria-hidden /></button>
       </div>
       <div className="dialog-body">{children}</div>
       {footer && <div className="dialog-foot">{footer}</div>}
@@ -56,7 +58,7 @@ function OpenDialog({ title, onClose, children, footer, wide = false, testId }: 
 }
 
 /** Confirmation of a destructive action: the safe choice has the focus. */
-export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel = 'Annuler', onConfirm, onCancel, testId, confirmTestId }: {
+export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel, onConfirm, onCancel, testId, confirmTestId }: {
   open: boolean;
   title: ReactNode;
   children: ReactNode;
@@ -67,6 +69,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
   testId?: string;
   confirmTestId?: string;
 }) {
+  const t = useT();
   return (
     <Dialog
       open={open}
@@ -75,7 +78,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
       {...(testId ? { testId } : {})}
       footer={(
         <>
-          <button type="button" onClick={onCancel} autoFocus>{cancelLabel}</button>
+          <button type="button" onClick={onCancel} autoFocus>{cancelLabel ?? t.common.cancel}</button>
           <button type="button" className="danger solid" onClick={onConfirm} data-testid={confirmTestId}>{confirmLabel}</button>
         </>
       )}

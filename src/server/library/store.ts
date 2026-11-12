@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { currentLocale, msgs } from '@/i18n/runtime';
 import { availableModes } from '@/domain/build/engine';
 import { matchToModel } from '@/domain/build/free';
 import { restoreProgress, type LocalBuildProgress } from '@/domain/build/progress';
@@ -159,7 +160,7 @@ export class LibraryStore {
       } catch (e) {
         if (e instanceof LibraryError || e instanceof UnsafePathError) throw e;
         const err = e as NodeJS.ErrnoException;
-        throw new LibraryError('STORAGE', `Écriture sur le disque impossible (${err.code ?? err.message}). Rien n’a été modifié.`);
+        throw new LibraryError('STORAGE', msgs().server.store.diskWriteFailed(err.code ?? err.message));
       }
     });
   }
@@ -173,17 +174,17 @@ export class LibraryStore {
     try {
       raw = await readJson(this.p('library.json'), MAX_INDEX_BYTES);
     } catch (e) {
-      throw new LibraryError('CORRUPT_INDEX', `library.json illisible (${(e as Error).message}). Aucune écriture ne sera faite ; des copies se trouvent dans ${this.p('backups')}.`);
+      throw new LibraryError('CORRUPT_INDEX', msgs().server.store.indexUnreadable((e as Error).message, this.p('backups')));
     }
     if (raw === null) {
       const backups = await fs.readdir(this.p('backups')).catch(() => [] as string[]);
       if (backups.some((f) => f.endsWith('.json'))) {
-        throw new LibraryError('CORRUPT_INDEX', `library.json est absent alors que des sauvegardes existent dans ${this.p('backups')} : restaure la plus récente (voir la documentation) plutôt que de repartir d’une bibliothèque vide.`);
+        throw new LibraryError('CORRUPT_INDEX', msgs().server.store.indexMissingWithBackups(this.p('backups')));
       }
       return emptyIndex();
     }
     const parsed = parseIndex(raw);
-    if (!parsed.ok) throw new LibraryError('CORRUPT_INDEX', `${parsed.error} Aucune écriture ne sera faite ; des copies se trouvent dans ${this.p('backups')}.`);
+    if (!parsed.ok) throw new LibraryError('CORRUPT_INDEX', msgs().server.store.indexInvalid(parsed.error, this.p('backups')));
     return parsed.index;
   }
 
@@ -196,13 +197,13 @@ export class LibraryStore {
   private async commit(change: (index: LibraryIndex, now: Date) => LibraryIndex | Promise<LibraryIndex>, baseRevision?: number, { filesOnly = false } = {}): Promise<LibraryIndex> {
     const current = await this.readIndex();
     if (baseRevision !== undefined && baseRevision !== current.revision) {
-      throw new LibraryError('CONFLICT', 'La collection a été modifiée entre-temps (autre onglet ou navigateur). Recharge la page puis recommence.', { revision: current.revision });
+      throw new LibraryError('CONFLICT', msgs().server.store.collectionChanged, { revision: current.revision });
     }
     const now = new Date();
     const changed = await change(current, now);
     const next: LibraryIndex = { ...changed, revision: current.revision + (filesOnly ? 0 : 1), updatedAtIso: now.toISOString() };
     const check = parseIndex(JSON.parse(JSON.stringify(next)));
-    if (!check.ok) throw new LibraryError('INVALID', `Modification refusée : ${check.error}`);
+    if (!check.ok) throw new LibraryError('INVALID', msgs().server.store.changeRefused(check.error));
     const text = `${JSON.stringify(next, null, 2)}\n`;
     // the index first, then its copy: a backup never describes a version that did not become current
     // (P8: an interrupted FIRST write used to leave a backup without index, which locks the library)
@@ -226,7 +227,7 @@ export class LibraryStore {
     if (file.location.type === 'blob') return resolveInside(this.libDir, file.location.path);
     const real = await resolveInside(this.dataDir, file.location.path);
     const realLib = await fs.realpath(this.libDir).catch(() => null);
-    if (realLib && real.startsWith(realLib + path.sep)) throw new UnsafePathError('Un fichier externe ne peut pas désigner le dossier de la bibliothèque.');
+    if (realLib && real.startsWith(realLib + path.sep)) throw new UnsafePathError(msgs().server.store.externalInsideLibrary);
     return real;
   }
 
@@ -244,10 +245,10 @@ export class LibraryStore {
 
   /** Reads a library file and checks its SHA-256 against the index. Never returns other bytes. */
   async readVerified(sha: string, kind?: FileKind): Promise<FileBytes> {
-    if (!SHA256_RE.test(sha)) throw new LibraryError('INVALID', 'Empreinte invalide.');
+    if (!SHA256_RE.test(sha)) throw new LibraryError('INVALID', msgs().server.store.invalidFingerprint);
     const index = await this.readIndex();
     const file = index.files[sha];
-    if (!file || (kind && file.kind !== kind)) throw new LibraryError('NOT_FOUND', 'Fichier inconnu de la bibliothèque.');
+    if (!file || (kind && file.kind !== kind)) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownFile);
     return { file, bytes: await this.verifiedBytes(file) };
   }
 
@@ -257,14 +258,14 @@ export class LibraryStore {
     try {
       abs = await this.absolutePath(file);
     } catch (e) {
-      if (e instanceof UnsafePathError) throw problem('UNREADABLE', `${file.originalName} : emplacement refusé (${e.message}).`);
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw problem('MISSING', `${file.originalName} est introuvable (${file.location.path}).`);
-      throw problem('UNREADABLE', `${file.originalName} est illisible.`);
+      if (e instanceof UnsafePathError) throw problem('UNREADABLE', msgs().server.store.locationRefused(file.originalName, e.message));
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw problem('MISSING', msgs().server.store.fileNotFoundAt(file.originalName, file.location.path));
+      throw problem('UNREADABLE', msgs().server.store.fileUnreadable(file.originalName));
     }
     const stat = await fs.stat(abs);
-    if (stat.size !== file.size) throw problem('SIZE_CHANGED', `${file.originalName} a changé depuis son ajout (${file.size} → ${stat.size} octets) : ce n’est plus le même fichier.`);
+    if (stat.size !== file.size) throw problem('SIZE_CHANGED', msgs().server.store.sizeChanged(file.originalName, file.size, stat.size));
     const bytes = await fs.readFile(abs);
-    if (sha256(bytes) !== file.sha256) throw problem('HASH_MISMATCH', `${file.originalName} a été modifié depuis son ajout (empreinte SHA-256 différente) : il n’est pas utilisé.`);
+    if (sha256(bytes) !== file.sha256) throw problem('HASH_MISMATCH', msgs().server.store.hashChanged(file.originalName));
     return bytes;
   }
 
@@ -272,19 +273,19 @@ export class LibraryStore {
   private validateContent(kind: FileKind, bytes: Buffer, name: string): { author?: string; license?: string } {
     const ext = path.extname(name).toLowerCase();
     if (kind === 'model') {
-      if (ext !== '.mpd' && ext !== '.ldr') throw new LibraryError('UNSUPPORTED', 'Formats de modèle acceptés : .mpd et .ldr.');
-      if (bytes.includes(0)) throw new LibraryError('UNSUPPORTED', 'Ce fichier n’est pas un fichier texte LDraw.');
+      if (ext !== '.mpd' && ext !== '.ldr') throw new LibraryError('UNSUPPORTED', msgs().server.store.modelFormats);
+      if (bytes.includes(0)) throw new LibraryError('UNSUPPORTED', msgs().server.store.notLDrawText);
       const a = analyzeModel(new TextDecoder('utf-8').decode(bytes), name);
       if (a.model.occurrences.length === 0) {
-        throw new LibraryError('INVALID', `Modèle inutilisable : aucune pièce lue. ${a.diagnostics.filter((d) => d.severity === 'error').slice(0, 3).map((d) => d.message).join(' ')}`.trim());
+        throw new LibraryError('INVALID', msgs().server.store.unusableModel(a.diagnostics.filter((d) => d.severity === 'error').slice(0, 3).map((d) => d.message).join(' ')).trim());
       }
       const meta = a.document.sections[0]?.meta;
       return { ...(meta?.author ? { author: meta.author.slice(0, 300) } : {}), ...(meta?.license ? { license: meta.license.slice(0, 300) } : {}) };
     } else if (kind === 'pdf') {
-      if (ext !== '.pdf' || bytes.subarray(0, 1024).indexOf('%PDF-') < 0) throw new LibraryError('UNSUPPORTED', 'Ce fichier n’est pas un PDF.');
+      if (ext !== '.pdf' || bytes.subarray(0, 1024).indexOf('%PDF-') < 0) throw new LibraryError('UNSUPPORTED', msgs().server.store.notAPdf);
     } else {
       const parsed = parseMappingText(bytes.toString('utf8'));
-      if (!parsed.ok) throw new LibraryError('INVALID', `Fichier de correspondances refusé : ${parsed.errors.join(' ')}`);
+      if (!parsed.ok) throw new LibraryError('INVALID', msgs().server.store.mappingFileRefused(parsed.errors.join(' ')));
     }
     return {};
   }
@@ -303,11 +304,11 @@ export class LibraryStore {
     try {
       for await (const chunk of chunks) {
         size += chunk.byteLength;
-        if (size > MAX_BYTES[kind]) throw new LibraryError('TOO_LARGE', `Fichier trop volumineux (limite ${Math.round(MAX_BYTES[kind] / 1024 / 1024)} Mo).`);
+        if (size > MAX_BYTES[kind]) throw new LibraryError('TOO_LARGE', msgs().server.store.fileTooLarge(Math.round(MAX_BYTES[kind] / 1024 / 1024)));
         hash.update(chunk);
         parts.push(Buffer.from(chunk));
       }
-      if (size === 0) throw new LibraryError('INVALID', 'Fichier vide.');
+      if (size === 0) throw new LibraryError('INVALID', msgs().server.store.emptyFile);
       const bytes = Buffer.concat(parts, size);
       this.validateContent(kind, bytes, name);
       const sha = hash.digest('hex');
@@ -315,7 +316,7 @@ export class LibraryStore {
         const index = await this.readIndex();
         const known = index.files[sha];
         if (known) {
-          if (known.kind !== kind) throw new LibraryError('INVALID', `Ce fichier est déjà dans la bibliothèque comme ${known.kind}.`);
+          if (known.kind !== kind) throw new LibraryError('INVALID', msgs().server.store.alreadyAsKind(known.kind));
           // a known file whose copy is missing or was modified is repaired from this upload
           // (for a file left in place, a verified copy goes into the library; the original is not touched)
           if (await this.verifiedBytes(known).then(() => true, () => false)) return { file: known, duplicate: true };
@@ -325,7 +326,7 @@ export class LibraryStore {
         const target = this.p(...rel.split('/'));
         if (!(await linkNewFile(tmp, target))) {
           // the blob exists (orphan of an interrupted import, or restored): keep it only if identical
-          if (sha256(await fs.readFile(target)) !== sha) throw new LibraryError('STORAGE', `Un fichier différent occupe déjà ${rel} : rien n’a été écrasé.`);
+          if (sha256(await fs.readFile(target)) !== sha) throw new LibraryError('STORAGE', msgs().server.store.differentFileAt(rel));
         }
         const file: LibraryFile = known
           ? { ...known, location: { type: 'blob', path: rel } }
@@ -340,17 +341,17 @@ export class LibraryStore {
 
   /** Registers a file left in place in the data folder (discovery). It is hashed now and at every use. */
   async registerExternal(kind: FileKind, rel: string, expectedSha: string): Promise<LibraryFile> {
-    if (!safeSegments(rel) || rel.split('/')[0] === LIBRARY_DIRNAME) throw new LibraryError('FORBIDDEN', 'Chemin refusé.');
+    if (!safeSegments(rel) || rel.split('/')[0] === LIBRARY_DIRNAME) throw new LibraryError('FORBIDDEN', msgs().server.store.pathRefused);
     return this.exclusive(async () => {
       const index = await this.readIndex();
       const abs = await resolveInside(this.dataDir, rel).catch((e: unknown) => {
-        throw e instanceof UnsafePathError ? new LibraryError('FORBIDDEN', e.message) : new LibraryError('NOT_FOUND', `${rel} est introuvable.`);
+        throw e instanceof UnsafePathError ? new LibraryError('FORBIDDEN', e.message) : new LibraryError('NOT_FOUND', msgs().server.store.relNotFound(rel));
       });
       const stat = await fs.stat(abs);
-      if (!stat.isFile() || stat.size > MAX_BYTES[kind]) throw new LibraryError('INVALID', `${rel} : fichier refusé.`);
+      if (!stat.isFile() || stat.size > MAX_BYTES[kind]) throw new LibraryError('INVALID', msgs().server.store.relRefused(rel));
       const bytes = await fs.readFile(abs);
       const sha = sha256(bytes);
-      if (sha !== expectedSha) throw new LibraryError('CONFLICT', `${rel} a changé depuis la détection : relance la détection.`);
+      if (sha !== expectedSha) throw new LibraryError('CONFLICT', msgs().server.store.changedSinceDiscovery(rel));
       // already known (imported or found elsewhere): the existing record is kept, never duplicated
       if (index.files[sha]) return index.files[sha]!;
       this.validateContent(kind, bytes, path.basename(abs));
@@ -363,7 +364,8 @@ export class LibraryStore {
   /** Parsed model of a build (cached by content hash and main model). */
   async analysis(build: Pick<LibraryBuild, 'modelFileId' | 'rootName'>): Promise<{ analysis: ModelAnalysis; file: LibraryFile }> {
     const { file, bytes } = await this.readVerified(build.modelFileId, 'model');
-    const key = `${file.sha256}|${build.rootName}`;
+    // diagnostics and plan notes are text: one cache entry per language
+    const key = `${currentLocale()}|${file.sha256}|${build.rootName}`;
     let a = this.analyses.get(key);
     if (!a) {
       a = analyzeModel(new TextDecoder('utf-8').decode(bytes), file.originalName, { rootName: build.rootName });
@@ -379,27 +381,27 @@ export class LibraryStore {
 
   private async makeBuild(index: LibraryIndex, setId: string, input: NewBuildInput, now: Date): Promise<{ build: LibraryBuild; mapping: InstructionMapping | null }> {
     const label = cleanName(input.label);
-    if (!label) throw new LibraryError('INVALID', 'Nom de construction invalide.');
+    if (!label) throw new LibraryError('INVALID', msgs().server.store.invalidBuildName);
     const model = index.files[input.modelFileId];
-    if (!model || model.kind !== 'model') throw new LibraryError('INVALID', 'Modèle 3D inconnu : importe-le d’abord.');
+    if (!model || model.kind !== 'model') throw new LibraryError('INVALID', msgs().server.store.unknownModel);
     const booklets = [...new Set(input.bookletFileIds ?? [])];
-    if (booklets.length > 20 || !booklets.every((id) => index.files[id]?.kind === 'pdf')) throw new LibraryError('INVALID', 'Notice inconnue ou trop de notices (20 au plus).');
+    if (booklets.length > 20 || !booklets.every((id) => index.files[id]?.kind === 'pdf')) throw new LibraryError('INVALID', msgs().server.store.unknownOrTooManyBooklets);
     const bytes = await this.verifiedBytes(model);
     const text = new TextDecoder('utf-8').decode(bytes);
     const probe = analyzeModel(text, model.originalName);
     const rootName = input.rootName ?? probe.model.rootName;
-    if (!probe.rootCandidates.includes(rootName) && rootName !== probe.model.rootName) throw new LibraryError('INVALID', `Modèle principal « ${rootName} » absent du fichier.`);
+    if (!probe.rootCandidates.includes(rootName) && rootName !== probe.model.rootName) throw new LibraryError('INVALID', msgs().server.store.rootNotInFile(rootName));
     const a = rootName === probe.model.rootName ? probe : analyzeModel(text, model.originalName, { rootName });
-    if (a.model.occurrences.length === 0) throw new LibraryError('INVALID', 'Ce modèle principal ne contient aucune pièce.');
+    if (a.model.occurrences.length === 0) throw new LibraryError('INVALID', msgs().server.store.rootWithoutPieces);
     const twin = index.builds.find((b) => b.modelFileId === model.sha256 && b.rootName === rootName);
     if (twin) {
       const set = index.sets.find((s) => s.id === twin.setId);
-      throw new LibraryError('DUPLICATE', `Ce modèle est déjà dans ta collection : ${set?.setNumber ?? ''} ${set?.name ?? ''} — « ${twin.label} ».`, { setId: twin.setId, buildId: twin.id });
+      throw new LibraryError('DUPLICATE', msgs().server.store.modelAlreadyInCollection(set?.setNumber ?? '', set?.name ?? '', twin.label), { setId: twin.setId, buildId: twin.id });
     }
     let mapping: InstructionMapping | null = null;
     if (input.mappingFileId) {
       const mf = index.files[input.mappingFileId];
-      if (!mf || mf.kind !== 'mapping') throw new LibraryError('INVALID', 'Fichier de correspondances inconnu.');
+      if (!mf || mf.kind !== 'mapping') throw new LibraryError('INVALID', msgs().server.store.unknownMappingFile);
       mapping = this.checkMapping((await this.verifiedBytes(mf)).toString('utf8'), { sha256: model.sha256, fileName: model.originalName, rootName, occurrences: a.model.occurrences });
     }
     return {
@@ -411,25 +413,25 @@ export class LibraryStore {
   /** Structure + model fingerprint only: a draft (incomplete) mapping is accepted, another model's never. */
   private checkMapping(text: string, target: Parameters<typeof validateMapping>[1]): InstructionMapping {
     const parsed = parseMappingText(text);
-    if (!parsed.ok) throw new LibraryError('INVALID', `Correspondances refusées : ${parsed.errors.join(' ')}`);
+    if (!parsed.ok) throw new LibraryError('INVALID', msgs().server.store.mappingsRefused(parsed.errors.join(' ')));
     const mismatch = validateMapping(parsed.mapping, target).issues.find((i) => i.code === 'MODEL_MISMATCH');
-    if (mismatch) throw new LibraryError('INVALID', `Correspondances incompatibles avec ce modèle : ${mismatch.message}`);
+    if (mismatch) throw new LibraryError('INVALID', msgs().server.store.mappingsIncompatible(mismatch.message));
     return parsed.mapping;
   }
 
   async createSet(input: { setNumber: string; name: string; builds: readonly NewBuildInput[]; allowSameNumber?: boolean }, mappingSource = 'import'): Promise<{ set: LibrarySet; builds: LibraryBuild[] }> {
     const setNumber = typeof input.setNumber === 'string' ? input.setNumber.trim() : '';
-    if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', 'Numéro de set invalide (chiffres, lettres et tirets, ex. 31040-1).');
+    if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', msgs().server.store.invalidSetNumberHint);
     const name = cleanName(input.name);
-    if (!name) throw new LibraryError('INVALID', `Nom de set invalide (1 à 120 caractères).`);
-    if (!Array.isArray(input.builds) || input.builds.length === 0 || input.builds.length > 20) throw new LibraryError('INVALID', 'Ajoute au moins un modèle 3D (20 au plus).');
+    if (!name) throw new LibraryError('INVALID', msgs().server.store.invalidSetName);
+    if (!Array.isArray(input.builds) || input.builds.length === 0 || input.builds.length > 20) throw new LibraryError('INVALID', msgs().server.store.addOneModel);
     return this.exclusive(async () => {
       let created: { set: LibrarySet; builds: LibraryBuild[] } | null = null;
       const mappings: [string, InstructionMapping][] = [];
       await this.commit(async (index, now) => {
         const same = index.sets.find((s) => s.setNumber.toLowerCase() === setNumber.toLowerCase());
         if (same && !input.allowSameNumber) {
-          throw new LibraryError('DUPLICATE', `Le set ${same.setNumber} (« ${same.name} ») est déjà dans ta collection : ajoute plutôt une construction à ce set.`, { setId: same.id });
+          throw new LibraryError('DUPLICATE', msgs().server.store.setAlreadyInCollection(same.setNumber, same.name), { setId: same.id });
         }
         const set: LibrarySet = { id: newId('s'), setNumber, name, createdAtIso: now.toISOString(), updatedAtIso: now.toISOString() };
         const builds: LibraryBuild[] = [];
@@ -451,7 +453,7 @@ export class LibraryStore {
       let build: LibraryBuild | null = null;
       let mapping: InstructionMapping | null = null;
       await this.commit(async (index, now) => {
-        if (!index.sets.some((s) => s.id === setId)) throw new LibraryError('NOT_FOUND', 'Set inconnu.');
+        if (!index.sets.some((s) => s.id === setId)) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownSet);
         const made = await this.makeBuild(index, setId, input, now);
         build = made.build;
         mapping = made.mapping;
@@ -467,11 +469,11 @@ export class LibraryStore {
       let out: LibrarySet | null = null;
       await this.commit((index, now) => {
         const set = index.sets.find((s) => s.id === setId);
-        if (!set) throw new LibraryError('NOT_FOUND', 'Set inconnu.');
+        if (!set) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownSet);
         const name = patch.name === undefined ? set.name : cleanName(patch.name);
         const setNumber = patch.setNumber === undefined ? set.setNumber : typeof patch.setNumber === 'string' ? patch.setNumber.trim() : '';
-        if (!name) throw new LibraryError('INVALID', 'Nom de set invalide (1 à 120 caractères).');
-        if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', 'Numéro de set invalide.');
+        if (!name) throw new LibraryError('INVALID', msgs().server.store.invalidSetName);
+        if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', msgs().server.store.invalidSetNumber);
         out = { ...set, name, setNumber, updatedAtIso: now.toISOString() };
         return { ...index, sets: index.sets.map((s) => (s.id === setId ? out! : s)) };
       }, baseRevision);
@@ -484,14 +486,14 @@ export class LibraryStore {
       let out: LibraryBuild | null = null;
       await this.commit((index, now) => {
         const build = index.builds.find((b) => b.id === buildId);
-        if (!build) throw new LibraryError('NOT_FOUND', 'Construction inconnue.');
+        if (!build) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownBuild);
         const label = patch.label === undefined ? build.label : cleanName(patch.label);
-        if (!label) throw new LibraryError('INVALID', 'Nom de construction invalide.');
+        if (!label) throw new LibraryError('INVALID', msgs().server.store.invalidBuildName);
         let booklets = build.bookletFileIds;
         if (patch.bookletFileIds !== undefined) {
           const ids = patch.bookletFileIds;
           if (!Array.isArray(ids) || ids.length > 20 || !ids.every((id) => typeof id === 'string' && index.files[id]?.kind === 'pdf') || new Set(ids).size !== ids.length) {
-            throw new LibraryError('INVALID', 'Liste de notices invalide.');
+            throw new LibraryError('INVALID', msgs().server.store.invalidBookletList);
           }
           booklets = ids as string[];
         }
@@ -504,13 +506,13 @@ export class LibraryStore {
 
   /** Moves a build's records to `trash/` and removes it from the index (the set too when asked). */
   async remove(target: { buildId: string } | { setId: string }, confirm: unknown, baseRevision: number): Promise<{ trashedTo: string }> {
-    if (confirm !== true) throw new LibraryError('CONFIRMATION_REQUIRED', 'Suppression non confirmée.');
+    if (confirm !== true) throw new LibraryError('CONFIRMATION_REQUIRED', msgs().server.store.deletionNotConfirmed);
     return this.exclusive(async () => {
       const index = await this.readIndex();
-      if (baseRevision !== index.revision) throw new LibraryError('CONFLICT', 'La collection a été modifiée entre-temps : recharge la page.', { revision: index.revision });
+      if (baseRevision !== index.revision) throw new LibraryError('CONFLICT', msgs().server.store.collectionChangedReload, { revision: index.revision });
       const builds = 'buildId' in target ? index.builds.filter((b) => b.id === target.buildId) : index.builds.filter((b) => b.setId === target.setId);
       const set = index.sets.find((s) => ('setId' in target ? s.id === target.setId : s.id === builds[0]?.setId));
-      if (!set || ('buildId' in target && builds.length === 0)) throw new LibraryError('NOT_FOUND', 'Élément inconnu.');
+      if (!set || ('buildId' in target && builds.length === 0)) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownItem);
       const dir = this.p('trash', `${stamp(new Date())}-${'buildId' in target ? target.buildId : target.setId}`);
       await fs.mkdir(dir, { recursive: true });
       await writeFileAtomic(path.join(dir, 'removed.json'), `${JSON.stringify({ set, builds, files: builds.flatMap((b) => [b.modelFileId, ...b.bookletFileIds]).map((id) => index.files[id]) }, null, 2)}\n`);
@@ -530,7 +532,7 @@ export class LibraryStore {
   // ---------------------------------------------------------------------------------------------
 
   private recordPath(buildId: string, kind: 'progress' | 'mapping') {
-    if (!ID_RE.test(buildId)) throw new LibraryError('INVALID', 'Identifiant de construction invalide.');
+    if (!ID_RE.test(buildId)) throw new LibraryError('INVALID', msgs().server.store.invalidBuildId);
     return this.p('builds', buildId, `${kind}.json`);
   }
 
@@ -540,11 +542,11 @@ export class LibraryStore {
       raw = await readJson(this.recordPath(buildId, kind), MAX_RECORD_BYTES);
     } catch (e) {
       if (e instanceof LibraryError) throw e;
-      throw new LibraryError('FILE_PROBLEM', `${kind === 'progress' ? 'Progression' : 'Correspondances'} enregistrée(s) illisible(s) (${(e as Error).message}) : le fichier est conservé tel quel.`, { state: 'UNREADABLE' });
+      throw new LibraryError('FILE_PROBLEM', kind === 'progress' ? msgs().server.store.progressUnreadableDetail((e as Error).message) : msgs().server.store.mappingUnreadableDetail((e as Error).message), { state: 'UNREADABLE' });
     }
     if (raw === null) return null;
     const rec = parseRecord(raw);
-    if (!rec) throw new LibraryError('FILE_PROBLEM', `${kind === 'progress' ? 'Progression' : 'Correspondances'} enregistrée(s) illisible(s) : le fichier est conservé tel quel.`, { state: 'UNREADABLE' });
+    if (!rec) throw new LibraryError('FILE_PROBLEM', kind === 'progress' ? msgs().server.store.progressUnreadable : msgs().server.store.mappingUnreadable, { state: 'UNREADABLE' });
     return rec;
   }
 
@@ -557,8 +559,8 @@ export class LibraryStore {
     const currentRevision = current === null ? null : current === 'unreadable' ? -1 : current.revision;
     if (currentRevision !== baseRevision) {
       throw new LibraryError('CONFLICT', kind === 'progress'
-        ? 'Cette partie a été enregistrée entre-temps depuis un autre onglet ou navigateur : recharge pour reprendre la version la plus récente (rien n’a été écrasé).'
-        : 'Les correspondances ont été modifiées entre-temps depuis un autre onglet ou navigateur : recharge la page (rien n’a été écrasé).', { revision: currentRevision });
+        ? msgs().server.store.progressConflict
+        : msgs().server.store.mappingConflict, { revision: currentRevision });
     }
     const file = this.recordPath(buildId, kind);
     // keep the replaced version (an unreadable one is kept byte for byte); progress is saved at
@@ -591,7 +593,7 @@ export class LibraryStore {
   private async buildOf(buildId: string): Promise<{ index: LibraryIndex; build: LibraryBuild }> {
     const index = await this.readIndex();
     const build = index.builds.find((b) => b.id === buildId);
-    if (!build) throw new LibraryError('NOT_FOUND', 'Construction inconnue.');
+    if (!build) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownBuild);
     return { index, build };
   }
 
@@ -601,19 +603,19 @@ export class LibraryStore {
       const { build } = await this.buildOf(buildId);
       const { analysis } = await this.analysis(build);
       const restored = restoreProgress(progress, build.modelFileId, analysis.model.occurrences);
-      if (!restored.ok) throw new LibraryError('INVALID', `Progression refusée (${restored.reason}) : elle ne correspond pas à ce modèle.`);
+      if (!restored.ok) throw new LibraryError('INVALID', msgs().server.store.progressRefused(restored.reason));
       return this.writeRecord(buildId, 'progress', JSON.stringify(progress), baseRevision, source);
     });
   }
 
   /** "Recommencer" / "Abandonner": the progress moves to history, it is not deleted. */
   async clearProgress(buildId: string, confirm: unknown, baseRevision: number): Promise<void> {
-    if (confirm !== true) throw new LibraryError('CONFIRMATION_REQUIRED', 'Remise à zéro non confirmée.');
+    if (confirm !== true) throw new LibraryError('CONFIRMATION_REQUIRED', msgs().server.store.resetNotConfirmed);
     await this.exclusive(async () => {
       await this.buildOf(buildId);
       const current = await this.readRecord(buildId, 'progress');
       if (!current) return;
-      if (current.revision !== baseRevision) throw new LibraryError('CONFLICT', 'Cette partie a été enregistrée entre-temps : recharge la page.', { revision: current.revision });
+      if (current.revision !== baseRevision) throw new LibraryError('CONFLICT', msgs().server.store.progressSavedMeanwhile, { revision: current.revision });
       const history = this.p('builds', buildId, 'history');
       await fs.mkdir(history, { recursive: true });
       await renameRetry(this.recordPath(buildId, 'progress'), path.join(history, `progress-${stamp(new Date())}-r${current.revision}-cleared.json`));
@@ -621,7 +623,7 @@ export class LibraryStore {
   }
 
   async putMapping(buildId: string, text: string, baseRevision: number | null, source: 'editor' | 'import' | 'clear' | 'browser'): Promise<StoredRecord> {
-    if (typeof text !== 'string' || text.length > MAX_MAPPING_BYTES) throw new LibraryError('TOO_LARGE', 'Correspondances trop volumineuses.');
+    if (typeof text !== 'string' || text.length > MAX_MAPPING_BYTES) throw new LibraryError('TOO_LARGE', msgs().server.store.mappingsTooLarge);
     return this.exclusive(async () => {
       const { build, index } = await this.buildOf(buildId);
       const { analysis } = await this.analysis(build);
@@ -635,13 +637,13 @@ export class LibraryStore {
     const rec = await this.readRecord(buildId, 'mapping');
     if (!rec) return null;
     const parsed = parseMapping(rec.payload);
-    if (!parsed.ok) throw new LibraryError('FILE_PROBLEM', `Correspondances enregistrées illisibles : ${parsed.errors.join(' ')}`, { state: 'UNREADABLE' });
+    if (!parsed.ok) throw new LibraryError('FILE_PROBLEM', msgs().server.store.storedMappingsUnreadable(parsed.errors.join(' ')), { state: 'UNREADABLE' });
     return { revision: rec.revision, mapping: parsed.mapping };
   }
 
   async putThumbnail(buildId: string, bytes: Buffer): Promise<void> {
-    if (bytes.length === 0 || bytes.length > MAX_BYTES.thumbnail) throw new LibraryError('TOO_LARGE', 'Miniature trop volumineuse (2 Mo au plus).');
-    if (!PNG_MAGIC.every((b, i) => bytes[i] === b)) throw new LibraryError('UNSUPPORTED', 'Miniature : PNG attendu.');
+    if (bytes.length === 0 || bytes.length > MAX_BYTES.thumbnail) throw new LibraryError('TOO_LARGE', msgs().server.store.thumbnailTooLarge);
+    if (!PNG_MAGIC.every((b, i) => bytes[i] === b)) throw new LibraryError('UNSUPPORTED', msgs().server.store.thumbnailPngExpected);
     await this.exclusive(async () => {
       const { build } = await this.buildOf(buildId);
       // the thumbnail is tied to the model it was rendered from
@@ -659,7 +661,7 @@ export class LibraryStore {
   // ---------------------------------------------------------------------------------------------
 
   private stagingPath(sha: string, suffix: string) {
-    if (!SHA256_RE.test(sha)) throw new LibraryError('INVALID', 'Empreinte invalide.');
+    if (!SHA256_RE.test(sha)) throw new LibraryError('INVALID', msgs().server.store.invalidFingerprint);
     return this.p('staging', `${sha}${suffix}`);
   }
 
@@ -675,11 +677,11 @@ export class LibraryStore {
     let size = 0;
     for await (const chunk of chunks) {
       size += chunk.byteLength;
-      if (size > MAX_BYTES[kind]) throw new LibraryError('TOO_LARGE', `${name} : fichier trop volumineux (limite ${Math.round(MAX_BYTES[kind] / 1024 / 1024)} Mo).`);
+      if (size > MAX_BYTES[kind]) throw new LibraryError('TOO_LARGE', msgs().server.store.namedFileTooLarge(name, Math.round(MAX_BYTES[kind] / 1024 / 1024)));
       hash.update(chunk);
       parts.push(Buffer.from(chunk));
     }
-    if (size === 0) throw new LibraryError('INVALID', `${name} : fichier vide.`);
+    if (size === 0) throw new LibraryError('INVALID', msgs().server.store.namedFileEmpty(name));
     const bytes = Buffer.concat(parts, size);
     const header = this.validateContent(kind, bytes, name);
     const sha = hash.digest('hex');
@@ -688,7 +690,7 @@ export class LibraryStore {
     return this.exclusive(async () => {
       const index = await this.readIndex();
       const known = index.files[sha];
-      if (known && known.kind !== kind) throw new LibraryError('INVALID', `${name} est déjà dans la bibliothèque comme ${known.kind}.`);
+      if (known && known.kind !== kind) throw new LibraryError('INVALID', msgs().server.store.namedAlreadyAsKind(name, known.kind));
       const ext = blobExt(kind, name);
       const data = this.stagingPath(sha, ext);
       await fs.mkdir(path.dirname(data), { recursive: true });
@@ -714,12 +716,12 @@ export class LibraryStore {
 
   private async readStagedMeta(sha: string): Promise<StagedMeta> {
     const raw = await readJson(this.stagingPath(sha, '.meta.json'), 64 * 1024).catch(() => null);
-    if (!raw || typeof raw !== 'object') throw new LibraryError('NOT_FOUND', 'Fichier préparé introuvable : ajoute-le de nouveau.');
+    if (!raw || typeof raw !== 'object') throw new LibraryError('NOT_FOUND', msgs().server.store.stagedNotFound);
     const r = raw as Record<string, unknown>;
     const provenance = parseProvenance(r.provenance);
     const ext = typeof r.ext === 'string' && ['.mpd', '.ldr', '.pdf', '.json'].includes(r.ext) ? r.ext : null;
     if (r.format !== STAGED_FORMAT || r.sha256 !== sha || !['model', 'pdf', 'mapping'].includes(r.kind as string) || typeof r.size !== 'number' || typeof r.originalName !== 'string' || !ext || !provenance) {
-      throw new LibraryError('NOT_FOUND', 'Fichier préparé illisible : ajoute-le de nouveau.');
+      throw new LibraryError('NOT_FOUND', msgs().server.store.stagedUnreadable);
     }
     return { format: STAGED_FORMAT, sha256: sha, kind: r.kind as FileKind, size: r.size, originalName: cleanFileName(r.originalName), ext, provenance, stagedAtIso: String(r.stagedAtIso) };
   }
@@ -742,41 +744,41 @@ export class LibraryStore {
    */
   async readRef(ref: unknown, kind: FileKind, index?: LibraryIndex): Promise<ResolvedFile> {
     const idx = index ?? (await this.readIndex());
-    if (typeof ref !== 'object' || ref === null) throw new LibraryError('INVALID', 'Référence de fichier invalide.');
+    if (typeof ref !== 'object' || ref === null) throw new LibraryError('INVALID', msgs().server.store.invalidFileRef);
     const r = ref as Record<string, unknown>;
     const sha = r.sha256;
-    if (typeof sha !== 'string' || !SHA256_RE.test(sha)) throw new LibraryError('INVALID', 'Empreinte invalide.');
+    if (typeof sha !== 'string' || !SHA256_RE.test(sha)) throw new LibraryError('INVALID', msgs().server.store.invalidFingerprint);
     const known = idx.files[sha];
-    if (known && known.kind !== kind) throw new LibraryError('INVALID', `${known.originalName} n’est pas un fichier de ce type.`);
+    if (known && known.kind !== kind) throw new LibraryError('INVALID', msgs().server.store.notOfThisKind(known.originalName));
     if (r.origin === 'library') {
-      if (!known) throw new LibraryError('NOT_FOUND', 'Fichier inconnu de la bibliothèque.');
+      if (!known) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownFile);
       return { sha256: sha, kind, name: known.originalName, size: known.size, bytes: await this.verifiedBytes(known), known, origin: 'library', provenance: known.provenance ?? null };
     }
     if (r.origin === 'staged') {
       const meta = await this.readStagedMeta(sha);
-      if (meta.kind !== kind) throw new LibraryError('INVALID', `${meta.originalName} n’est pas un fichier de ce type.`);
+      if (meta.kind !== kind) throw new LibraryError('INVALID', msgs().server.store.notOfThisKind(meta.originalName));
       const bytes = await fs.readFile(this.stagingPath(sha, meta.ext)).catch(() => {
-        throw new LibraryError('NOT_FOUND', `${meta.originalName} : fichier préparé introuvable, ajoute-le de nouveau.`);
+        throw new LibraryError('NOT_FOUND', msgs().server.store.stagedMissing(meta.originalName));
       });
-      if (sha256(bytes) !== sha) throw new LibraryError('FILE_PROBLEM', `${meta.originalName} : fichier préparé modifié, ajoute-le de nouveau.`, { state: 'HASH_MISMATCH' });
+      if (sha256(bytes) !== sha) throw new LibraryError('FILE_PROBLEM', msgs().server.store.stagedChanged(meta.originalName), { state: 'HASH_MISMATCH' });
       return { sha256: sha, kind, name: meta.originalName, size: bytes.length, bytes, known, origin: 'staged', provenance: meta.provenance, ext: meta.ext };
     }
     if (r.origin === 'discovered') {
       const rel = r.rel;
       const top = DISCOVERY_TOP[kind];
       if (typeof rel !== 'string' || safeSegments(rel) === null || rel.split('/')[0] !== top) {
-        throw new LibraryError('FORBIDDEN', `Seuls les fichiers de ${top}/ du dossier de données peuvent être ajoutés ainsi.`);
+        throw new LibraryError('FORBIDDEN', msgs().server.store.onlyDataFolder(top));
       }
       const abs = await resolveInside(this.dataDir, rel).catch((e: unknown) => {
-        throw e instanceof UnsafePathError ? new LibraryError('FORBIDDEN', e.message) : new LibraryError('NOT_FOUND', `${rel} est introuvable.`);
+        throw e instanceof UnsafePathError ? new LibraryError('FORBIDDEN', e.message) : new LibraryError('NOT_FOUND', msgs().server.store.relNotFound(rel));
       });
       const stat = await fs.stat(abs);
-      if (!stat.isFile() || stat.size > MAX_BYTES[kind]) throw new LibraryError('INVALID', `${rel} : fichier refusé.`);
+      if (!stat.isFile() || stat.size > MAX_BYTES[kind]) throw new LibraryError('INVALID', msgs().server.store.relRefused(rel));
       const bytes = await fs.readFile(abs);
-      if (sha256(bytes) !== sha) throw new LibraryError('CONFLICT', `${rel} a changé depuis la recherche : relance la recherche.`);
+      if (sha256(bytes) !== sha) throw new LibraryError('CONFLICT', msgs().server.store.changedSinceSearch(rel));
       return { sha256: sha, kind, name: cleanFileName(path.basename(abs)), size: bytes.length, bytes, known, origin: 'discovered', provenance: known?.provenance ?? null, rel };
     }
-    throw new LibraryError('INVALID', 'Origine de fichier inconnue.');
+    throw new LibraryError('INVALID', msgs().server.store.unknownFileOrigin);
   }
 
   /**
@@ -787,22 +789,22 @@ export class LibraryStore {
    */
   async importSet(input: ImportInput): Promise<ImportResult> {
     const builds = Array.isArray(input?.builds) ? input.builds : [];
-    if (builds.length === 0 || builds.length > 20) throw new LibraryError('INVALID', 'Choisis au moins un modèle 3D (20 au plus).');
+    if (builds.length === 0 || builds.length > 20) throw new LibraryError('INVALID', msgs().server.store.chooseOneModel);
     const target = input.target;
     let setNumber = '';
     let name = '';
     if (target?.type === 'new') {
       const parsed = parseSetNumber(target.setNumber);
       setNumber = parsed.ok ? parsed.value.canonical : typeof target.setNumber === 'string' ? target.setNumber.trim() : '';
-      if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', 'Numéro de set invalide (ex. 31040 ou 31040-1).');
+      if (!SET_NUMBER_RE.test(setNumber)) throw new LibraryError('INVALID', msgs().server.store.invalidSetNumberExample);
       name = cleanName(target.name) ?? '';
-      if (!name) throw new LibraryError('INVALID', 'Nom de set invalide (1 à 120 caractères).');
+      if (!name) throw new LibraryError('INVALID', msgs().server.store.invalidSetName);
     } else if (target?.type !== 'existing' || typeof target.setId !== 'string' || !ID_RE.test(target.setId)) {
-      throw new LibraryError('INVALID', 'Destination de l’import invalide.');
+      throw new LibraryError('INVALID', msgs().server.store.invalidImportTarget);
     }
     for (const b of builds) {
-      if (typeof b !== 'object' || b === null || typeof b.rootName !== 'string' || !Array.isArray(b.booklets) || b.booklets.length > 20) throw new LibraryError('INVALID', 'Construction invalide.');
-      if (!cleanName(b.label)) throw new LibraryError('INVALID', 'Nom de construction invalide.');
+      if (typeof b !== 'object' || b === null || typeof b.rootName !== 'string' || !Array.isArray(b.booklets) || b.booklets.length > 20) throw new LibraryError('INVALID', msgs().server.store.invalidBuild);
+      if (!cleanName(b.label)) throw new LibraryError('INVALID', msgs().server.store.invalidBuildName);
     }
     return this.exclusive(async () => {
       const index0 = await this.readIndex();
@@ -851,14 +853,14 @@ export class LibraryStore {
           const retry = same.find((s) => wanted.every((w) => index.builds.some((b) => b.setId === s.id && b.modelFileId === w.model && b.rootName === w.rootName)));
           if (retry) set = retry;
           else if (same.length > 0 && !target.allowSameNumber) {
-            throw new LibraryError('DUPLICATE', `Le set ${same[0]!.setNumber} (« ${same[0]!.name} ») est déjà dans ta collection : ajoute plutôt une construction à ce set.`, { setId: same[0]!.id });
+            throw new LibraryError('DUPLICATE', msgs().server.store.setAlreadyInCollection(same[0]!.setNumber, same[0]!.name), { setId: same[0]!.id });
           } else {
             set = { id: newId('s'), setNumber, name, createdAtIso: at.toISOString(), updatedAtIso: at.toISOString() };
             sets = [...sets, set];
           }
         } else {
           const found = index.sets.find((s) => s.id === target.setId);
-          if (!found) throw new LibraryError('NOT_FOUND', 'Set inconnu : il a peut-être été retiré entre-temps.');
+          if (!found) throw new LibraryError('NOT_FOUND', msgs().server.store.unknownSetRemoved);
           set = found;
         }
         const created: LibraryBuild[] = [];
@@ -922,7 +924,7 @@ export class LibraryStore {
     try {
       await fs.writeFile(tmp, f.bytes, { flag: 'wx', mode: 0o600 });
       if (!(await linkNewFile(tmp, target)) && sha256(await fs.readFile(target)) !== f.sha256) {
-        throw new LibraryError('STORAGE', `Un fichier différent occupe déjà ${rel} : rien n’a été écrasé.`);
+        throw new LibraryError('STORAGE', msgs().server.store.differentFileAt(rel));
       }
     } finally {
       await fs.rm(tmp, { force: true });
@@ -951,12 +953,12 @@ export class LibraryStore {
         occurrences = analysis.model.occurrences;
         plan = analysis.plan;
       } catch (e) {
-        problems.push(e instanceof LibraryError ? e.message : 'Modèle illisible.');
+        problems.push(e instanceof LibraryError ? e.message : msgs().server.store.modelUnreadable);
         // the model is always hashed (it is parsed here): a same-size modification shows too
         model = { ...model, state: e instanceof LibraryError && typeof e.details.state === 'string' ? (e.details.state as FileState) : 'UNREADABLE' };
       }
-    } else problems.push(`Modèle 3D ${model.state === 'MISSING' ? 'introuvable' : 'modifié ou illisible'} : ${model.originalName}.`);
-    for (const b of booklets) if (b.state !== 'OK') problems.push(`Notice ${b.state === 'MISSING' ? 'introuvable' : 'modifiée ou illisible'} : ${b.originalName}.`);
+    } else problems.push(model.state === 'MISSING' ? msgs().server.store.modelMissing(model.originalName) : msgs().server.store.modelChanged(model.originalName));
+    for (const b of booklets) if (b.state !== 'OK') problems.push(b.state === 'MISSING' ? msgs().server.store.bookletMissing(b.originalName) : msgs().server.store.bookletChanged(b.originalName));
 
     let mapping: MappingView | null = null;
     try {
@@ -972,12 +974,12 @@ export class LibraryStore {
           assigned: report?.assigned ?? 0,
           total: report?.total ?? build.snapshot.occurrenceCount,
           valid: report?.ok ?? false,
-          firstError: report ? report.issues.find((i) => i.severity === 'error')?.message ?? null : 'Modèle indisponible : correspondances non vérifiées.',
+          firstError: report ? report.issues.find((i) => i.severity === 'error')?.message ?? null : msgs().server.store.modelUnavailableMappingsUnchecked,
           booklets: m.mapping.booklets.map((b) => ({ label: b.label, sha256: b.sha256, associated: b.sha256 !== null && okBooklets.has(b.sha256) })),
         };
       }
     } catch (e) {
-      problems.push(e instanceof LibraryError ? e.message : 'Correspondances illisibles.');
+      problems.push(e instanceof LibraryError ? e.message : msgs().server.store.mappingsUnreadable);
     }
 
     let progress: ProgressView | null = null;
@@ -986,7 +988,7 @@ export class LibraryStore {
       if (rec) {
         const p = rec.payload as Partial<LocalBuildProgress>;
         const restored = occurrences ? restoreProgress(rec.payload, build.modelFileId, occurrences) : null;
-        if (restored && !restored.ok) problems.push(`Progression enregistrée incompatible avec le modèle (${restored.reason}) : elle est conservée mais ne peut pas être reprise.`);
+        if (restored && !restored.ok) problems.push(msgs().server.store.progressIncompatible(restored.reason));
         const freeCount = restored?.ok ? restored.session.free?.length ?? 0 : Array.isArray(p.freePieces) ? p.freePieces.length : 0;
         const anchored = restored?.ok ? restored.session.placed.length : Array.isArray(p.placedOccurrenceIds) ? p.placedOccurrenceIds.length : 0;
         // recognised free pieces (without the part symmetries, only known with the geometry: may undercount, never overcounts)
@@ -1003,12 +1005,12 @@ export class LibraryStore {
         };
       }
     } catch (e) {
-      problems.push(e instanceof LibraryError ? e.message : 'Progression illisible.');
+      problems.push(e instanceof LibraryError ? e.message : msgs().server.store.progressUnreadableShort);
     }
 
-    const syncBlocker = !mapping ? 'aucune correspondance notice ↔ 3D.'
-      : !mapping.valid ? mapping.firstError ?? 'correspondances invalides.'
-        : mapping.booklets.some((b) => !b.associated) ? `notice attendue par les correspondances non associée ou indisponible (${mapping.booklets.filter((b) => !b.associated).map((b) => b.label).join(', ')}).`
+    const syncBlocker = !mapping ? msgs().server.store.syncNoMapping
+      : !mapping.valid ? mapping.firstError ?? msgs().server.store.syncInvalidMapping
+        : mapping.booklets.some((b) => !b.associated) ? msgs().server.store.syncBookletUnavailable(mapping.booklets.filter((b) => !b.associated).map((b) => b.label).join(', '))
           : null;
     const modes = model.state !== 'OK' || !plan ? [] : [...(syncBlocker ? [] : ['synced' as const]), ...availableModes(plan)];
     const hasThumbnail = await fs.access(this.p('builds', build.id, `thumbnail-${build.modelFileId.slice(0, 16)}.png`)).then(() => true, () => false);

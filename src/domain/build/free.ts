@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import { determinant3, distance, fromLDraw, IDENTITY, multiply, rotationAngleDeg, rotationY, withTranslation } from '../ldraw/matrix';
 import { equivalentTargets } from '../ldraw/symmetry';
 import type { BrickOccurrence, Matrix4Tuple } from '../ldraw/types';
@@ -484,8 +485,11 @@ export function rotateOrientation(orientation: Matrix4Tuple, axis: Axis, steps: 
   return cleanPose(withTranslation(multiply(axisTurn(axis, steps * stepDeg), orientation), [0, 0, 0]));
 }
 
-const DIRECTIONS: [string, readonly [number, number, number]][] = [['haut', [0, -1, 0]], ['bas', [0, 1, 0]], ['+X', [1, 0, 0]], ['−X', [-1, 0, 0]], ['+Z', [0, 0, 1]], ['−Z', [0, 0, -1]]];
-const nameOf = (v: readonly number[]) => DIRECTIONS.find(([, d]) => d[0] * v[0]! + d[1] * v[1]! + d[2] * v[2]! > 0.9)?.[0] ?? 'incliné';
+const DIRECTIONS: [() => string, readonly [number, number, number]][] = [
+  [() => msgs().domain.free.up, [0, -1, 0]], [() => msgs().domain.free.down, [0, 1, 0]],
+  [() => '+X', [1, 0, 0]], [() => '−X', [-1, 0, 0]], [() => '+Z', [0, 0, 1]], [() => '−Z', [0, 0, -1]],
+];
+const nameOf = (v: readonly number[]) => (DIRECTIONS.find(([, d]) => d[0] * v[0]! + d[1] * v[1]! + d[2] * v[2]! > 0.9)?.[0] ?? (() => msgs().domain.free.tilted))();
 
 /** Where the top (local −Y) and the front (local −Z) of a piece point, in words. */
 export function orientationLabel(orientation: Matrix4Tuple): { top: string; front: string } {

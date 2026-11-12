@@ -2,11 +2,13 @@
 
 import { Keyboard } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/I18nProvider';
 import { Dialog } from '../ui/Dialog';
-import { SHORTCUTS } from './shortcuts';
+import { shortcutGroups } from './shortcuts';
 
 /** « ? » (or the keyboard button): every shortcut and gesture of the atelier, by context. */
 export function HelpButton() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -22,12 +24,12 @@ export function HelpButton() {
   }, []);
   return (
     <>
-      <button type="button" className="ghost icon" aria-label="Raccourcis et gestes (?)" data-tip="Raccourcis et gestes (?)" data-tip-side="bottom" data-tip-align="end" data-testid="help-open" onClick={() => setOpen(true)}>
+      <button type="button" className="ghost icon" aria-label={t.workshop.shortcuts.open} data-tip={t.workshop.shortcuts.open} data-tip-side="bottom" data-tip-align="end" data-testid="help-open" onClick={() => setOpen(true)}>
         <Keyboard size={16} aria-hidden />
       </button>
-      <Dialog open={open} title="Raccourcis et gestes" onClose={() => setOpen(false)} wide testId="help-dialog">
+      <Dialog open={open} title={t.workshop.shortcuts.title} onClose={() => setOpen(false)} wide testId="help-dialog">
         <div className="shortcuts">
-          {SHORTCUTS.map((g) => (
+          {shortcutGroups(t).map((g) => (
             <section key={g.title}>
               <h3>{g.title}</h3>
               <dl>

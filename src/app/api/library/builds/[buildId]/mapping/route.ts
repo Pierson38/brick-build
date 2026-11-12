@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import { failure, guard, json, readJsonBody, revisionOf } from '@/server/http/guard';
 import { store } from '@/server/library/instance';
 import { LibraryError } from '@/server/library/store';
@@ -29,7 +30,7 @@ export async function PUT(request: Request, { params }: Ctx) {
   try {
     const body = await readJsonBody(request, 1100 * 1024);
     const base = body.baseRevision === null ? null : revisionOf(body.baseRevision);
-    if (base === null && body.baseRevision !== null) throw new LibraryError('INVALID', 'Révision de base manquante.');
+    if (base === null && body.baseRevision !== null) throw new LibraryError('INVALID', msgs().server.routes.baseRevisionMissing);
     const source = SOURCES.find((s) => s === body.source) ?? 'editor';
     const rec = await store().putMapping((await params).buildId, String(body.text ?? ''), base, source);
     return json({ revision: rec.revision, savedAtIso: rec.savedAtIso });

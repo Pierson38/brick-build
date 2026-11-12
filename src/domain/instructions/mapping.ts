@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import type { BuildStep, StepPlan } from '../build/build-plan';
 import type { BrickOccurrence } from '../ldraw/types';
 
@@ -97,12 +98,13 @@ export type ParseMappingResult =
   | { readonly ok: false; readonly errors: readonly string[] };
 
 export function parseMappingText(text: string): ParseMappingResult {
-  if (text.length > MAX_MAPPING_BYTES) return { ok: false, errors: [`Fichier de correspondances trop volumineux (limite ${MAX_MAPPING_BYTES / 1024} Ko).`] };
+  const t = msgs().domain.mapping;
+  if (text.length > MAX_MAPPING_BYTES) return { ok: false, errors: [t.fileTooLarge(MAX_MAPPING_BYTES / 1024)] };
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
-    return { ok: false, errors: ['Fichier de correspondances illisible : JSON invalide.'] };
+    return { ok: false, errors: [t.unreadableJson] };
   }
   return parseMapping(raw);
 }
@@ -112,43 +114,44 @@ const text = (v: unknown, max = MAX_TEXT): v is string => typeof v === 'string' 
 const positiveInt = (v: unknown, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max;
 
 export function parseMapping(raw: unknown): ParseMappingResult {
+  const t = msgs().domain.mapping;
   const errors: string[] = [];
   const fail = (msg: string): ParseMappingResult => ({ ok: false, errors: [...errors, msg] });
-  if (!isRecord(raw)) return fail('Correspondances : objet JSON attendu.');
-  if (raw.format !== MAPPING_FORMAT) return fail('Ce fichier n’est pas un fichier de correspondances Brick Lab.');
-  if (raw.schemaVersion !== MAPPING_SCHEMA_VERSION) return fail(`Version de schéma non prise en charge (${String(raw.schemaVersion)}, attendu ${MAPPING_SCHEMA_VERSION}).`);
+  if (!isRecord(raw)) return fail(t.objectExpected);
+  if (raw.format !== MAPPING_FORMAT) return fail(t.notAMappingFile);
+  if (raw.schemaVersion !== MAPPING_SCHEMA_VERSION) return fail(t.unsupportedSchema(String(raw.schemaVersion), MAPPING_SCHEMA_VERSION));
 
   const m = raw.model;
   if (!isRecord(m) || !text(m.sha256) || !SHA256_PATTERN.test(m.sha256) || !text(m.fileName) || !text(m.rootName, MAX_OCCURRENCE_ID)
     || typeof m.occurrenceCount !== 'number' || !Number.isInteger(m.occurrenceCount) || m.occurrenceCount < 0 || m.occurrenceCount > MAX_ASSIGNMENTS) {
-    return fail('Empreinte du modèle absente ou invalide.');
+    return fail(t.invalidModelFingerprint);
   }
 
-  if (!Array.isArray(raw.booklets) || raw.booklets.length > MAX_BOOKLETS) return fail(`Liste de livrets invalide (au plus ${MAX_BOOKLETS}).`);
+  if (!Array.isArray(raw.booklets) || raw.booklets.length > MAX_BOOKLETS) return fail(t.invalidBookletList(MAX_BOOKLETS));
   const booklets: Booklet[] = [];
   for (const [i, b] of raw.booklets.entries()) {
-    if (!isRecord(b) || !text(b.id) || !ID_PATTERN.test(b.id) || !text(b.label) || !text(b.fileName)) return fail(`Livret n° ${i + 1} invalide.`);
-    if (b.sha256 !== null && !(text(b.sha256) && SHA256_PATTERN.test(b.sha256))) return fail(`Empreinte du livret « ${b.label} » invalide.`);
-    if (b.pageCount !== null && !positiveInt(b.pageCount, MAX_PAGE)) return fail(`Nombre de pages du livret « ${b.label} » invalide.`);
+    if (!isRecord(b) || !text(b.id) || !ID_PATTERN.test(b.id) || !text(b.label) || !text(b.fileName)) return fail(t.invalidBooklet(i + 1));
+    if (b.sha256 !== null && !(text(b.sha256) && SHA256_PATTERN.test(b.sha256))) return fail(t.invalidBookletFingerprint(b.label));
+    if (b.pageCount !== null && !positiveInt(b.pageCount, MAX_PAGE)) return fail(t.invalidBookletPageCount(b.label));
     booklets.push({ id: b.id, label: b.label, fileName: b.fileName, sha256: b.sha256, pageCount: b.pageCount });
   }
 
-  if (!Array.isArray(raw.steps) || raw.steps.length > MAX_STEPS) return fail(`Liste d’étapes invalide (au plus ${MAX_STEPS}).`);
+  if (!Array.isArray(raw.steps) || raw.steps.length > MAX_STEPS) return fail(t.invalidStepList(MAX_STEPS));
   const steps: InstructionStep[] = [];
   let assignments = 0;
   for (const [i, s] of raw.steps.entries()) {
-    const where = `Étape n° ${i + 1}`;
-    if (!isRecord(s) || !text(s.id) || !ID_PATTERN.test(s.id) || !text(s.bookletId) || !ID_PATTERN.test(s.bookletId)) return fail(`${where} : identifiant invalide.`);
-    if (!positiveInt(s.page, MAX_PAGE)) return fail(`${where} : page invalide.`);
-    if (!text(s.printedStep, 40) || s.printedStep.trim() === '') return fail(`${where} : numéro imprimé manquant.`);
-    if (s.callout !== undefined && !text(s.callout, 40)) return fail(`${where} : encadré invalide.`);
-    if (s.repeat !== undefined && !positiveInt(s.repeat, MAX_REPEAT)) return fail(`${where} : multiplicateur invalide.`);
-    if (s.note !== undefined && !text(s.note, 1000)) return fail(`${where} : note invalide.`);
-    if (s.provenance !== 'manual' && s.provenance !== 'verified') return fail(`${where} : provenance inconnue.`);
-    if (!Array.isArray(s.occurrenceIds)) return fail(`${where} : liste de pièces invalide.`);
+    const where = t.stepNumber(i + 1);
+    if (!isRecord(s) || !text(s.id) || !ID_PATTERN.test(s.id) || !text(s.bookletId) || !ID_PATTERN.test(s.bookletId)) return fail(t.stepInvalidId(where));
+    if (!positiveInt(s.page, MAX_PAGE)) return fail(t.stepInvalidPage(where));
+    if (!text(s.printedStep, 40) || s.printedStep.trim() === '') return fail(t.stepMissingPrinted(where));
+    if (s.callout !== undefined && !text(s.callout, 40)) return fail(t.stepInvalidCallout(where));
+    if (s.repeat !== undefined && !positiveInt(s.repeat, MAX_REPEAT)) return fail(t.stepInvalidRepeat(where));
+    if (s.note !== undefined && !text(s.note, 1000)) return fail(t.stepInvalidNote(where));
+    if (s.provenance !== 'manual' && s.provenance !== 'verified') return fail(t.stepUnknownProvenance(where));
+    if (!Array.isArray(s.occurrenceIds)) return fail(t.stepInvalidPieceList(where));
     assignments += s.occurrenceIds.length;
-    if (assignments > MAX_ASSIGNMENTS) return fail(`Trop d’affectations (au plus ${MAX_ASSIGNMENTS}).`);
-    if (!s.occurrenceIds.every((id): id is string => text(id, MAX_OCCURRENCE_ID) && id.length > 0)) return fail(`${where} : identifiant de pièce invalide.`);
+    if (assignments > MAX_ASSIGNMENTS) return fail(t.tooManyAssignments(MAX_ASSIGNMENTS));
+    if (!s.occurrenceIds.every((id): id is string => text(id, MAX_OCCURRENCE_ID) && id.length > 0)) return fail(t.stepInvalidPieceId(where));
     steps.push({
       id: s.id,
       bookletId: s.bookletId,
@@ -163,7 +166,7 @@ export function parseMapping(raw: unknown): ParseMappingResult {
   }
 
   const p = raw.provenance;
-  if (!isRecord(p) || p.method !== 'manual' || !text(p.tool) || !text(p.createdAtIso, 40) || !text(p.updatedAtIso, 40)) return fail('Provenance des correspondances invalide.');
+  if (!isRecord(p) || p.method !== 'manual' || !text(p.tool) || !text(p.createdAtIso, 40) || !text(p.updatedAtIso, 40)) return fail(t.invalidProvenance);
 
   return {
     ok: true,
@@ -219,24 +222,25 @@ export interface MappingReport {
 }
 
 export function stepLabel(step: Pick<InstructionStep, 'printedStep' | 'callout' | 'repeat'>): string {
-  return `Étape ${step.printedStep}${step.callout ? ` · encadré ${step.callout}` : ''}${step.repeat ? ` (×${step.repeat})` : ''}`;
+  return msgs().domain.mapping.stepLabel(step.printedStep, step.callout, step.repeat);
 }
 
 export function validateMapping(mapping: InstructionMapping, target: MappingTarget): MappingReport {
+  const t = msgs().domain.mapping;
   const issues: MappingIssue[] = [];
   const err = (code: MappingIssueCode, message: string, extra: Partial<MappingIssue> = {}) => issues.push({ code, severity: 'error', message, ...extra });
   const warn = (code: MappingIssueCode, message: string, extra: Partial<MappingIssue> = {}) => issues.push({ code, severity: 'warning', message, ...extra });
   const known = new Set(target.occurrences.map((o) => o.occurrenceId));
 
-  if (mapping.model.sha256 !== target.sha256) err('MODEL_MISMATCH', `Ces correspondances ont été faites pour un autre fichier (${mapping.model.fileName}, empreinte ${mapping.model.sha256.slice(0, 12)}…).`);
-  else if (mapping.model.rootName !== target.rootName) err('MODEL_MISMATCH', `Ces correspondances concernent le modèle principal « ${mapping.model.rootName} », pas « ${target.rootName} ».`);
-  else if (mapping.model.occurrenceCount !== target.occurrences.length) err('MODEL_MISMATCH', `Nombre de pièces différent : ${mapping.model.occurrenceCount} dans les correspondances, ${target.occurrences.length} dans le modèle.`);
+  if (mapping.model.sha256 !== target.sha256) err('MODEL_MISMATCH', t.otherFile(mapping.model.fileName, mapping.model.sha256.slice(0, 12)));
+  else if (mapping.model.rootName !== target.rootName) err('MODEL_MISMATCH', t.otherRoot(mapping.model.rootName, target.rootName));
+  else if (mapping.model.occurrenceCount !== target.occurrences.length) err('MODEL_MISMATCH', t.pieceCountDiffers(mapping.model.occurrenceCount, target.occurrences.length));
 
-  if (mapping.steps.length === 0) err('NO_STEPS', 'Aucune étape de notice saisie.');
+  if (mapping.steps.length === 0) err('NO_STEPS', t.noSteps);
 
   const booklets = new Map(mapping.booklets.map((b, i) => [b.id, { b, order: i }] as const));
   for (const b of mapping.booklets) {
-    if (b.sha256 === null) err('BOOKLET_UNBOUND', `Le livret « ${b.label} » n’est lié à aucun PDF (empreinte inconnue).`);
+    if (b.sha256 === null) err('BOOKLET_UNBOUND', t.bookletUnbound(b.label));
   }
 
   const seenStepIds = new Set<string>();
@@ -245,27 +249,27 @@ export function validateMapping(mapping: InstructionMapping, target: MappingTarg
   let previous: { order: number; page: number } | null = null;
   for (const s of mapping.steps) {
     const at = { stepId: s.id };
-    if (seenStepIds.has(s.id)) err('DUPLICATE_STEP_ID', `Identifiant d’étape en double : ${s.id}.`, at);
+    if (seenStepIds.has(s.id)) err('DUPLICATE_STEP_ID', t.duplicateStepId(s.id), at);
     seenStepIds.add(s.id);
     const booklet = booklets.get(s.bookletId);
-    if (!booklet) err('UNKNOWN_BOOKLET', `${stepLabel(s)} : livret inconnu (${s.bookletId}).`, at);
+    if (!booklet) err('UNKNOWN_BOOKLET', t.unknownBooklet(stepLabel(s), s.bookletId), at);
     else {
-      if (booklet.b.pageCount !== null && s.page > booklet.b.pageCount) err('PAGE_OUT_OF_RANGE', `${stepLabel(s)} : page ${s.page} au-delà du livret « ${booklet.b.label} » (${booklet.b.pageCount} p.).`, at);
+      if (booklet.b.pageCount !== null && s.page > booklet.b.pageCount) err('PAGE_OUT_OF_RANGE', t.pageOutOfRange(stepLabel(s), s.page, booklet.b.label, booklet.b.pageCount), at);
       if (previous && (booklet.order < previous.order || (booklet.order === previous.order && s.page < previous.page))) {
-        warn('PAGE_ORDER', `${stepLabel(s)} (p. ${s.page}) vient après une étape située plus loin dans la notice.`, at);
+        warn('PAGE_ORDER', t.pageOrder(stepLabel(s), s.page), at);
       }
       previous = { order: booklet.order, page: s.page };
     }
     const label = `${s.bookletId}|${s.page}|${s.printedStep}|${s.callout ?? ''}`;
-    if (labels.has(label)) warn('DUPLICATE_LABEL', `${stepLabel(s)} p. ${s.page} saisie deux fois.`, at);
+    if (labels.has(label)) warn('DUPLICATE_LABEL', t.duplicateLabel(stepLabel(s), s.page), at);
     labels.set(label, s.id);
 
-    if (s.occurrenceIds.length === 0) warn('EMPTY_STEP', `${stepLabel(s)} (p. ${s.page}) n’a aucune pièce : elle sera sautée.`, at);
+    if (s.occurrenceIds.length === 0) warn('EMPTY_STEP', t.emptyStep(stepLabel(s), s.page), at);
     if (s.repeat && s.occurrenceIds.length % s.repeat !== 0) {
-      warn('REPEAT_MISMATCH', `${stepLabel(s)} : ${s.occurrenceIds.length} pièce(s), pas un multiple de ${s.repeat}.`, at);
+      warn('REPEAT_MISMATCH', t.repeatMismatch(stepLabel(s), s.occurrenceIds.length, s.repeat), at);
     }
     const unknown = s.occurrenceIds.filter((id) => !known.has(id));
-    if (unknown.length > 0) err('UNKNOWN_OCCURRENCE', `${stepLabel(s)} : ${unknown.length} pièce(s) inconnue(s) dans ce modèle.`, { ...at, occurrenceIds: unknown });
+    if (unknown.length > 0) err('UNKNOWN_OCCURRENCE', t.unknownOccurrences(stepLabel(s), unknown.length), { ...at, occurrenceIds: unknown });
     for (const id of s.occurrenceIds) {
       if (!known.has(id)) continue;
       const list = stepsByOccurrence.get(id) ?? [];
@@ -275,12 +279,12 @@ export function validateMapping(mapping: InstructionMapping, target: MappingTarg
   }
 
   const duplicates = new Map([...stepsByOccurrence].filter(([, steps]) => steps.length > 1));
-  if (duplicates.size > 0) err('DUPLICATE_OCCURRENCE', `${duplicates.size} pièce(s) affectée(s) plusieurs fois.`, { occurrenceIds: [...duplicates.keys()] });
+  if (duplicates.size > 0) err('DUPLICATE_OCCURRENCE', t.duplicateOccurrences(duplicates.size), { occurrenceIds: [...duplicates.keys()] });
   const unassigned = target.occurrences.map((o) => o.occurrenceId).filter((id) => !stepsByOccurrence.has(id));
-  if (unassigned.length > 0) err('UNASSIGNED_OCCURRENCE', `${unassigned.length} pièce(s) du modèle non affectée(s) à une étape.`, { occurrenceIds: unassigned });
+  if (unassigned.length > 0) err('UNASSIGNED_OCCURRENCE', t.unassignedOccurrences(unassigned.length), { occurrenceIds: unassigned });
 
   const notVerified = mapping.steps.filter((s) => s.provenance !== 'verified').length;
-  if (notVerified > 0) issues.push({ code: 'NOT_VERIFIED', severity: 'info', message: `${notVerified}/${mapping.steps.length} étape(s) non vérifiée(s) visuellement contre la notice.` });
+  if (notVerified > 0) issues.push({ code: 'NOT_VERIFIED', severity: 'info', message: t.notVerified(notVerified, mapping.steps.length) });
 
   return {
     ok: !issues.some((i) => i.severity === 'error'),
@@ -333,7 +337,7 @@ export function mappingToStepPlan(mapping: InstructionMapping): StepPlan {
     kind: 'INSTRUCTION_STEPS',
     steps,
     notes: [
-      `Étapes de la notice officielle saisies manuellement (${steps.length} étape(s)${skipped ? `, ${skipped} sans pièce ignorée(s)` : ''}).`,
+      msgs().domain.mapping.planNote(steps.length, skipped),
     ],
   };
 }
@@ -409,7 +413,7 @@ export function addStep(
   const at = afterStepId ? mapping.steps.findIndex((s) => s.id === afterStepId) : mapping.steps.length - 1;
   const ref = mapping.steps[at];
   const bookletId = init.bookletId ?? ref?.bookletId ?? mapping.booklets[0]?.id;
-  if (!bookletId) throw new Error('Ajoute d’abord un livret.');
+  if (!bookletId) throw new Error(msgs().domain.mapping.addBookletFirst);
   const id = nextId('s', mapping.steps.map((s) => s.id));
   const step: InstructionStep = {
     id,

@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import { distance, IDENTITY, multiply, rotationAngleDeg, rotationY, withTranslation } from '../ldraw/matrix';
 import { equivalentTargets } from '../ldraw/symmetry';
 import type { BrickOccurrence, Matrix4Tuple } from '../ldraw/types';
@@ -259,12 +260,13 @@ export function resetActiveStep(ctx: BuildContext, session: BuildSession): Build
 }
 
 export function describeFailure(f: PlaceFailure): string {
+  const t = msgs().domain.engine;
   switch (f.reason) {
-    case 'COMPLETE': return 'Le modèle est déjà terminé.';
-    case 'NO_COMPATIBLE_TARGET': return 'Aucun emplacement restant pour cette pièce (référence/couleur) dans l’étape en cours.';
-    case 'TOO_FAR': return `Trop loin de l’emplacement le plus proche (${Math.round(f.distanceLdu)} LDU).`;
-    case 'WRONG_ROTATION': return `Bonne position mais mauvaise orientation (écart ${Math.round(f.angleDeg)}°). Tourne la pièce (R, X, Z) ou passe à l’orientation suivante (O).`;
-    case 'AMBIGUOUS': return 'Plusieurs emplacements possibles à égale distance : rapproche la pièce de l’un d’eux.';
-    case 'NOT_A_CANDIDATE': return 'Cette pièce n’est pas disponible maintenant.';
+    case 'COMPLETE': return t.complete;
+    case 'NO_COMPATIBLE_TARGET': return t.noCompatibleTarget;
+    case 'TOO_FAR': return t.tooFar(Math.round(f.distanceLdu));
+    case 'WRONG_ROTATION': return t.wrongRotation(Math.round(f.angleDeg));
+    case 'AMBIGUOUS': return t.ambiguous;
+    case 'NOT_A_CANDIDATE': return t.notACandidate;
   }
 }

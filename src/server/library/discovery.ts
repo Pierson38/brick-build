@@ -5,6 +5,7 @@ import { parseMappingText } from '@/domain/instructions/mapping';
 import {
   SET_NUMBER_RE, type DiscoveredFile, type DiscoveredMapping, type DiscoveredModel, type DiscoveredSet, type DiscoveryResult, type LibraryIndex,
 } from '@/domain/library/types';
+import { msgs } from '@/i18n/runtime';
 import { safeSegments } from './paths';
 import { LibraryError, MAX_BYTES, sha256, type LibraryStore } from './store';
 
@@ -30,7 +31,7 @@ async function plainEntries(dir: string): Promise<Dirent[]> {
 async function filesIn(root: string, relDir: string, ext: RegExp, skipped: string[]): Promise<Found[]> {
   const out: Found[] = [];
   const entries = await plainEntries(path.join(root, relDir));
-  if (entries.length > MAX_FILES_PER_FOLDER) skipped.push(`${relDir} : plus de ${MAX_FILES_PER_FOLDER} entrées, seules les premières sont lues.`);
+  if (entries.length > MAX_FILES_PER_FOLDER) skipped.push(msgs().server.discovery.tooManyEntries(relDir, MAX_FILES_PER_FOLDER));
   for (const e of entries.slice(0, MAX_FILES_PER_FOLDER)) {
     if (!e.isFile() || !ext.test(e.name)) continue;
     const rel = `${relDir}/${e.name}`;
@@ -54,16 +55,16 @@ export async function discover(store: LibraryStore): Promise<DiscoveryResult> {
   const started = performance.now();
   const root = await fs.realpath(store.dataDir).catch(() => null);
   const skipped: string[] = [];
-  if (!root) return { dataDir: store.dataDir, sets: [], skipped: ['Dossier de données absent.'], durationMs: 0 };
+  if (!root) return { dataDir: store.dataDir, sets: [], skipped: [msgs().server.discovery.noDataFolder], durationMs: 0 };
   const index: LibraryIndex = await store.readIndex();
   let budget = MAX_TOTAL_BYTES;
   const take = (f: Found, max: number) => {
     if (f.size > max) {
-      skipped.push(`${f.rel} : trop volumineux.`);
+      skipped.push(msgs().server.discovery.tooLarge(f.rel));
       return false;
     }
     if (f.size > budget) {
-      skipped.push(`${f.rel} : quota de lecture atteint.`);
+      skipped.push(msgs().server.discovery.readQuota(f.rel));
       return false;
     }
     budget -= f.size;
@@ -83,7 +84,7 @@ export async function discover(store: LibraryStore): Promise<DiscoveryResult> {
 
   for (const [top, ext, kind] of [['models', /\.(mpd|ldr)$/i, 'model'], ['instructions', /\.pdf$/i, 'pdf']] as const) {
     const dirs = (await plainEntries(path.join(/* turbopackIgnore: true */ root, top))).filter((e) => e.isDirectory());
-    if (dirs.length > MAX_FOLDERS) skipped.push(`${top} : plus de ${MAX_FOLDERS} dossiers, seuls les premiers sont lus.`);
+    if (dirs.length > MAX_FOLDERS) skipped.push(msgs().server.discovery.tooManyFolders(top, MAX_FOLDERS));
     for (const d of dirs.slice(0, MAX_FOLDERS)) {
       for (const f of await filesIn(root, `${top}/${d.name}`, ext, skipped)) {
         if (!take(f, MAX_BYTES[kind])) continue;
@@ -92,13 +93,13 @@ export async function discover(store: LibraryStore): Promise<DiscoveryResult> {
           const head = Buffer.alloc(1024);
           const h = await fs.open(f.abs, 'r');
           await h.read(head, 0, 1024, 0).finally(() => h.close());
-          if (head.indexOf('%PDF-') < 0) skipped.push(`${f.rel} : pas un PDF.`);
+          if (head.indexOf('%PDF-') < 0) skipped.push(msgs().server.discovery.notAPdf(f.rel));
           else folder(d.name).pdfs.push(base);
           continue;
         }
         const a = analyzeModel(await fs.readFile(f.abs, 'utf8'), f.name);
         if (a.model.occurrences.length === 0) {
-          skipped.push(`${f.rel} : aucune pièce lue.`);
+          skipped.push(msgs().server.discovery.noPieces(f.rel));
           continue;
         }
         const existing = index.builds.find((b) => b.modelFileId === base.sha256 && b.rootName === a.model.rootName);
@@ -162,10 +163,10 @@ const inScope = (rel: unknown, top: (typeof DISCOVERY_DIRS)[number]) => typeof r
  * place, re-hashed now, and their fingerprint is checked again at every use.
  */
 export async function adopt(store: LibraryStore, input: AdoptInput) {
-  if (!Array.isArray(input.models) || input.models.length === 0 || input.models.length > 20) throw new LibraryError('INVALID', 'Choisis au moins un modèle.');
-  if (!Array.isArray(input.pdfs) || input.pdfs.length > 20 || !Array.isArray(input.mappings) || input.mappings.length > 20) throw new LibraryError('INVALID', 'Sélection invalide.');
+  if (!Array.isArray(input.models) || input.models.length === 0 || input.models.length > 20) throw new LibraryError('INVALID', msgs().server.discovery.chooseOneModel);
+  if (!Array.isArray(input.pdfs) || input.pdfs.length > 20 || !Array.isArray(input.mappings) || input.mappings.length > 20) throw new LibraryError('INVALID', msgs().server.discovery.invalidSelection);
   if (!input.models.every((m) => inScope(m.rel, 'models')) || !input.pdfs.every((p) => inScope(p.rel, 'instructions')) || !input.mappings.every((m) => inScope(m.rel, 'mappings'))) {
-    throw new LibraryError('FORBIDDEN', 'Seuls les fichiers détectés dans models/, instructions/ et mappings/ peuvent être ajoutés ainsi.');
+    throw new LibraryError('FORBIDDEN', msgs().server.discovery.onlyDetectedFiles);
   }
   for (const m of input.models) await store.registerExternal('model', m.rel, m.sha256);
   for (const p of input.pdfs) await store.registerExternal('pdf', p.rel, p.sha256);

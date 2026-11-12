@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, FilePlus2, FileUp, MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
 import type { RenderTask } from 'pdfjs-dist';
+import { useT } from '@/i18n/I18nProvider';
+import { msgs } from '@/i18n/runtime';
 import { Loading, Note } from '../ui/feedback';
 import type { NoticeState } from './useNotice';
 
@@ -14,6 +16,7 @@ interface Props {
   readonly initialPage?: number;
   /** Context shown above the page (synchronised step, editor). */
   readonly banner?: ReactNode;
+  /** Default: the page is independent from the 3D steps. */
   readonly caption?: string;
   readonly compact?: boolean;
   /** Fit the page to the panel width (default, every mode); +/− go back to fixed zooms, ↔ comes back. */
@@ -24,7 +27,8 @@ interface Props {
  * Local PDF viewer for one or several booklets. Files are read with the File API and never leave
  * the machine. Outside the synchronised mode, the page is independent from the 3D build steps.
  */
-export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF indépendante des étapes 3D.', compact = false, fitWidth = true }: Props) {
+export function PdfPanel({ notice, initialPage, banner, caption, compact = false, fitWidth = true }: Props) {
+  const tr = useT().workshop.pdf;
   const { booklets, view, active, error, loading } = notice;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [fit, setFit] = useState(fitWidth);
@@ -89,7 +93,7 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
         task = p.render({ canvas, viewport });
         await task.promise;
       } catch (e) {
-        if ((e as { name?: string }).name !== 'RenderingCancelledException') setRenderError(`Erreur de rendu de la page ${page}.`);
+        if ((e as { name?: string }).name !== 'RenderingCancelledException') setRenderError(msgs().workshop.pdf.renderError(page));
       }
     })();
     renderChain.current = run.catch(() => undefined);
@@ -108,47 +112,47 @@ export function PdfPanel({ notice, initialPage, banner, caption = 'page PDF ind�
   );
 
   return (
-    <section className={compact ? 'pdf-panel compact' : 'pdf-panel'} aria-label="Notice PDF">
+    <section className={compact ? 'pdf-panel compact' : 'pdf-panel'} aria-label={tr.panel}>
       {active && (
         <div className="pdf-toolbar">
-          <label className="button ghost icon small" aria-label="Ajouter / changer de livret" data-tip="Ajouter / changer de livret" data-tip-side="bottom">
+          <label className="button ghost icon small" aria-label={tr.changeBooklet} data-tip={tr.changeBooklet} data-tip-side="bottom">
             <FilePlus2 size={16} aria-hidden />
-            {importInput('Ajouter / changer de livret')}
+            {importInput(tr.changeBooklet)}
           </label>
           {booklets.length > 1 && (
-            <select aria-label="Livret affiché" data-testid="pdf-booklet" value={active.sha256}
+            <select aria-label={tr.bookletShown} data-testid="pdf-booklet" value={active.sha256}
               onChange={(e) => notice.show(e.target.value, 1)}>
               {booklets.map((b) => <option key={b.sha256} value={b.sha256}>{b.fileName}</option>)}
             </select>
           )}
-          <span className="pdf-group" role="group" aria-label="Pages">
-            <button type="button" className="ghost icon small" onClick={() => go(-1)} disabled={page <= 1} aria-label="Page précédente"><ChevronLeft size={16} aria-hidden /></button>
-            <span className="num" data-testid="pdf-page">PDF p. {page} / {active.pageCount}</span>
-            <button type="button" className="ghost icon small" onClick={() => go(1)} disabled={page >= active.pageCount} aria-label="Page suivante"><ChevronRight size={16} aria-hidden /></button>
+          <span className="pdf-group" role="group" aria-label={tr.pages}>
+            <button type="button" className="ghost icon small" onClick={() => go(-1)} disabled={page <= 1} aria-label={tr.previousPage}><ChevronLeft size={16} aria-hidden /></button>
+            <span className="num" data-testid="pdf-page">{tr.pageOf(page, active.pageCount)}</span>
+            <button type="button" className="ghost icon small" onClick={() => go(1)} disabled={page >= active.pageCount} aria-label={tr.nextPage}><ChevronRight size={16} aria-hidden /></button>
           </span>
-          <span className="pdf-group" role="group" aria-label="Zoom">
-            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(-1) : setZoomIndex((z) => Math.max(0, z - 1)))} aria-label="Zoom arrière"><ZoomOut size={16} aria-hidden /></button>
-            <span className="num pdf-zoom" data-testid="pdf-zoom">{fit ? 'Largeur' : `${Math.round(ZOOMS[zoomIndex]! * 100)} %`}</span>
-            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(1) : setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1)))} aria-label="Zoom avant"><ZoomIn size={16} aria-hidden /></button>
-            {!fit && <button type="button" className="ghost icon small" onClick={() => setFit(true)} aria-label="Ajuster à la largeur" data-tip="Ajuster à la largeur" data-tip-side="bottom" data-tip-align="end"><MoveHorizontal size={16} aria-hidden /></button>}
+          <span className="pdf-group" role="group" aria-label={tr.zoom}>
+            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(-1) : setZoomIndex((z) => Math.max(0, z - 1)))} aria-label={tr.zoomOut}><ZoomOut size={16} aria-hidden /></button>
+            <span className="num pdf-zoom" data-testid="pdf-zoom">{fit ? tr.fitWidthShort : tr.zoomPercent(Math.round(ZOOMS[zoomIndex]! * 100))}</span>
+            <button type="button" className="ghost icon small" onClick={() => (fit ? unfit(1) : setZoomIndex((z) => Math.min(ZOOMS.length - 1, z + 1)))} aria-label={tr.zoomIn}><ZoomIn size={16} aria-hidden /></button>
+            {!fit && <button type="button" className="ghost icon small" onClick={() => setFit(true)} aria-label={tr.fitWidth} data-tip={tr.fitWidth} data-tip-side="bottom" data-tip-align="end"><MoveHorizontal size={16} aria-hidden /></button>}
           </span>
         </div>
       )}
       {banner}
-      {loading && <Loading>Lecture du PDF…</Loading>}
+      {loading && <Loading>{tr.reading}</Loading>}
       {shownError && <Note tone="error" role="alert">{shownError}</Note>}
       {active ? (
         <>
-          <p className="pdf-caption muted small"><span className="pdf-file">{active.fileName}</span> — {caption}</p>
+          <p className="pdf-caption muted small"><span className="pdf-file">{active.fileName}</span> — {caption ?? tr.caption.independent}</p>
           <div className={fit ? 'pdf-scroll fit' : 'pdf-scroll'} ref={scrollRef}><canvas ref={canvasRef} data-testid="pdf-canvas" /></div>
         </>
       ) : (
         <div className="pdf-empty">
           <span className="empty-icon" aria-hidden><BookOpen size={20} /></span>
-          <p className="pdf-empty-title">Aucune notice ouverte</p>
-          <p className="muted small">Ta notice reste sur ce Mac : elle est lue localement et n’est pas sauvegardée.</p>
+          <p className="pdf-empty-title">{tr.emptyTitle}</p>
+          <p className="muted small">{tr.emptyText}</p>
           <label className="button primary">
-            <FileUp size={16} aria-hidden /> Importer une notice PDF
+            <FileUp size={16} aria-hidden /> {tr.import}
             {importInput()}
           </label>
         </div>

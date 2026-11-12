@@ -2,6 +2,7 @@ import { type BufferGeometry, Color, type Group, type Material, type Mesh, MeshB
 import { LDrawLoader } from 'three/examples/jsm/loaders/LDrawLoader.js';
 import { LDrawConditionalLineMaterial } from 'three/examples/jsm/materials/LDrawConditionalLineMaterial.js';
 import { trayKey } from '@/domain/build/engine';
+import { msgs } from '@/i18n/runtime';
 import { yQuarterTurnSymmetries } from '@/domain/ldraw/symmetry';
 import type { BrickOccurrence } from '@/domain/ldraw/types';
 
@@ -118,7 +119,7 @@ export async function loadModelGeometry(
       templates.set(key, await catalog.template(o.partRef, o.colorCode, embedded));
     } catch (error) {
       missingParts.add(o.partKey);
-      errors.push(`${o.partRef} (couleur ${o.colorCode}) : ${error instanceof Error ? error.message : String(error)}`);
+      errors.push(msgs().server.partCatalog.loadError(o.partRef, o.colorCode, error instanceof Error ? error.message : String(error)));
     }
   }));
   const symmetries = new Map<string, readonly number[]>();

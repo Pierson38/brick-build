@@ -5,6 +5,7 @@ import {
   clampSide, DEFAULT_SIDE, keyResize, LAYOUT_STORAGE_KEY, parseLayout, ratioOf, sideBounds, sideWidth, SPLITTER,
   type PanelContext, type StoredLayout,
 } from '@/domain/ui/panel-layout';
+import { useT } from '@/i18n/I18nProvider';
 
 // Browser preference only (per browser, like the zoom of a page): never sent to the library.
 function readLayout(): StoredLayout {
@@ -52,6 +53,7 @@ export function useSidePanel(context: PanelContext) {
  * keyboard (← → 16 px, Shift 80 px, Home / End, Entrée = défaut), double-click = default width.
  */
 export function Splitter({ side, total, context, onResize }: { side: number; total: number; context: PanelContext; onResize: (width: number | null, persist: boolean) => void }) {
+  const tr = useT().workshop.splitter;
   const drag = useRef<{ x: number; side: number; last: number } | null>(null);
   const bounds = sideBounds(total);
 
@@ -89,12 +91,12 @@ export function Splitter({ side, total, context, onResize }: { side: number; tot
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Redimensionner : espace 3D / panneau latéral"
+      aria-label={tr.label}
       aria-valuemin={bounds.min}
       aria-valuemax={bounds.max}
       aria-valuenow={side}
-      aria-valuetext={`Panneau latéral : ${side} px`}
-      title="Glisser pour redimensionner · double-clic : largeur par défaut · clavier : ← →, Maj pour aller plus vite, Entrée : défaut"
+      aria-valuetext={tr.valueText(side)}
+      title={tr.title}
       tabIndex={0}
       className="splitter"
       data-testid="splitter"

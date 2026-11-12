@@ -5,6 +5,8 @@
  * variant is read as variant 1, and that assumption is reported, never hidden.
  */
 
+import { msgs } from '../../i18n/runtime';
+
 export interface SetNumber {
   /** "31040" (lower case for letters, e.g. "tru05"). */
   readonly base: string;
@@ -22,14 +24,15 @@ export type SetNumberResult = { readonly ok: true; readonly value: SetNumber } |
 const RE = /^([a-z0-9]{2,16})(?:-(\d{1,3}))?$/;
 
 export function parseSetNumber(input: unknown): SetNumberResult {
-  if (typeof input !== 'string') return { ok: false, error: 'Numéro de set attendu.' };
+  const t = msgs().domain.setNumber;
+  if (typeof input !== 'string') return { ok: false, error: t.expected };
   const s = input.normalize('NFKC').trim().toLowerCase().replace(/\s*[-–—]\s*/g, '-').replace(/\s+/g, '');
-  if (s.length === 0) return { ok: false, error: 'Saisis un numéro de set, par exemple 31040.' };
+  if (s.length === 0) return { ok: false, error: t.empty };
   const m = RE.exec(s);
-  if (!m) return { ok: false, error: `« ${input.trim().slice(0, 40)} » n’est pas un numéro de set (ex. 31040 ou 31040-1).` };
+  if (!m) return { ok: false, error: t.invalid(input.trim().slice(0, 40)) };
   const base = m[1]!;
   const variant = m[2] === undefined ? 1 : Number(m[2]);
-  if (variant < 1) return { ok: false, error: 'La variante d’un set commence à 1 (ex. 31040-1).' };
+  if (variant < 1) return { ok: false, error: t.variantFromOne };
   return { ok: true, value: { base, variant, canonical: `${base}-${variant}`, variantPresumed: m[2] === undefined, numeric: /^\d+$/.test(base) } };
 }
 

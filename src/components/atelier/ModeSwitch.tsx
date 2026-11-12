@@ -3,9 +3,9 @@
 import { BookOpen, Footprints, Hand } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { BuildMode } from '@/domain/build/engine';
+import { useT } from '@/i18n/I18nProvider';
 
 export const MODE_ORDER: readonly BuildMode[] = ['synced', 'guided', 'freeManual'];
-export const MODE_SHORT_LABEL: Record<BuildMode, string> = { synced: 'Notice synchro', guided: 'Guidé', freeManual: 'Libre' };
 export const MODE_ICON: Record<BuildMode, ReactNode> = {
   synced: <BookOpen size={15} aria-hidden />,
   guided: <Footprints size={15} aria-hidden />,
@@ -23,6 +23,7 @@ export function ModeSwitch({ value, labels, unavailable, onChange }: {
   unavailable: Partial<Record<BuildMode, string>>;
   onChange: (mode: BuildMode) => void;
 }) {
+  const t = useT();
   const enabled = MODE_ORDER.filter((m) => !unavailable[m] || m === value);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
@@ -33,15 +34,15 @@ export function ModeSwitch({ value, labels, unavailable, onChange }: {
     (e.currentTarget.querySelector(`[data-value="${next}"]`) as HTMLElement | null)?.focus();
   };
   return (
-    <div className="segmented mode-switch" role="radiogroup" aria-label="Mode de construction" data-testid="mode-select" data-value={value} onKeyDown={onKey}>
+    <div className="segmented mode-switch" role="radiogroup" aria-label={t.workshop.modes.switchLabel} data-testid="mode-select" data-value={value} onKeyDown={onKey}>
       {MODE_ORDER.map((m) => {
         const reason = m === value ? undefined : unavailable[m];
-        const tip = reason ? `${labels[m]} indisponible : ${reason}` : labels[m];
+        const tip = reason ? t.workshop.modes.unavailable(labels[m], reason) : labels[m];
         return (
           <button key={m} type="button" role="radio" data-value={m} aria-checked={m === value} aria-disabled={reason ? true : undefined}
             aria-label={labels[m]} data-tip={tip} data-tip-side="bottom" tabIndex={m === value ? 0 : -1}
             onClick={() => { if (!reason && m !== value) onChange(m); }}>
-            {MODE_ICON[m]}<span>{MODE_SHORT_LABEL[m]}</span>
+            {MODE_ICON[m]}<span>{t.workshop.modes.short[m]}</span>
           </button>
         );
       })}

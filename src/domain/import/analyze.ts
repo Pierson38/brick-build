@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import { buildStepPlan, type StepPlan } from '../build/build-plan';
 import { expandModel, rootCandidates } from '../ldraw/expand';
 import { parseLDraw } from '../ldraw/parser';
@@ -56,19 +57,20 @@ export function classifyImport(analysis: ModelAnalysis, missingParts: ReadonlySe
   if (fatal.length > 0 || analysis.model.occurrences.length === 0) {
     return { quality: 'INVALID', reasons: fatal.map((d) => d.message) };
   }
+  const t = msgs().domain.analyze;
   const reasons: string[] = [];
   const errors = analysis.diagnostics.filter((d) => d.severity === 'error');
-  if (errors.length > 0) reasons.push(`${errors.length} erreur(s) de lecture : certaines lignes ou branches sont ignorées.`);
+  if (errors.length > 0) reasons.push(t.readErrors(errors.length));
   if (missingParts === null) {
-    return { quality: 'ANALYSABLE', reasons: [...reasons, 'Bibliothèque de pièces non vérifiée.'] };
+    return { quality: 'ANALYSABLE', reasons: [...reasons, t.libraryNotChecked] };
   }
   const missingOccurrences = analysis.model.occurrences.filter((o) => missingParts.has(o.partKey)).length;
   if (missingOccurrences > 0) {
-    return { quality: 'ANALYSABLE', reasons: [...reasons, `${missingParts.size} référence(s) absente(s) de la bibliothèque locale (${missingOccurrences} pièce(s)) : rendu incomplet.`] };
+    return { quality: 'ANALYSABLE', reasons: [...reasons, t.missingParts(missingParts.size, missingOccurrences)] };
   }
   const nonRigid = analysis.model.occurrences.filter((o) => !o.rigid).length;
   if (nonRigid > 0) {
-    return { quality: 'RENDERABLE', reasons: [...reasons, `${nonRigid} pièce(s) avec matrice miroir/échelle : aimantation non fiable.`] };
+    return { quality: 'RENDERABLE', reasons: [...reasons, t.nonRigid(nonRigid)] };
   }
   if (analysis.plan.kind === 'NO_STEPS') {
     return { quality: 'MANUAL_ONLY', reasons: [...reasons, ...analysis.plan.notes] };

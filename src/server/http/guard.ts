@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import { LibraryError } from '../library/store';
 import { UnsafePathError } from '../library/paths';
 import { enterRequestLocale } from './locale';
@@ -24,13 +25,13 @@ function hostOf(value: string | null): string | null {
 export function guard(request: Request, { write }: { write: boolean }): Response | null {
   enterRequestLocale(request);
   const host = request.headers.get('host');
-  if (!LOOPBACK.has(hostOf(host) ?? '')) return deny(403, 'Hôte refusé : la bibliothèque ne répond qu’à 127.0.0.1 / localhost.');
+  if (!LOOPBACK.has(hostOf(host) ?? '')) return deny(403, msgs().server.guard.hostRefused);
   const site = request.headers.get('sec-fetch-site');
-  if (site !== null && site !== 'same-origin' && site !== 'none') return deny(403, 'Requête d’un autre site refusée.');
+  if (site !== null && site !== 'same-origin' && site !== 'none') return deny(403, msgs().server.guard.crossSite);
   if (!write) return null;
   const origin = request.headers.get('origin');
-  if (origin !== `http://${host}`) return deny(403, 'Origine refusée.');
-  if (request.headers.get(CLIENT_HEADER) !== '1') return deny(403, 'En-tête de l’application manquant.');
+  if (origin !== `http://${host}`) return deny(403, msgs().server.guard.originRefused);
+  if (request.headers.get(CLIENT_HEADER) !== '1') return deny(403, msgs().server.guard.missingHeader);
   return null;
 }
 
@@ -43,18 +44,18 @@ export function failure(e: unknown): Response {
   if (e instanceof LibraryError) return json({ error: { code: e.code, message: e.message, ...e.details } }, e.status);
   if (e instanceof UnsafePathError) return json({ error: { code: 'FORBIDDEN', message: e.message } }, 403);
   console.error('[library]', e);
-  return json({ error: { code: 'STORAGE', message: 'Erreur interne de la bibliothèque locale (voir le terminal du serveur).' } }, 500);
+  return json({ error: { code: 'STORAGE', message: msgs().server.guard.internalError } }, 500);
 }
 
 /** Reads at most `max` bytes of the body; larger bodies are refused without being buffered. */
 export async function readBody(request: Request, max: number): Promise<Buffer> {
   const declared = Number(request.headers.get('content-length') ?? '0');
-  if (declared > max) throw new LibraryError('TOO_LARGE', `Requête trop volumineuse (limite ${Math.round(max / 1024)} Ko).`);
+  if (declared > max) throw new LibraryError('TOO_LARGE', msgs().server.guard.bodyTooLarge(Math.round(max / 1024)));
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of bodyChunks(request)) {
     size += chunk.byteLength;
-    if (size > max) throw new LibraryError('TOO_LARGE', `Requête trop volumineuse (limite ${Math.round(max / 1024)} Ko).`);
+    if (size > max) throw new LibraryError('TOO_LARGE', msgs().server.guard.bodyTooLarge(Math.round(max / 1024)));
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks, size);
@@ -76,15 +77,15 @@ export async function* bodyChunks(request: Request): AsyncIterable<Uint8Array> {
 
 export async function readJsonBody(request: Request, max = 2 * 1024 * 1024): Promise<Record<string, unknown>> {
   const type = request.headers.get('content-type') ?? '';
-  if (!type.startsWith('application/json')) throw new LibraryError('UNSUPPORTED', 'Corps JSON attendu.');
+  if (!type.startsWith('application/json')) throw new LibraryError('UNSUPPORTED', msgs().server.guard.jsonBodyExpected);
   let raw: unknown;
   try {
     raw = JSON.parse((await readBody(request, max)).toString('utf8'));
   } catch (e) {
     if (e instanceof LibraryError) throw e;
-    throw new LibraryError('INVALID', 'JSON invalide.');
+    throw new LibraryError('INVALID', msgs().server.guard.invalidJson);
   }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new LibraryError('INVALID', 'Objet JSON attendu.');
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new LibraryError('INVALID', msgs().server.guard.jsonObjectExpected);
   return raw as Record<string, unknown>;
 }
 
