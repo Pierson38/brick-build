@@ -10,7 +10,6 @@ import { useEffect, useState } from 'react';
 export type ThemeChoice = 'system' | 'light' | 'dark';
 export const THEME_STORAGE_KEY = 'brick-lab:theme';
 export const THEME_ORDER: readonly ThemeChoice[] = ['system', 'light', 'dark'];
-export const THEME_LABEL: Record<ThemeChoice, string> = { system: 'Système', light: 'Clair', dark: 'Sombre' };
 
 export const parseTheme = (raw: unknown): ThemeChoice => (raw === 'light' || raw === 'dark' ? raw : 'system');
 export const nextTheme = (t: ThemeChoice): ThemeChoice => THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length]!;

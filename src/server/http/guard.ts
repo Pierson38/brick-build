@@ -1,5 +1,6 @@
 import { LibraryError } from '../library/store';
 import { UnsafePathError } from '../library/paths';
+import { enterRequestLocale } from './locale';
 
 // Server-only. Every library route starts with `guard()`. The server listens on 127.0.0.1 only;
 // these checks also refuse what a web page from another origin could make the browser send:
@@ -21,6 +22,7 @@ function hostOf(value: string | null): string | null {
 
 /** Returns a refusal, or null when the request may proceed. */
 export function guard(request: Request, { write }: { write: boolean }): Response | null {
+  enterRequestLocale(request);
   const host = request.headers.get('host');
   if (!LOOPBACK.has(hostOf(host) ?? '')) return deny(403, 'Hôte refusé : la bibliothèque ne répond qu’à 127.0.0.1 / localhost.');
   const site = request.headers.get('sec-fetch-site');

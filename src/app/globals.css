@@ -250,6 +250,8 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 .crumbs a:hover { color: var(--color-ink); }
 .crumbs .current { color: var(--color-ink); font-weight: var(--weight-semibold); }
 .appbar-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+button.icon.locale-toggle { width: auto; padding: 0 8px; gap: 4px; }
+.locale-code { font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; }
 
 /* ===================== atelier ===================== */
 .app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
