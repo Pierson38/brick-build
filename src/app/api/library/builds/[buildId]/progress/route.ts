@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import { failure, guard, json, readJsonBody, revisionOf } from '@/server/http/guard';
 import { store } from '@/server/library/instance';
 import { LibraryError } from '@/server/library/store';
@@ -26,7 +27,7 @@ export async function PUT(request: Request, { params }: Ctx) {
   try {
     const body = await readJsonBody(request, 1024 * 1024);
     const base = body.baseRevision === null ? null : revisionOf(body.baseRevision);
-    if (base === null && body.baseRevision !== null) throw new LibraryError('INVALID', 'Révision de base manquante.');
+    if (base === null && body.baseRevision !== null) throw new LibraryError('INVALID', msgs().server.routes.baseRevisionMissing);
     const rec = await store().putProgress((await params).buildId, body.progress, base, body.source === 'browser' ? 'browser' : 'atelier');
     return json({ revision: rec.revision, savedAtIso: rec.savedAtIso });
   } catch (e) {
@@ -41,7 +42,7 @@ export async function DELETE(request: Request, { params }: Ctx) {
   try {
     const body = await readJsonBody(request);
     const base = revisionOf(body.baseRevision);
-    if (base === null) throw new LibraryError('INVALID', 'Révision de base manquante.');
+    if (base === null) throw new LibraryError('INVALID', msgs().server.routes.baseRevisionMissing);
     await store().clearProgress((await params).buildId, body.confirm, base);
     return json({ ok: true });
   } catch (e) {

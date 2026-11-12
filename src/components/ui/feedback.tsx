@@ -2,6 +2,7 @@
 
 import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useT } from '@/i18n/I18nProvider';
 
 export type Tone = 'ok' | 'error' | 'info' | 'warning';
 
@@ -37,11 +38,12 @@ export function Note({ tone = 'info', children, role, testId, className }: { ton
  * stays until the next message or until it is closed (no timer: decision A7 of the redesign).
  */
 export function Toast({ tone, children, onClose, className = '', testId = 'message' }: { tone: Exclude<Tone, 'warning'>; children: ReactNode; onClose?: () => void; className?: string; testId?: string }) {
+  const t = useT();
   return (
     <div className={`toast ${tone} ${className}`.trim()} role={tone === 'error' ? 'alert' : 'status'} data-testid={testId}>
       {TONE_ICON[tone]}
       <span>{children}</span>
-      {onClose && <button type="button" className="ghost icon small toast-close" aria-label="Fermer le message" onClick={onClose}><X size={14} aria-hidden /></button>}
+      {onClose && <button type="button" className="ghost icon small toast-close" aria-label={t.workshop.feedback.closeMessage} onClick={onClose}><X size={14} aria-hidden /></button>}
     </div>
   );
 }

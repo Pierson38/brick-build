@@ -8,7 +8,10 @@ import type { BrickOccurrence } from '@/domain/ldraw/types';
 import { libraryApi } from '@/infra/library/api';
 import { loadStoredMapping } from '@/infra/persistence/local-mapping';
 import { loadStoredProgress } from '@/infra/persistence/local-progress';
-import { formatDate, MODE_SHORT } from './labels';
+import { useLocale, useT } from '@/i18n/I18nProvider';
+import { CATALOGS } from '@/i18n/catalogs';
+import type { Messages } from '@/i18n/runtime';
+import { formatDate } from './labels';
 
 /** The P5/P6 save this browser keeps for a model (localStorage, by model SHA-256), if it fits the model. */
 export function readBrowserSave(modelSha: string, occurrences: readonly BrickOccurrence[]): { raw: LocalBuildProgress; summary: SaveSummary } | null {
@@ -55,34 +58,42 @@ export async function recoverBrowserSave(buildId: string, progressRevision: numb
 export const mappingsDiffer = (library: InstructionMapping | null, browser: InstructionMapping | null) =>
   browser !== null && (library === null || mappingDigest(library) !== mappingDigest(browser));
 
-const pageText = (s: SaveSummary) => (s.page === null ? '—' : `p. ${s.page}`);
-const bookletText = (s: SaveSummary, other: SaveSummary) =>
-  s.bookletSha256 === null ? 'aucun' : s.bookletSha256 === other.bookletSha256 ? 'même livret' : `livret ${s.bookletSha256.slice(0, 8)}…`;
-const mappingText = (s: SaveSummary) => (s.mappingDigest === null ? '—' : `empreinte ${s.mappingDigest}`);
+type SaveTexts = Messages['library']['browserSave'];
+const pageText = (s: SaveSummary, b: SaveTexts) => (s.page === null ? '—' : b.page(s.page));
+const bookletText = (s: SaveSummary, other: SaveSummary, b: SaveTexts) =>
+  s.bookletSha256 === null ? b.noBooklet : s.bookletSha256 === other.bookletSha256 ? b.sameBooklet : b.booklet(s.bookletSha256.slice(0, 8));
+const mappingText = (s: SaveSummary, b: SaveTexts) => (s.mappingDigest === null ? '—' : b.mappingDigest(s.mappingDigest));
+/** Row test ids keep the French labels whatever the language (the E2E suites select them). */
+const ROW_ID = CATALOGS.fr.library.browserSave.rows;
 
 /** Side-by-side view of the relevant differences; differing rows are marked. */
 export function SaveDiffView({ diff, total }: { diff: SaveDiff; total: number }) {
+  const t = useT();
+  const locale = useLocale();
+  const x = t.library.browserSave;
+  const mode = t.library.labels.modeShort;
   const { library: l, browser: b } = diff;
-  const rows: [string, string, string, boolean][] = [
-    ['Pièces posées', `${l.placed.length + l.free.length}/${total}`, `${b.placed.length + b.free.length}/${total}`, diff.keys.includes('placed') || diff.keys.includes('free')],
-    ...(l.free.length > 0 || b.free.length > 0 ? [['Dont posées librement', String(l.free.length), String(b.free.length), diff.keys.includes('free')] as [string, string, string, boolean]] : []),
-    ['Mode', MODE_SHORT[l.mode], MODE_SHORT[b.mode], diff.keys.includes('mode')],
-    ['Page de la notice', pageText(l), pageText(b), diff.keys.includes('page')],
-    ['Livret affiché', bookletText(l, b), bookletText(b, l), diff.keys.includes('booklet')],
-    ['Correspondances jouées', mappingText(l), mappingText(b), diff.keys.includes('mapping')],
-    ['Enregistrée le', formatDate(l.updatedAtIso) || '—', formatDate(b.updatedAtIso) || '—', false],
+  type Row = [keyof SaveTexts['rows'], string, string, boolean];
+  const rows: Row[] = [
+    ['placed', `${l.placed.length + l.free.length}/${total}`, `${b.placed.length + b.free.length}/${total}`, diff.keys.includes('placed') || diff.keys.includes('free')],
+    ...(l.free.length > 0 || b.free.length > 0 ? [['free', String(l.free.length), String(b.free.length), diff.keys.includes('free')] as Row] : []),
+    ['mode', mode[l.mode], mode[b.mode], diff.keys.includes('mode')],
+    ['page', pageText(l, x), pageText(b, x), diff.keys.includes('page')],
+    ['booklet', bookletText(l, b, x), bookletText(b, l, x), diff.keys.includes('booklet')],
+    ['mapping', mappingText(l, x), mappingText(b, x), diff.keys.includes('mapping')],
+    ['savedAt', formatDate(l.updatedAtIso, locale) || '—', formatDate(b.updatedAtIso, locale) || '—', false],
   ];
   return (
     <table className="diff small" data-testid="save-diff">
-      <thead><tr><th /><th>Bibliothèque</th><th>Ce navigateur</th></tr></thead>
+      <thead><tr><th /><th>{x.library}</th><th>{x.browser}</th></tr></thead>
       <tbody>
-        {rows.map(([label, lib, nav, differs]) => (
-          <tr key={label} className={differs ? 'differs' : undefined} data-testid={`diff-${label}`}>
-            <th scope="row">{label}</th><td>{lib}</td><td>{nav}</td>
+        {rows.map(([key, lib, nav, differs]) => (
+          <tr key={key} className={differs ? 'differs' : undefined} data-testid={`diff-${ROW_ID[key]}`}>
+            <th scope="row">{x.rows[key]}</th><td>{lib}</td><td>{nav}</td>
           </tr>
         ))}
         {diff.keys.includes('placed') && (
-          <tr><th scope="row">Détail</th><td>{diff.onlyInLibrary.length} pièce(s) posée(s) seulement ici</td><td>{diff.onlyInBrowser.length} pièce(s) posée(s) seulement ici</td></tr>
+          <tr><th scope="row">{x.detail}</th><td>{x.onlyHere(diff.onlyInLibrary.length)}</td><td>{x.onlyHere(diff.onlyInBrowser.length)}</td></tr>
         )}
       </tbody>
     </table>
@@ -100,6 +111,9 @@ export function BrowserSavePanel({ buildId, modelSha, rootName, fileName, occurr
   onDone: () => void;
   notify: (kind: 'ok' | 'error', text: string) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
+  const x = t.library.browserSave;
   const [state, setState] = useState<{ rev: number | null; lib: SaveSummary | 'absent' | 'invalid'; mapping: { revision: number | null; value: InstructionMapping | null } } | null>(null);
   const [asking, setAsking] = useState(false);
   const [withMapping, setWithMapping] = useState(false);
@@ -128,7 +142,7 @@ export function BrowserSavePanel({ buildId, modelSha, rootName, fileName, occurr
   const take = async () => {
     try {
       await recoverBrowserSave(buildId, state.rev, local.raw, withMapping && localMapping ? { revision: state.mapping.revision, value: localMapping } : undefined);
-      notify('ok', `Sauvegarde de ce navigateur reprise (${local.summary.placed.length}/${total} pièces). La version précédente de la bibliothèque est dans son historique.`);
+      notify('ok', x.taken(local.summary.placed.length, total));
       setAsking(false);
       onDone();
     } catch (e) {
@@ -137,18 +151,18 @@ export function BrowserSavePanel({ buildId, modelSha, rootName, fileName, occurr
   };
   return (
     <div className="browser-save small" data-testid="browser-save">
-      <h3>Sauvegarde de ce navigateur</h3>
+      <h3>{x.title}</h3>
       {diff
-        ? (diff.keys.length > 0 ? <SaveDiffView diff={diff} total={total} /> : <p>Progression identique ; seules les correspondances diffèrent.</p>)
-        : <p>{state.lib === 'absent' ? 'La bibliothèque n’a pas encore de progression pour cette construction.' : 'La progression de la bibliothèque ne correspond plus au modèle (conservée).'} Ce navigateur : {local.summary.placed.length}/{total} pièces, {formatDate(local.summary.updatedAtIso)}.</p>}
-      {mappingDiffers && <label className="block"><input type="checkbox" checked={withMapping} onChange={(e) => setWithMapping(e.target.checked)} data-testid="browser-save-with-mapping" /> Reprendre aussi les correspondances de ce navigateur</label>}
+        ? (diff.keys.length > 0 ? <SaveDiffView diff={diff} total={total} /> : <p>{x.sameProgress}</p>)
+        : <p>{state.lib === 'absent' ? x.libraryAbsent : x.libraryInvalid} {x.thisBrowser(local.summary.placed.length, total, formatDate(local.summary.updatedAtIso, locale))}</p>}
+      {mappingDiffers && <label className="block"><input type="checkbox" checked={withMapping} onChange={(e) => setWithMapping(e.target.checked)} data-testid="browser-save-with-mapping" /> {x.withMapping}</label>}
       {!asking
-        ? <button type="button" className="small" onClick={() => setAsking(true)} data-testid="browser-save-take">Reprendre la sauvegarde de ce navigateur</button>
+        ? <button type="button" className="small" onClick={() => setAsking(true)} data-testid="browser-save-take">{x.take}</button>
         : (
           <span className="confirm">
-            La progression actuelle de la bibliothèque sera remplacée et gardée dans son historique.{' '}
-            <button type="button" className="danger small" onClick={() => void take()} data-testid="browser-save-confirm">Confirmer</button>
-            {' '}<button type="button" className="small" onClick={() => setAsking(false)}>Annuler</button>
+            {x.replaceWarning}{' '}
+            <button type="button" className="danger small" onClick={() => void take()} data-testid="browser-save-confirm">{t.common.confirm}</button>
+            {' '}<button type="button" className="small" onClick={() => setAsking(false)}>{t.common.cancel}</button>
           </span>
         )}
     </div>

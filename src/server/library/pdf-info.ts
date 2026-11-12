@@ -1,3 +1,5 @@
+import { msgs } from '@/i18n/runtime';
+
 // Server-only. Page count of a PDF with pdf.js (already used by the viewer), read from memory,
 // no PDF script or XFA form run, no font loading, bounded in time. Nothing of the content is kept.
 
@@ -11,7 +13,7 @@ export async function pdfPageCount(bytes: Uint8Array): Promise<{ pages: number |
     try {
       const doc = await Promise.race([
         task.promise,
-        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('délai dépassé')), TIMEOUT_MS); }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(msgs().server.pdfInfo.timeout)), TIMEOUT_MS); }),
       ]);
       return { pages: doc.numPages, problem: null };
     } finally {
@@ -19,6 +21,6 @@ export async function pdfPageCount(bytes: Uint8Array): Promise<{ pages: number |
       await task.destroy().catch(() => undefined);
     }
   } catch (e) {
-    return { pages: null, problem: `Nombre de pages illisible (${e instanceof Error ? e.message.slice(0, 120) : 'erreur'}) : la notice reste utilisable dans le lecteur.` };
+    return { pages: null, problem: msgs().server.pdfInfo.pagesUnreadable(e instanceof Error ? e.message.slice(0, 120) : msgs().server.pdfInfo.unknownError) };
   }
 }

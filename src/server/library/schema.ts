@@ -4,6 +4,7 @@ import {
   type FileKind, type LibraryBuild, type LibraryFile, type LibraryIndex, type LibrarySet, type ModelSnapshot,
 } from '@/domain/library/types';
 import type { FileProvenance, ProvenanceSource } from '@/domain/library/import-types';
+import { msgs } from '@/i18n/runtime';
 import { safeSegments } from './paths';
 
 // Server-only. The index is read back from disk at every operation and treated as untrusted:
@@ -33,14 +34,14 @@ const need = (ok: boolean, what: string) => {
 };
 
 function parseFile(key: string, f: unknown): LibraryFile {
-  need(SHA256_RE.test(key) && isRecord(f), `fichier ${key.slice(0, 12)}`);
+  need(SHA256_RE.test(key) && isRecord(f), msgs().server.schema.file(key.slice(0, 12)));
   const r = f as Record<string, unknown>;
-  need(r.sha256 === key && KINDS.includes(r.kind as FileKind) && count(r.size, 1024 ** 3) && str(r.originalName, 200) && iso(r.addedAtIso), `fichier ${key.slice(0, 12)}`);
+  need(r.sha256 === key && KINDS.includes(r.kind as FileKind) && count(r.size, 1024 ** 3) && str(r.originalName, 200) && iso(r.addedAtIso), msgs().server.schema.file(key.slice(0, 12)));
   const loc = r.location;
-  need(isRecord(loc) && (loc.type === 'blob' || loc.type === 'external') && typeof loc.path === 'string' && safeSegments(loc.path) !== null, `emplacement du fichier ${key.slice(0, 12)}`);
+  need(isRecord(loc) && (loc.type === 'blob' || loc.type === 'external') && typeof loc.path === 'string' && safeSegments(loc.path) !== null, msgs().server.schema.fileLocation(key.slice(0, 12)));
   const l = loc as { type: 'blob' | 'external'; path: string };
   const provenance = r.provenance === undefined ? undefined : parseProvenance(r.provenance);
-  need(r.provenance === undefined || provenance !== null, `provenance du fichier ${key.slice(0, 12)}`);
+  need(r.provenance === undefined || provenance !== null, msgs().server.schema.fileProvenance(key.slice(0, 12)));
   return {
     sha256: key, kind: r.kind as FileKind, size: r.size as number, originalName: r.originalName as string, location: { type: l.type, path: l.path }, addedAtIso: r.addedAtIso as string,
     ...(provenance ? { provenance } : {}),
@@ -74,19 +75,19 @@ export function parseProvenance(v: unknown): FileProvenance | null {
 function parseSet(s: unknown): LibrarySet {
   need(isRecord(s), 'set');
   const r = s as Record<string, unknown>;
-  need(str(r.id, 64) && ID_RE.test(r.id as string) && str(r.setNumber, 32) && SET_NUMBER_RE.test(r.setNumber as string) && str(r.name) && iso(r.createdAtIso) && iso(r.updatedAtIso), `set ${String(r.id).slice(0, 64)}`);
+  need(str(r.id, 64) && ID_RE.test(r.id as string) && str(r.setNumber, 32) && SET_NUMBER_RE.test(r.setNumber as string) && str(r.name) && iso(r.createdAtIso) && iso(r.updatedAtIso), msgs().server.schema.set(String(r.id).slice(0, 64)));
   return { id: r.id as string, setNumber: r.setNumber as string, name: r.name as string, createdAtIso: r.createdAtIso as string, updatedAtIso: r.updatedAtIso as string };
 }
 
 export function parseSnapshot(s: unknown): ModelSnapshot {
-  need(isRecord(s), 'analyse du modèle');
+  need(isRecord(s), msgs().server.schema.modelAnalysis);
   const r = s as Record<string, unknown>;
   need(typeof r.title === 'string' && r.title.length <= 512 && count(r.occurrenceCount) && count(r.uniqueParts) && count(r.colours)
-    && PLAN_KINDS.includes(r.planKind as StepPlanKind) && count(r.stepCount) && count(r.errors) && count(r.warnings), 'analyse du modèle');
-  need(Array.isArray(r.rootCandidates) && r.rootCandidates.length <= 2_000 && r.rootCandidates.every((x) => str(x, 512)), 'modèles principaux');
+    && PLAN_KINDS.includes(r.planKind as StepPlanKind) && count(r.stepCount) && count(r.errors) && count(r.warnings), msgs().server.schema.modelAnalysis);
+  need(Array.isArray(r.rootCandidates) && r.rootCandidates.length <= 2_000 && r.rootCandidates.every((x) => str(x, 512)), msgs().server.schema.rootModels);
   need(Array.isArray(r.diagnostics) && r.diagnostics.length <= MAX_DIAGNOSTICS, 'diagnostics');
   const diagnostics = (r.diagnostics as unknown[]).map((d) => {
-    need(isRecord(d) && str(d.severity, 16) && str(d.code, 64) && typeof d.message === 'string' && d.message.length <= 1000 && (d.line === undefined || count(d.line)), 'diagnostic');
+    need(isRecord(d) && str(d.severity, 16) && str(d.code, 64) && typeof d.message === 'string' && d.message.length <= 1000 && (d.line === undefined || count(d.line)), msgs().server.schema.diagnostic);
     const x = d as Record<string, unknown>;
     return { severity: x.severity as string, code: x.code as string, message: x.message as string, ...(x.line !== undefined ? { line: x.line as number } : {}) };
   });
@@ -98,13 +99,13 @@ export function parseSnapshot(s: unknown): ModelSnapshot {
 }
 
 function parseBuild(b: unknown): LibraryBuild {
-  need(isRecord(b), 'construction');
+  need(isRecord(b), msgs().server.schema.build);
   const r = b as Record<string, unknown>;
-  const where = `construction ${String(r.id).slice(0, 64)}`;
+  const where = msgs().server.schema.buildWhere(String(r.id).slice(0, 64));
   need(str(r.id, 64) && ID_RE.test(r.id as string) && str(r.setId, 64) && ID_RE.test(r.setId as string) && str(r.label) && str(r.modelFileId, 64) && SHA256_RE.test(r.modelFileId as string)
     && str(r.rootName, 512) && iso(r.createdAtIso) && iso(r.updatedAtIso), where);
   need(Array.isArray(r.bookletFileIds) && r.bookletFileIds.length <= MAX_BOOKLETS_PER_BUILD && r.bookletFileIds.every((x) => typeof x === 'string' && SHA256_RE.test(x))
-    && new Set(r.bookletFileIds).size === r.bookletFileIds.length, `${where} : notices`);
+    && new Set(r.bookletFileIds).size === r.bookletFileIds.length, msgs().server.schema.booklets(where));
   return {
     id: r.id as string, setId: r.setId as string, label: r.label as string, modelFileId: r.modelFileId as string, rootName: r.rootName as string,
     bookletFileIds: [...(r.bookletFileIds as string[])], snapshot: parseSnapshot(r.snapshot), createdAtIso: r.createdAtIso as string, updatedAtIso: r.updatedAtIso as string,
@@ -115,30 +116,30 @@ export type ParseIndexResult = { ok: true; index: LibraryIndex } | { ok: false; 
 
 export function parseIndex(raw: unknown): ParseIndexResult {
   try {
-    need(isRecord(raw), 'objet JSON attendu');
+    need(isRecord(raw), msgs().server.schema.jsonObjectExpected);
     const r = raw as Record<string, unknown>;
-    need(r.format === LIBRARY_FORMAT, 'format inconnu');
-    need(r.schemaVersion === LIBRARY_SCHEMA_VERSION, `version de schéma ${String(r.schemaVersion)} non prise en charge`);
-    need(count(r.revision) && iso(r.updatedAtIso), 'révision');
-    need(isRecord(r.files) && Object.keys(r.files).length <= MAX_FILES, 'liste de fichiers');
-    need(Array.isArray(r.sets) && r.sets.length <= MAX_SETS, 'liste de sets');
-    need(Array.isArray(r.builds) && r.builds.length <= MAX_BUILDS, 'liste de constructions');
+    need(r.format === LIBRARY_FORMAT, msgs().server.schema.unknownFormat);
+    need(r.schemaVersion === LIBRARY_SCHEMA_VERSION, msgs().server.schema.unsupportedSchema(String(r.schemaVersion)));
+    need(count(r.revision) && iso(r.updatedAtIso), msgs().server.schema.revision);
+    need(isRecord(r.files) && Object.keys(r.files).length <= MAX_FILES, msgs().server.schema.fileList);
+    need(Array.isArray(r.sets) && r.sets.length <= MAX_SETS, msgs().server.schema.setList);
+    need(Array.isArray(r.builds) && r.builds.length <= MAX_BUILDS, msgs().server.schema.buildList);
     const files: Record<string, LibraryFile> = Object.create(null) as Record<string, LibraryFile>;
     for (const [k, v] of Object.entries(r.files as Record<string, unknown>)) files[k] = parseFile(k, v);
     const sets = (r.sets as unknown[]).map(parseSet);
     const builds = (r.builds as unknown[]).map(parseBuild);
     // referential integrity: every reference must resolve, ids must be unique
     const setIds = new Set(sets.map((s) => s.id));
-    need(setIds.size === sets.length, 'identifiants de sets en double');
-    need(new Set(builds.map((b) => b.id)).size === builds.length, 'identifiants de constructions en double');
+    need(setIds.size === sets.length, msgs().server.schema.duplicateSetIds);
+    need(new Set(builds.map((b) => b.id)).size === builds.length, msgs().server.schema.duplicateBuildIds);
     for (const b of builds) {
-      need(setIds.has(b.setId), `construction ${b.id} : set inconnu`);
-      need(files[b.modelFileId]?.kind === 'model', `construction ${b.id} : modèle inconnu`);
-      need(b.bookletFileIds.every((id) => files[id]?.kind === 'pdf'), `construction ${b.id} : notice inconnue`);
+      need(setIds.has(b.setId), msgs().server.schema.buildUnknownSet(b.id));
+      need(files[b.modelFileId]?.kind === 'model', msgs().server.schema.buildUnknownModel(b.id));
+      need(b.bookletFileIds.every((id) => files[id]?.kind === 'pdf'), msgs().server.schema.buildUnknownBooklet(b.id));
     }
     return { ok: true, index: { format: LIBRARY_FORMAT, schemaVersion: LIBRARY_SCHEMA_VERSION, revision: r.revision as number, updatedAtIso: r.updatedAtIso as string, files, sets, builds } };
   } catch (e) {
-    if (e instanceof SchemaError) return { ok: false, error: `library.json invalide (${e.message}).` };
+    if (e instanceof SchemaError) return { ok: false, error: msgs().server.schema.invalidIndex(e.message) };
     throw e;
   }
 }

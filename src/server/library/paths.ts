@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { msgs } from '@/i18n/runtime';
 import { isSafeOnPlatform } from '@/infra/portable-name';
 
 // Server-only: where the library lives, and the only way a stored relative path becomes a real path.
@@ -46,20 +47,20 @@ export class UnsafePathError extends Error {}
  */
 export async function resolveInside(root: string, rel: string): Promise<string> {
   const segments = safeSegments(rel);
-  if (!segments) throw new UnsafePathError(`Chemin refusé : ${JSON.stringify(rel).slice(0, 80)}`);
+  if (!segments) throw new UnsafePathError(msgs().server.paths.refused(JSON.stringify(rel).slice(0, 80)));
   const realRoot = await fs.realpath(root);
   const real = await fs.realpath(path.join(realRoot, ...segments));
-  if (!real.startsWith(realRoot + path.sep)) throw new UnsafePathError('Chemin hors du dossier de données.');
+  if (!real.startsWith(realRoot + path.sep)) throw new UnsafePathError(msgs().server.paths.outsideDataFolder);
   return real;
 }
 
 /** Same check for a path that may not exist yet (its parent must). */
 export async function resolveNewInside(root: string, rel: string): Promise<string> {
   const segments = safeSegments(rel);
-  if (!segments) throw new UnsafePathError(`Chemin refusé : ${JSON.stringify(rel).slice(0, 80)}`);
+  if (!segments) throw new UnsafePathError(msgs().server.paths.refused(JSON.stringify(rel).slice(0, 80)));
   const realRoot = await fs.realpath(root);
   const target = path.join(realRoot, ...segments);
   const parent = await fs.realpath(path.dirname(target)).catch(() => null);
-  if (parent !== null && parent !== realRoot && !parent.startsWith(realRoot + path.sep)) throw new UnsafePathError('Chemin hors du dossier de données.');
+  if (parent !== null && parent !== realRoot && !parent.startsWith(realRoot + path.sep)) throw new UnsafePathError(msgs().server.paths.outsideDataFolder);
   return target;
 }

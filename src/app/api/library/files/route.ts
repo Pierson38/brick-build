@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import type { FileKind } from '@/domain/library/types';
 import { bodyChunks, failure, guard, json } from '@/server/http/guard';
 import { store } from '@/server/library/instance';
@@ -18,8 +19,8 @@ export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
     const kind = url.searchParams.get('kind') as FileKind;
-    if (!KINDS.includes(kind)) throw new LibraryError('INVALID', 'Type de fichier inconnu.');
-    if (request.headers.get('content-type') !== 'application/octet-stream') throw new LibraryError('UNSUPPORTED', 'Contenu binaire attendu.');
+    if (!KINDS.includes(kind)) throw new LibraryError('INVALID', msgs().server.routes.unknownFileType);
+    if (request.headers.get('content-type') !== 'application/octet-stream') throw new LibraryError('UNSUPPORTED', msgs().server.routes.binaryExpected);
     const { file, duplicate } = await store().ingest(kind, url.searchParams.get('name') ?? '', bodyChunks(request));
     return json({ file: { sha256: file.sha256, kind: file.kind, size: file.size, originalName: file.originalName, location: file.location.type }, duplicate }, duplicate ? 200 : 201);
   } catch (e) {

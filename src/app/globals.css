@@ -250,6 +250,7 @@ dialog.dialog-modal[open] { animation: dialog-in var(--duration) var(--ease-out)
 .crumbs a:hover { color: var(--color-ink); }
 .crumbs .current { color: var(--color-ink); font-weight: var(--weight-semibold); }
 .appbar-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.locale-code { font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; }
 
 /* ===================== atelier ===================== */
 .app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
@@ -714,6 +715,8 @@ button.danger-text:hover:not(:disabled) { background: var(--color-danger-soft); 
   .atelier-progress-sub { max-width: 200px; }
   .appbar .crumbs { max-width: 24%; }
 }
+/* narrow windows: the progress bar of the atelier gives way to the language switch */
+@media (max-width: 900px) { .atelier-progress-main .progressbar { min-width: 48px; width: 56px; } }
 /* app bar: only the breadcrumb gives way (ellipsis), never the controls */
 .appbar > * { flex-shrink: 0; }
 .appbar > .crumbs { flex: 0 1 auto; min-width: 48px; max-width: none; overflow: hidden; }

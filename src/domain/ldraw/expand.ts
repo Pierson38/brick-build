@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import { determinant3, IDENTITY, multiply } from './matrix';
 import {
   DEFAULT_LIMITS,
@@ -24,13 +25,14 @@ export function expandModel(
   doc: LDrawDocument,
   options: { rootName?: string; limits?: ParseLimits } = {},
 ): ExpandedModel {
+  const t = msgs().domain.expand;
   const limits = options.limits ?? DEFAULT_LIMITS;
   const diagnostics: Diagnostic[] = [];
   const sections = new Map(doc.sections.map((s) => [s.key, s] as const));
   const root = options.rootName ? sections.get(referenceKey(options.rootName)) : doc.sections[0];
 
   if (!root) {
-    diagnostics.push({ code: 'ROOT_NOT_FOUND', severity: 'error', message: options.rootName ? `Modèle principal « ${options.rootName} » introuvable.` : 'Aucune section de modèle.' });
+    diagnostics.push({ code: 'ROOT_NOT_FOUND', severity: 'error', message: options.rootName ? t.rootNotFound(options.rootName) : t.noModelSection });
     return { rootName: options.rootName ?? '', occurrences: [], submodelInstances: [], diagnostics };
   }
 
@@ -60,11 +62,11 @@ export function expandModel(
       if (sub && !sub.isPartDefinition) {
         reachable.add(sub.key);
         if (stack.includes(sub.key)) {
-          diagnostics.push({ code: 'CYCLE', severity: 'error', section: section.name, line: ref.line, message: `Référence circulaire : ${[...stack, sub.key].join(' → ')}. Branche ignorée.` });
+          diagnostics.push({ code: 'CYCLE', severity: 'error', section: section.name, line: ref.line, message: t.cycle([...stack, sub.key].join(' → ')) });
           continue;
         }
         if (stack.length >= limits.maxDepth) {
-          diagnostics.push({ code: 'MAX_DEPTH', severity: 'error', section: section.name, line: ref.line, message: `Profondeur de sous-modèles > ${limits.maxDepth} : branche ignorée.` });
+          diagnostics.push({ code: 'MAX_DEPTH', severity: 'error', section: section.name, line: ref.line, message: t.maxDepth(limits.maxDepth) });
           continue;
         }
         instances.push({
@@ -81,14 +83,14 @@ export function expandModel(
       if (sub) reachable.add(sub.key);
       if (!sub && SUBMODEL_EXTENSIONS.test(ref.fileName)) {
         if (!reportedMissing.has(ref.fileKey)) {
-          diagnostics.push({ code: 'MISSING_SUBMODEL', severity: 'error', section: section.name, line: ref.line, message: `Sous-modèle « ${ref.fileName} » absent du fichier : ses pièces sont ignorées.` });
+          diagnostics.push({ code: 'MISSING_SUBMODEL', severity: 'error', section: section.name, line: ref.line, message: t.missingSubmodel(ref.fileName) });
           reportedMissing.add(ref.fileKey);
         }
         continue;
       }
 
       if (occurrences.length >= limits.maxOccurrences) {
-        diagnostics.push({ code: 'TOO_MANY_OCCURRENCES', severity: 'error', message: `Plus de ${limits.maxOccurrences} pièces : import tronqué.` });
+        diagnostics.push({ code: 'TOO_MANY_OCCURRENCES', severity: 'error', message: t.tooManyOccurrences(limits.maxOccurrences) });
         limitReached = true;
         return;
       }
@@ -114,11 +116,11 @@ export function expandModel(
     diagnostics.push({
       code: 'ALTERNATIVE_ROOT_CANDIDATE',
       severity: 'info',
-      message: `Sections non utilisées par le modèle principal (modèles alternatifs possibles) : ${unreferenced.map((s) => s.name).join(', ')}.`,
+      message: t.alternativeRoots(unreferenced.map((s) => s.name).join(', ')),
     });
   }
   if (occurrences.length === 0) {
-    diagnostics.push({ code: 'NO_OCCURRENCES', severity: 'error', message: 'Aucune pièce à construire dans le modèle principal.' });
+    diagnostics.push({ code: 'NO_OCCURRENCES', severity: 'error', message: t.noOccurrences });
   }
   return { rootName: root.name, occurrences, submodelInstances: instances, diagnostics };
 }

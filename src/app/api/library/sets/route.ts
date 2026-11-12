@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import { failure, guard, json, readJsonBody } from '@/server/http/guard';
 import { store } from '@/server/library/instance';
 import { parseBuildInput } from '@/server/library/inputs';
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   if (refused) return refused;
   try {
     const body = await readJsonBody(request);
-    if (!Array.isArray(body.builds)) throw new LibraryError('INVALID', 'Liste de constructions attendue.');
+    if (!Array.isArray(body.builds)) throw new LibraryError('INVALID', msgs().server.routes.buildListExpected);
     const created = await store().createSet({
       setNumber: String(body.setNumber ?? ''),
       name: String(body.name ?? ''),

@@ -5,6 +5,9 @@ import { analyzeModel, classifyImport, sha256Hex, type ModelAnalysis, type Quali
 import type { BuildView } from '@/domain/library/types';
 import { libraryApi } from '@/infra/library/api';
 import { loadModelGeometry, PartCatalog, type GeometryLoadResult } from '@/infra/ldraw/part-catalog';
+import { useLocale, useT } from '@/i18n/I18nProvider';
+import type { Locale } from '@/i18n/locale';
+import { currentLocale, msgs } from '@/i18n/runtime';
 import { BuildCanvas } from '../three/BuildCanvas';
 
 export interface LoadedLibraryModel {
@@ -16,12 +19,27 @@ export interface LoadedLibraryModel {
 
 async function libraryStatus(): Promise<string | null> {
   const body = (await fetch('/api/ldraw-status', { cache: 'no-store' }).then((r) => r.json()).catch(() => null)) as { configured: boolean; reason?: string } | null;
-  return !body ? 'Serveur local injoignable.' : body.configured ? null : body.reason ?? 'Bibliothèque LDraw non configurée.';
+  return !body ? msgs().library.preview.serverUnreachable : body.configured ? null : body.reason ?? msgs().library.preview.ldrawNotConfigured;
 }
 
-/** Model of a library build, parsed and rendered in this browser (verified bytes only). */
+interface RawModel {
+  readonly analysis: ModelAnalysis;
+  readonly geometry: GeometryLoadResult | null;
+  readonly libraryProblem: string | null;
+  /** Language of `libraryProblem`. */
+  readonly locale: Locale;
+}
+
+/**
+ * Model of a library build, parsed and rendered in this browser (verified bytes only).
+ * A language switch produces the texts again without reloading the model: the quality report is
+ * recomputed, the LDraw library problem fetched again, and a failed load retried. The parser's own
+ * diagnostics stay in the language of the analysis.
+ */
 export function useLibraryModel(build: Pick<BuildView, 'model' | 'rootName'> | null, enabled = true) {
-  const [state, setState] = useState<{ model: LoadedLibraryModel | null; error: string | null; loading: boolean }>({ model: null, error: null, loading: false });
+  const locale = useLocale();
+  const [state, setState] = useState<{ raw: RawModel | null; error: string | null; errorLocale: Locale | null; loading: boolean }>({ raw: null, error: null, errorLocale: null, loading: false });
+  const [reload, setReload] = useState(0);
   const catalog = useMemo(() => new PartCatalog(), []);
   const sha = build?.model.sha256;
   const root = build?.rootName;
@@ -29,23 +47,45 @@ export function useLibraryModel(build: Pick<BuildView, 'model' | 'rootName'> | n
   useEffect(() => {
     if (!enabled || !sha || !root || !name) return;
     let cancelled = false;
-    setState({ model: null, error: null, loading: true });
+    setState({ raw: null, error: null, errorLocale: null, loading: true });
     (async () => {
       const bytes = await libraryApi.fileBytes(sha);
-      if ((await sha256Hex(bytes)) !== sha) throw new Error('Empreinte du modèle différente de celle de la bibliothèque : fichier non utilisé.');
+      if ((await sha256Hex(bytes)) !== sha) throw new Error(msgs().library.preview.hashMismatch);
       const analysis = analyzeModel(new TextDecoder('utf-8').decode(bytes), name, { rootName: root });
       const libraryProblem = await libraryStatus();
       const geometry = libraryProblem ? null : await loadModelGeometry(catalog, analysis.model.occurrences, analysis.embeddedParts);
-      const quality = classifyImport(analysis, geometry ? geometry.missingParts : null);
-      if (!cancelled) setState({ model: { analysis, geometry, quality, libraryProblem }, error: null, loading: false });
+      if (!cancelled) setState({ raw: { analysis, geometry, libraryProblem, locale: currentLocale() }, error: null, errorLocale: null, loading: false });
     })().catch((e: unknown) => {
-      if (!cancelled) setState({ model: null, error: e instanceof Error ? e.message : String(e), loading: false });
+      if (!cancelled) setState({ raw: null, error: e instanceof Error ? e.message : String(e), errorLocale: currentLocale(), loading: false });
     });
     return () => {
       cancelled = true;
     };
-  }, [sha, root, name, enabled, catalog]);
-  return state;
+  }, [sha, root, name, enabled, catalog, reload]);
+
+  const raw = state.raw;
+  useEffect(() => {
+    if (state.error !== null && state.errorLocale !== locale) {
+      setReload((r) => r + 1);
+      return;
+    }
+    if (!raw?.libraryProblem || raw.locale === locale) return;
+    let cancelled = false;
+    void libraryStatus().then((problem) => {
+      if (!cancelled) setState((s) => (s.raw === raw ? { ...s, raw: { ...raw, libraryProblem: problem ?? raw.libraryProblem, locale } } : s));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, raw, state.error, state.errorLocale]);
+
+  // classifyImport words its reasons in the current language
+  const quality = useMemo(() => (raw ? classifyImport(raw.analysis, raw.geometry ? raw.geometry.missingParts : null) : null), [raw, locale]); // eslint-disable-line react-hooks/exhaustive-deps
+  const model = useMemo<LoadedLibraryModel | null>(
+    () => (raw && quality ? { analysis: raw.analysis, geometry: raw.geometry, quality, libraryProblem: raw.libraryProblem } : null),
+    [raw, quality],
+  );
+  return { model, error: state.error, loading: state.loading };
 }
 
 const THUMB_W = 480;
@@ -77,6 +117,7 @@ interface Props {
 
 /** Finished model, all bricks solid, orbit camera; no interaction with the build. */
 export function ModelPreview({ model, onThumbnail, className = 'preview3d' }: Props) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const occurrences = model.analysis.model.occurrences;
   const all = useMemo(() => new Set(occurrences.map((o) => o.occurrenceId)), [occurrences]);
@@ -100,7 +141,7 @@ export function ModelPreview({ model, onThumbnail, className = 'preview3d' }: Pr
     return () => cancelAnimationFrame(raf);
   }, [model, onThumbnail]);
   if (!model.geometry || model.geometry.templates.size === 0) {
-    return <div className={`${className} empty`}><p className="small muted">{model.libraryProblem ? `Aperçu indisponible : ${model.libraryProblem}` : 'Aperçu indisponible.'}</p></div>;
+    return <div className={`${className} empty`}><p className="small muted">{model.libraryProblem ? t.library.preview.unavailableBecause(model.libraryProblem) : t.library.preview.unavailable}</p></div>;
   }
   return (
     <div className={className} ref={ref}>

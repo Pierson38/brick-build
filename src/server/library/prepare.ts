@@ -8,6 +8,7 @@ import type {
 } from '@/domain/library/import-types';
 import { parseSetNumber, sameSetNumber, setNumberInName, type SetNumber } from '@/domain/library/set-number';
 import type { FileKind, LibraryIndex } from '@/domain/library/types';
+import { msgs } from '@/i18n/runtime';
 import { onlineEnabled } from '../net/safe-fetch';
 import { rebrickableKey, sourceLinks } from '../online/sources';
 import { discover } from './discovery';
@@ -126,7 +127,7 @@ function unreferencedRoots(a: ModelAnalysis): string[] {
 
 export async function prepareImport(store: LibraryStore, input: PrepareInput): Promise<PreparedImport> {
   const files = Array.isArray(input?.files) ? input.files : [];
-  if (files.length > MAX_FILES) throw new LibraryError('INVALID', `Trop de fichiers (${MAX_FILES} au plus).`);
+  if (files.length > MAX_FILES) throw new LibraryError('INVALID', msgs().server.prepare.tooManyFiles(MAX_FILES));
   const parsedNumber = input.setNumber === undefined || input.setNumber === '' ? null : parseSetNumber(input.setNumber);
   if (parsedNumber && !parsedNumber.ok) throw new LibraryError('INVALID', parsedNumber.error);
   const sn = parsedNumber?.ok ? parsedNumber.value : null;
@@ -134,7 +135,7 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
   const rejected: { name: string; reason: string }[] = [];
   const resolved: { kind: FileKind; f: ResolvedFile }[] = [];
   for (const item of files) {
-    if (!item || !KINDS.includes(item.kind)) throw new LibraryError('INVALID', 'Type de fichier inconnu.');
+    if (!item || !KINDS.includes(item.kind)) throw new LibraryError('INVALID', msgs().server.prepare.unknownFileType);
     try {
       const f = await store.readRef(item.ref, item.kind, index);
       if (!resolved.some((r) => r.f.sha256 === f.sha256)) resolved.push({ kind: item.kind, f });
@@ -169,7 +170,7 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
       warnings: issues.filter((d) => d.severity === 'warning').length,
       diagnostics: issues.slice(0, 8).map((d) => d.message.slice(0, 300)),
       missingParts: missing === null ? { checked: false, refs: [], occurrences: 0 } : { checked: true, refs: [...missing].sort(), occurrences: refs.filter((r) => missing.has(r)).length },
-      inventory: role === 'main' ? inventoryCheck(sha) : { verdict: 'NOT_VERIFIED', message: 'Inventaire non comparé à la notice officielle.' },
+      inventory: role === 'main' ? inventoryCheck(sha) : { verdict: 'NOT_VERIFIED', message: msgs().domain.inventory.notVerifiedShort },
       existingBuild: existing && set ? { setId: set.id, buildId: existing.id, label: existing.label, setNumber: set.setNumber, setName: set.name } : null,
     };
   };
@@ -178,7 +179,7 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
     const text = new TextDecoder('utf-8').decode(f.bytes);
     const a = analyzeModel(text, f.name);
     if (a.model.occurrences.length === 0) {
-      rejected.push({ name: f.name, reason: 'Modèle inutilisable : aucune pièce lue.' });
+      rejected.push({ name: f.name, reason: msgs().server.prepare.unusableModel });
       continue;
     }
     analyses.set(f.sha256, { a, text, name: f.name });
@@ -214,12 +215,12 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
     if (candidates.some((c) => c.f.sha256 === f.sha256)) return;
     const parsed = parseMappingText(text);
     if (!parsed.ok) {
-      if (chosen) rejected.push({ name: f.name, reason: `Correspondances refusées : ${parsed.errors.join(' ')}` });
+      if (chosen) rejected.push({ name: f.name, reason: msgs().server.prepare.mappingsRefused(parsed.errors.join(' ')) });
       return;
     }
     if (!analyses.has(parsed.mapping.model.sha256)) {
       const m = parsed.mapping.model;
-      if (chosen) rejected.push({ name: f.name, reason: `Ces correspondances concernent un autre modèle (${m.fileName}, empreinte ${m.sha256.slice(0, 12)}…, modèle principal « ${m.rootName} ») : elles ne seront pas utilisées.` });
+      if (chosen) rejected.push({ name: f.name, reason: msgs().server.prepare.mappingsOtherModel(m.fileName, m.sha256.slice(0, 12), m.rootName) });
       return;
     }
     candidates.push({ ref, f, m: parsed.mapping, chosen });
@@ -247,7 +248,7 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
     if (!root) {
       const added = await rootOf(model.sha256, c.m.model.rootName, 'chosen');
       if (!added) {
-        if (c.chosen) rejected.push({ name: c.f.name, reason: `Ces correspondances concernent le modèle principal « ${c.m.model.rootName} », absent de ${model.name}.` });
+        if (c.chosen) rejected.push({ name: c.f.name, reason: msgs().server.prepare.mappingsRootAbsent(c.m.model.rootName, model.name) });
         continue;
       }
       model.roots.push(added);
@@ -257,7 +258,7 @@ export async function prepareImport(store: LibraryStore, input: PrepareInput): P
     const a = root.rootName === base.a.model.rootName ? base.a : analyzeModel(base.text, base.name, { rootName: root.rootName });
     const report = validateMapping(c.m, { sha256: model.sha256, fileName: model.name, rootName: root.rootName, occurrences: a.model.occurrences });
     if (report.issues.some((i) => i.code === 'MODEL_MISMATCH')) {
-      if (c.chosen) rejected.push({ name: c.f.name, reason: `Correspondances incompatibles : ${report.issues.find((i) => i.code === 'MODEL_MISMATCH')!.message}` });
+      if (c.chosen) rejected.push({ name: c.f.name, reason: msgs().server.prepare.mappingsIncompatible(report.issues.find((i) => i.code === 'MODEL_MISMATCH')!.message) });
       continue;
     }
     mappings.push({

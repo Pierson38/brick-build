@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import type { FileProvenance, ImportInput, ImportResult, LocalLookup, OnlineLookup, PreparedImport } from '@/domain/library/import-types';
 import type { FileKind, LibraryView, SetView, BuildView, DiscoveryResult, LibrarySet } from '@/domain/library/types';
 
@@ -18,11 +19,11 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     const write = init.method !== undefined && init.method !== 'GET';
     res = await fetch(path, { cache: 'no-store', ...init, headers: { ...(write ? WRITE_HEADERS : {}), ...(init.headers as Record<string, string> | undefined) } });
   } catch {
-    throw new ApiError(0, 'OFFLINE', 'Serveur local injoignable : relance `npm run start` (ou `npm run dev`).');
+    throw new ApiError(0, 'OFFLINE', msgs().server.api.offline);
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } & Record<string, unknown> } | null;
-    const { code = 'HTTP', message = `Erreur ${res.status}.`, ...details } = body?.error ?? {};
+    const { code = 'HTTP', message = msgs().server.api.httpError(res.status), ...details } = body?.error ?? {};
     throw new ApiError(res.status, code, message, details);
   }
   return (await res.json()) as T;
@@ -48,10 +49,10 @@ export const libraryApi = {
   /** Bytes of a library file (the server checked its SHA-256; the caller checks it again). */
   fileBytes: async (sha: string): Promise<ArrayBuffer> => {
     const res = await fetch(`/api/library/files/${sha}`, { cache: 'no-store' }).catch(() => null);
-    if (!res) throw new ApiError(0, 'OFFLINE', 'Serveur local injoignable.');
+    if (!res) throw new ApiError(0, 'OFFLINE', msgs().server.api.offlineShort);
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } & Record<string, unknown> } | null;
-      const { code = 'HTTP', message = `Erreur ${res.status}.`, ...details } = body?.error ?? {};
+      const { code = 'HTTP', message = msgs().server.api.httpError(res.status), ...details } = body?.error ?? {};
       throw new ApiError(res.status, code, message, details);
     }
     return res.arrayBuffer();

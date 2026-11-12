@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowDownToLine, ArrowUp, Axis3d, Boxes, Globe, Hand, Move3d, PackageMinus, Rotate3d, Settings2, X } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
+import { useT } from '@/i18n/I18nProvider';
 
 /**
  * Top of the 3D view (free mode; guided modes only get the piece-in-hand bar) (the far background, never the ground near the camera where pieces
@@ -44,14 +45,16 @@ interface RotationProps {
 }
 
 function Rotations({ onRotate, rotationStep, onRotationStep }: RotationProps) {
+  const t = useT();
+  const m = t.workshop.manip;
   const d = rotationStep;
   return (
-    <span className="rotations" role="group" aria-label={`Rotations de ${d}°`}>
+    <span className="rotations" role="group" aria-label={m.rotationsOf(d)}>
       {onRotationStep && (
-        <span className="segmented rot-steps" role="group" aria-label="Pas de rotation">
+        <span className="segmented rot-steps" role="group" aria-label={m.rotationStep}>
           {ROTATION_STEPS.map((deg) => (
-            <button key={deg} type="button" data-testid={`rot-step-${deg}`} aria-pressed={d === deg} aria-label={`Pas de ${deg}°`}
-              data-tip-side="bottom" data-tip={deg === 90 ? 'Quart de tour (boutons, touches X/Y/Z, anneaux)' : `Tourner par pas de ${deg}° (boutons, touches X/Y/Z, anneaux)`}
+            <button key={deg} type="button" data-testid={`rot-step-${deg}`} aria-pressed={d === deg} aria-label={m.stepOf(deg)}
+              data-tip-side="bottom" data-tip={deg === 90 ? m.quarterTurnTip : m.stepTip(deg)}
               onClick={() => onRotationStep(deg)}>{deg}°</button>
           ))}
         </span>
@@ -61,8 +64,8 @@ function Rotations({ onRotate, rotationStep, onRotationStep }: RotationProps) {
         return (
           <span key={axis} className={`axis axis-${axis}`}>
             <b aria-hidden>{A}</b>
-            <button type="button" data-testid={`rot-${axis}-minus`} aria-label={`−${d}° autour de ${A}`} data-tip-side="bottom" data-tip={`−${d}° autour de ${A} (Maj+${A})`} onClick={() => onRotate(axis, -1)}>−</button>
-            <button type="button" data-testid={`rot-${axis}-plus`} aria-label={`+${d}° autour de ${A}`} data-tip-side="bottom" data-tip={`+${d}° autour de ${A} (${A})`} onClick={() => onRotate(axis, 1)}>+</button>
+            <button type="button" data-testid={`rot-${axis}-minus`} aria-label={m.rotateMinus(d, A)} data-tip-side="bottom" data-tip={m.rotateMinusTip(d, A)} onClick={() => onRotate(axis, -1)}>−</button>
+            <button type="button" data-testid={`rot-${axis}-plus`} aria-label={m.rotatePlus(d, A)} data-tip-side="bottom" data-tip={m.rotatePlusTip(d, A)} onClick={() => onRotate(axis, 1)}>+</button>
           </span>
         );
       })}
@@ -85,22 +88,23 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
   onRemove: () => void;
   onCancel: () => void;
 }) {
+  const m = useT().workshop.manip;
   return (
-    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label="Pièce en main">
-      <span className="tool-group" role="group" aria-label="Hauteur">
-        <Tool iconOnly testId="lift-up" icon={<ArrowUp size={16} aria-hidden />} label="Monter" tip="Monter d’un pas (Page ↑ ; Maj : 1 LDU)" onClick={() => onLift(1)} />
-        <Tool iconOnly testId="lift-down" icon={<ArrowDown size={16} aria-hidden />} label="Descendre" tip="Descendre d’un pas (Page ↓ ; Maj : 1 LDU)" onClick={() => onLift(-1)} />
-        <span className="segmented" role="group" aria-label="Pas de hauteur">
+    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label={m.held}>
+      <span className="tool-group" role="group" aria-label={m.height}>
+        <Tool iconOnly testId="lift-up" icon={<ArrowUp size={16} aria-hidden />} label={m.liftUp} tip={m.liftUpTip} onClick={() => onLift(1)} />
+        <Tool iconOnly testId="lift-down" icon={<ArrowDown size={16} aria-hidden />} label={m.liftDown} tip={m.liftDownTip} onClick={() => onLift(-1)} />
+        <span className="segmented" role="group" aria-label={m.heightStep}>
           <button type="button" data-testid="step-8" aria-pressed={heightStep === steps[0]} onClick={() => onStep(steps[0])}>{steps[0]} LDU</button>
           <button type="button" data-testid="step-1" aria-pressed={heightStep === steps[1]} onClick={() => onStep(steps[1])}>{steps[1]} LDU</button>
         </span>
-        <Tool testId="height-auto" icon={<ArrowDownToLine size={16} aria-hidden />} label="Auto" tip="Hauteur auto : revenir à la surface visée (A)" onClick={onAuto} disabled={autoHeight} />
+        <Tool testId="height-auto" icon={<ArrowDownToLine size={16} aria-hidden />} label={m.auto} tip={m.autoTip} onClick={onAuto} disabled={autoHeight} />
       </span>
       <Sep />
       <Rotations onRotate={onRotate} rotationStep={rotationStep} onRotationStep={onRotationStep} />
       <Sep />
-      {moving && <Tool testId="remove-piece" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />}
-      <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label={moving ? 'Laisser en place' : 'Lâcher'} tip={moving ? 'Laisser en place (Échap)' : 'Lâcher la pièce (Échap)'} onClick={onCancel} tipAlign="end" />
+      {moving && <Tool testId="remove-piece" icon={<PackageMinus size={16} aria-hidden />} label={m.toStock} tip={m.toStockTip} onClick={onRemove} tipAlign="end" />}
+      <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label={moving ? m.leaveInPlace : m.letGo} tip={moving ? m.leaveInPlaceTip : m.letGoTip} onClick={onCancel} tipAlign="end" />
     </div>
   );
 }
@@ -110,11 +114,12 @@ export function HeldBar({ moving, autoHeight, heightStep, steps, onLift, onStep,
  * axes (the targets are the model's poses, so finer steps would never fit one), let go.
  */
 export function GuidedHeldBar({ onRotate, onCancel }: { onRotate: RotationProps['onRotate']; onCancel: () => void }) {
+  const m = useT().workshop.manip;
   return (
-    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label="Pièce en main">
+    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label={m.held}>
       <Rotations onRotate={onRotate} rotationStep={90} />
       <Sep />
-      <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label="Lâcher" tip="Lâcher la pièce (Échap)" onClick={onCancel} tipAlign="end" />
+      <Tool testId="cancel-held" icon={<X size={16} aria-hidden />} label={m.letGo} tip={m.letGoTip} onClick={onCancel} tipAlign="end" />
     </div>
   );
 }
@@ -134,30 +139,31 @@ export function SelectionBar({ gizmoMode, gizmoSpace, onGizmoMode, onGizmoSpace,
   /** Content of the settings row (steps, angle, coordinates). */
   settings: ReactNode;
 }) {
+  const m = useT().workshop.manip;
   const settingsId = useId();
   return (
     <>
-    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label="Sélection">
-      <span className="segmented" role="group" aria-label="Manipulateur">
-        <Tool iconOnly testId="gizmo-translate" icon={<Move3d size={16} aria-hidden />} label="Flèches" tip="Flèches : déplacer le long d’un axe (W)" pressed={gizmoMode === 'translate'} onClick={() => onGizmoMode('translate')} />
-        <Tool iconOnly testId="gizmo-rotate" icon={<Rotate3d size={16} aria-hidden />} label="Anneaux" tip="Anneaux : tourner autour d’un axe (E)" pressed={gizmoMode === 'rotate'} onClick={() => onGizmoMode('rotate')} />
+    <div className="manip-bar" data-testid="manip-bar" role="group" aria-label={m.selection}>
+      <span className="segmented" role="group" aria-label={m.manipulator}>
+        <Tool iconOnly testId="gizmo-translate" icon={<Move3d size={16} aria-hidden />} label={m.arrows} tip={m.arrowsTip} pressed={gizmoMode === 'translate'} onClick={() => onGizmoMode('translate')} />
+        <Tool iconOnly testId="gizmo-rotate" icon={<Rotate3d size={16} aria-hidden />} label={m.rings} tip={m.ringsTip} pressed={gizmoMode === 'rotate'} onClick={() => onGizmoMode('rotate')} />
       </span>
-      <span className="segmented" role="group" aria-label="Axes">
-        <Tool iconOnly testId="gizmo-world" icon={<Globe size={16} aria-hidden />} label="Globaux" tip="Axes de la scène (Q)" pressed={gizmoSpace === 'world'} onClick={() => onGizmoSpace('world')} />
-        <Tool iconOnly testId="gizmo-local" icon={<Axis3d size={16} aria-hidden />} label="Locaux" tip="Axes de la pièce tournée (Q)" pressed={gizmoSpace === 'local'} onClick={() => onGizmoSpace('local')} />
+      <span className="segmented" role="group" aria-label={m.axes}>
+        <Tool iconOnly testId="gizmo-world" icon={<Globe size={16} aria-hidden />} label={m.world} tip={m.worldTip} pressed={gizmoSpace === 'world'} onClick={() => onGizmoSpace('world')} />
+        <Tool iconOnly testId="gizmo-local" icon={<Axis3d size={16} aria-hidden />} label={m.local} tip={m.localTip} pressed={gizmoSpace === 'local'} onClick={() => onGizmoSpace('local')} />
       </span>
       <Sep />
       <Rotations onRotate={onRotate} rotationStep={rotationStep} onRotationStep={onRotationStep} />
       <Sep />
-      <Tool testId="move-selection" icon={<Hand size={16} aria-hidden />} label="Déplacer" tip="Prendre la sélection en main (M)" onClick={onMove} />
-      <Tool testId="select-assembly" icon={<Boxes size={16} aria-hidden />} label="Assemblage" tip="Toutes les pièces emboîtées, même cachées (double-clic ; Maj + double-clic : en ajouter un autre)" onClick={onAssembly} />
-      <Tool testId="remove-selection" icon={<PackageMinus size={16} aria-hidden />} label="Au stock" tip="Remettre dans le stock (Suppr)" onClick={onRemove} tipAlign="end" />
-      <button type="button" data-testid="manip-settings" aria-expanded={settingsOpen} aria-controls={settingsId} data-tip="Pas des flèches et coordonnées" data-tip-side="bottom" data-tip-align="end" onClick={onSettings}>
-        <span className="ico"><Settings2 size={16} aria-hidden /></span><span className="visually-hidden">Réglages</span>
+      <Tool testId="move-selection" icon={<Hand size={16} aria-hidden />} label={m.move} tip={m.moveTip} onClick={onMove} />
+      <Tool testId="select-assembly" icon={<Boxes size={16} aria-hidden />} label={m.assembly} tip={m.assemblyTip} onClick={onAssembly} />
+      <Tool testId="remove-selection" icon={<PackageMinus size={16} aria-hidden />} label={m.toStock} tip={m.toStockTip} onClick={onRemove} tipAlign="end" />
+      <button type="button" data-testid="manip-settings" aria-expanded={settingsOpen} aria-controls={settingsId} data-tip={m.settingsTip} data-tip-side="bottom" data-tip-align="end" onClick={onSettings}>
+        <span className="ico"><Settings2 size={16} aria-hidden /></span><span className="visually-hidden">{m.settings}</span>
       </button>
-      <Tool iconOnly testId="clear-selection" icon={<X size={16} aria-hidden />} label="Désélectionner" tip="Désélectionner (Échap)" onClick={onClear} tipAlign="end" />
+      <Tool iconOnly testId="clear-selection" icon={<X size={16} aria-hidden />} label={m.clear} tip={m.clearTip} onClick={onClear} tipAlign="end" />
     </div>
-    {settingsOpen && <div className="manip-settings" id={settingsId} role="group" aria-label="Réglages de manipulation">{settings}</div>}
+    {settingsOpen && <div className="manip-settings" id={settingsId} role="group" aria-label={m.settingsRow}>{settings}</div>}
     </>
   );
 }

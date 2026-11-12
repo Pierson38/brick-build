@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 import { sha256Hex } from '@/domain/import/analyze';
+import { msgs } from '@/i18n/runtime';
 
 const MAX_PDF_BYTES = 300 * 1024 * 1024;
 const MAX_LOADED_BOOKLETS = 6;
@@ -47,7 +48,7 @@ export function useNotice() {
   const open = useCallback(async (file: File, initialPage?: number): Promise<LoadedBooklet | null> => {
     setError(null);
     if (file.size > MAX_PDF_BYTES) {
-      setError(`PDF trop volumineux (${Math.round(file.size / 1e6)} Mo, limite ${MAX_PDF_BYTES / 1e6} Mo).`);
+      setError(msgs().workshop.pdf.tooLarge(Math.round(file.size / 1e6), MAX_PDF_BYTES / 1e6));
       return null;
     }
     setLoading(true);
@@ -72,10 +73,11 @@ export function useNotice() {
       return booklet;
     } catch (e) {
       const name = (e as { name?: string }).name;
+      const m = msgs().workshop.pdf;
       setError(
-        name === 'PasswordException' ? 'PDF protégé par mot de passe : non pris en charge.'
-          : name === 'InvalidPDFException' ? 'Fichier PDF invalide ou abîmé.'
-            : `Impossible d’ouvrir ce PDF (${e instanceof Error ? e.message : String(e)}).`,
+        name === 'PasswordException' ? m.password
+          : name === 'InvalidPDFException' ? m.invalid
+            : m.cannotOpen(e instanceof Error ? e.message : String(e)),
       );
       return null;
     } finally {

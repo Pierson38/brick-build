@@ -1,5 +1,6 @@
 import { compatibility, mappingState, type CompatibilitySheet } from '@/domain/library/compatibility';
 import type { FileRef, ImportBuildInput, MappingMatch, PreparedImport, PreparedMapping, PreparedModel, PreparedRoot } from '@/domain/library/import-types';
+import { msgs } from '@/i18n/runtime';
 
 /**
  * What the user selected on the "Ajouter un set" page, on top of the server's measurements.
@@ -54,7 +55,9 @@ const alternateName = (model: PreparedModel) => (/_/.test(model.name) ? model.na
 
 function defaultLabel(model: PreparedModel, root: PreparedRoot, index: number): string {
   if (root.role !== 'main') return root.rootName.replace(/\.(ldr|dat)$/i, '').slice(0, 120);
-  return (alternateName(model) || (index === 0 ? 'Modèle principal' : `Modèle ${String.fromCharCode(65 + index)}`)).slice(0, 120);
+  // default labels are words of the current language (then editable: a later switch does not rename them)
+  const t = msgs().library.labels;
+  return (alternateName(model) || (index === 0 ? t.mainModel : t.modelLetter(String.fromCharCode(65 + index)))).slice(0, 120);
 }
 
 /** Adds defaults for what is seen for the first time; keeps every choice the user already made. */

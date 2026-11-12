@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import { failure, guard, json, readJsonBody } from '@/server/http/guard';
 import { store } from '@/server/library/instance';
 import { LibraryError } from '@/server/library/store';
@@ -16,16 +17,16 @@ export async function POST(request: Request) {
   const refused = guard(request, { write: true });
   if (refused) return refused;
   try {
-    if (!onlineEnabled()) throw new LibraryError('FORBIDDEN', 'Accès Internet désactivé (BRICK_LAB_ONLINE=0).');
+    if (!onlineEnabled()) throw new LibraryError('FORBIDDEN', msgs().server.routes.onlineDisabled);
     const body = await readJsonBody(request, 4 * 1024);
     const url = omrFileUrl(body.url);
-    if (!url) throw new LibraryError('FORBIDDEN', 'Seuls les fichiers de modèles de l’OMR (library.ldraw.org/media/omr_models/…) peuvent être téléchargés.');
+    if (!url) throw new LibraryError('FORBIDDEN', msgs().server.routes.omrModelsOnly);
     const pageUrl = typeof body.pageUrl === 'string' && /^https:\/\/library\.ldraw\.org\/omr\/set\/[A-Za-z0-9-]{1,40}$/.test(body.pageUrl) ? body.pageUrl : undefined;
     let res;
     try {
       res = await safeGet(url.toString(), OMR_FILE);
     } catch (e) {
-      if (e instanceof NetError) return json({ error: { code: 'NETWORK', message: `Téléchargement impossible : ${e.message} Ouvre la page de l’OMR et dépose le fichier ici.` } }, 502);
+      if (e instanceof NetError) return json({ error: { code: 'NETWORK', message: msgs().server.routes.downloadFailed(e.message) } }, 502);
       throw e;
     }
     const name = decodeURIComponent(url.pathname.split('/').pop()!);

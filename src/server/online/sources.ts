@@ -1,3 +1,4 @@
+import { msgs } from '@/i18n/runtime';
 import type { OmrModelCandidate, OnlineLookup, SourceLinks } from '@/domain/library/import-types';
 import type { SetNumber } from '@/domain/library/set-number';
 import { NetError, onlineEnabled, safeGet, type FetchPolicy, type Transport } from '../net/safe-fetch';
@@ -82,23 +83,23 @@ export function omrFileUrl(raw: unknown): URL | null {
 }
 
 const omrMessage = (e: unknown) => e instanceof NetError
-  ? e.code === 'HTTP' ? `L’OMR a répondu ${e.status}.` : e.message
-  : 'Erreur inattendue.';
+  ? e.code === 'HTTP' ? msgs().server.online.omrHttp(e.status ?? 0) : e.message
+  : msgs().server.online.unexpectedError;
 
 async function omrLookup(sn: SetNumber, transport?: Transport): Promise<OnlineLookup['omr']> {
   const pageUrl = sourceLinks(sn).omrSearch;
-  if (!sn.numeric) return { status: 'unsupported', message: 'L’OMR ne référence que des numéros de set LEGO.', pageUrl: null, setName: null, models: [] };
+  if (!sn.numeric) return { status: 'unsupported', message: msgs().server.online.omrNumbersOnly, pageUrl: null, setName: null, models: [] };
   try {
     const res = await safeGet(pageUrl, OMR_PAGE, transport);
     const { setName, models } = parseOmrSetPage(res.body.toString('utf8'), sn);
     if (models.length === 0) {
-      return { status: 'not_found', message: setName ? `Page OMR trouvée (« ${setName} »), mais aucun fichier de modèle n’a pu y être lu : ouvre la page et télécharge le fichier toi-même.` : 'Aucun modèle 3D trouvé pour ce set sur l’OMR.', pageUrl, setName, models: [] };
+      return { status: 'not_found', message: setName ? msgs().server.online.omrPageWithoutModels(setName) : msgs().server.online.omrNoModel, pageUrl, setName, models: [] };
     }
     const alternates = models.filter((m) => m.alternate).length;
-    return { status: 'ok', message: `${models.length} modèle(s) 3D sur l’OMR${alternates > 0 ? `, dont ${alternates} alternatif(s)` : ''}.`, pageUrl, setName, models };
+    return { status: 'ok', message: msgs().server.online.omrModels(models.length, alternates), pageUrl, setName, models };
   } catch (e) {
-    if (e instanceof NetError && e.code === 'HTTP' && e.status === 404) return { status: 'not_found', message: 'Aucun modèle 3D trouvé pour ce set sur l’OMR.', pageUrl: null, setName: null, models: [] };
-    return { status: 'unavailable', message: `OMR indisponible : ${omrMessage(e)} Réessaie plus tard ou ouvre la page de l’OMR.`, pageUrl, setName: null, models: [] };
+    if (e instanceof NetError && e.code === 'HTTP' && e.status === 404) return { status: 'not_found', message: msgs().server.online.omrNoModel, pageUrl: null, setName: null, models: [] };
+    return { status: 'unavailable', message: msgs().server.online.omrUnavailable(omrMessage(e)), pageUrl, setName: null, models: [] };
   }
 }
 
@@ -117,9 +118,10 @@ export const rebrickableKey = () => {
 
 async function rebrickableLookup(sn: SetNumber, transport?: Transport): Promise<OnlineLookup['rebrickable']> {
   const key = rebrickableKey();
-  if (!key) return { status: 'not_configured', message: 'Rebrickable non configuré (facultatif : clé personnelle REBRICKABLE_API_KEY dans .env.local).', set: null };
+  if (!key) return { status: 'not_configured', message: msgs().server.online.rebrickableNotConfigured, set: null };
   const cached = rbCache.get(sn.canonical);
-  if (cached && Date.now() - cached.at < RB_CACHE_MS) return cached.value;
+  // cached without its text: the message is produced in the language of the current request
+  if (cached && Date.now() - cached.at < RB_CACHE_MS) return { ...cached.value, message: cached.value.status === 'ok' ? msgs().server.online.rebrickableOk : msgs().server.online.rebrickableNotFound };
   const wait = rbLast + RB_INTERVAL_MS - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   rbLast = Date.now();
@@ -130,7 +132,7 @@ async function rebrickableLookup(sn: SetNumber, transport?: Transport): Promise<
     const name = typeof j.name === 'string' ? j.name.slice(0, 120) : null;
     if (!name) throw new Error('réponse inattendue');
     value = {
-      status: 'ok', message: 'Métadonnées Rebrickable (indicatives).',
+      status: 'ok', message: msgs().server.online.rebrickableOk,
       set: {
         setNum: typeof j.set_num === 'string' ? j.set_num.slice(0, 32) : sn.canonical, name,
         year: typeof j.year === 'number' && Number.isInteger(j.year) ? j.year : null,
@@ -140,8 +142,8 @@ async function rebrickableLookup(sn: SetNumber, transport?: Transport): Promise<
     };
   } catch (e) {
     const status = e instanceof NetError && e.code === 'HTTP' ? e.status : null;
-    value = status === 404 ? { status: 'not_found', message: 'Set inconnu de Rebrickable.', set: null }
-      : { status: 'unavailable', message: `Rebrickable indisponible${status === 401 || status === 403 ? ' : clé refusée' : status === 429 ? ' : trop de requêtes, réessaie dans une minute' : ''}.`, set: null };
+    value = status === 404 ? { status: 'not_found', message: msgs().server.online.rebrickableNotFound, set: null }
+      : { status: 'unavailable', message: msgs().server.online.rebrickableUnavailable(status), set: null };
     if (value.status === 'unavailable') return value; // not cached: may work again soon
   }
   rbCache.set(sn.canonical, { at: Date.now(), value });
@@ -150,9 +152,9 @@ async function rebrickableLookup(sn: SetNumber, transport?: Transport): Promise<
 
 /** Online lookup, run only when the user clicks "Chercher en ligne". */
 export async function onlineLookup(sn: SetNumber, transport?: Transport): Promise<OnlineLookup> {
-  const lego = { status: 'manual' as const, message: 'Notice disponible sur LEGO.com, mais téléchargement manuel nécessaire : ouvre la page officielle, télécharge le PDF puis dépose-le ici.', pageUrl: sourceLinks(sn).legoInstructions };
+  const lego = { status: 'manual' as const, message: msgs().server.online.legoManual, pageUrl: sourceLinks(sn).legoInstructions };
   if (!onlineEnabled()) {
-    const off = 'Accès Internet désactivé (BRICK_LAB_ONLINE=0).';
+    const off = msgs().server.online.offline;
     return { setNumber: sn, omr: { status: 'unavailable', message: off, pageUrl: sourceLinks(sn).omrSearch, setName: null, models: [] }, rebrickable: { status: 'unavailable', message: off, set: null }, lego };
   }
   const [omr, rebrickable] = await Promise.all([omrLookup(sn, transport), rebrickableLookup(sn, transport)]);

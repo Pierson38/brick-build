@@ -3,18 +3,33 @@
 import Link from 'next/link';
 import { Blocks, ChevronRight, Monitor, Moon, Sun } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
-import { nextTheme, THEME_LABEL, useThemeChoice, type ThemeChoice } from './theme';
+import { useI18n, useT } from '@/i18n/I18nProvider';
+import { LOCALE_NAME } from '@/i18n/locale';
+import { nextTheme, useThemeChoice, type ThemeChoice } from './theme';
 
 const THEME_ICON: Record<ThemeChoice, ReactNode> = { system: <Monitor size={16} aria-hidden />, light: <Sun size={16} aria-hidden />, dark: <Moon size={16} aria-hidden /> };
 
 /** Light / dark / system switch (browser preference). */
 export function ThemeToggle() {
+  const t = useT();
   const { choice, choose } = useThemeChoice();
   const next = nextTheme(choice);
-  const label = `Thème : ${THEME_LABEL[choice]} (passer à ${THEME_LABEL[next]})`;
+  const label = t.app.theme.toggle(t.app.theme[choice], t.app.theme[next]);
   return (
     <button type="button" className="ghost icon" aria-label={label} data-tip={label} data-tip-side="bottom" data-tip-align="end" data-testid="theme-toggle" onClick={() => choose(next)}>
       {THEME_ICON[choice]}
+    </button>
+  );
+}
+
+/** French / English switch: stored in a same-origin cookie, applied at once. */
+export function LocaleToggle() {
+  const { locale, setLocale, t } = useI18n();
+  const next = locale === 'fr' ? 'en' : 'fr';
+  const label = t.app.language.toggle(LOCALE_NAME[locale], LOCALE_NAME[next]);
+  return (
+    <button type="button" className="ghost icon locale-toggle" aria-label={label} data-tip={label} data-tip-side="bottom" data-tip-align="end" data-testid="locale-toggle" lang={locale} onClick={() => setLocale(next)}>
+      <span className="locale-code" aria-hidden>{locale.toUpperCase()}</span>
     </button>
   );
 }
@@ -29,17 +44,18 @@ export interface Crumb {
 
 /**
  * Bar at the top of every page: the brand (link to the collection), the breadcrumb, then the
- * page's own tools (`children`), and the theme switch.
+ * page's own tools (`children`), and the language and theme switches.
  */
 export function AppBar({ crumbs = [], children }: { crumbs?: readonly Crumb[]; children?: ReactNode }) {
+  const t = useT();
   return (
     <header className="appbar topbar">
-      <Link href="/" className="brand" aria-label="Brick Lab Local — Ma collection">
+      <Link href="/" className="brand" aria-label={t.app.brandLabel}>
         <span className="brand-mark" aria-hidden><Blocks size={14} /></span>
         <span className="brand-name">Brick Lab</span>
       </Link>
       {crumbs.length > 0 && (
-        <nav className="crumbs" aria-label="Fil d’Ariane">
+        <nav className="crumbs" aria-label={t.app.breadcrumb}>
           {crumbs.map((c, i) => (
             <Fragment key={i}>
               <ChevronRight size={14} className="sep" aria-hidden />
@@ -52,7 +68,7 @@ export function AppBar({ crumbs = [], children }: { crumbs?: readonly Crumb[]; c
       )}
       <span className="spacer" />
       {children}
-      <span className="appbar-tools"><ThemeToggle /></span>
+      <span className="appbar-tools"><LocaleToggle /><ThemeToggle /></span>
     </header>
   );
 }

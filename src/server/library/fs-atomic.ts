@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { msgs } from '@/i18n/runtime';
 
 // Server-only. Durable writes: a reader sees the old file or the new one, never a partial one.
 
@@ -123,7 +124,7 @@ export async function readJson(file: string, maxBytes: number): Promise<unknown>
   }
   try {
     const stat = await handle.stat();
-    if (stat.size > maxBytes) throw new Error(`${path.basename(file)} dépasse ${Math.round(maxBytes / 1024)} Ko`);
+    if (stat.size > maxBytes) throw new Error(msgs().server.fsAtomic.tooLarge(path.basename(file), Math.round(maxBytes / 1024)));
     return JSON.parse(await handle.readFile('utf8')) as unknown;
   } finally {
     await handle.close();

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { Group } from 'three';
 import type { TrayItem } from '@/domain/build/engine';
+import { useT } from '@/i18n/I18nProvider';
 import { partThumbnails, THUMB_SIZE } from '@/infra/ldraw/part-thumbnails';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 
 /** Thumbnail of the real LDraw part/colour, or an explicit fallback when its geometry is missing. */
 function PartThumb({ template, colour }: { template: Group | undefined; colour: string | null }) {
+  const t = useT();
   const [src, setSrc] = useState<string | null | undefined>(template ? undefined : null);
   useEffect(() => {
     if (!template) {
@@ -34,15 +36,16 @@ function PartThumb({ template, colour }: { template: Group | undefined; colour: 
   return (
     <span className={src === null ? 'part-thumb fallback' : 'part-thumb loading'} data-thumb={src === null ? 'missing' : 'loading'} aria-hidden>
       <span className="swatch" style={{ background: colour ?? '#999' }} />
-      {src === null && <span className="small">forme indisponible</span>}
+      {src === null && <span className="small">{t.workshop.partsTray.shapeMissing}</span>}
     </span>
   );
 }
 
 export function PartsTray({ items, heldKey, colourOf, colourName, templates, onPick }: Props) {
-  if (items.length === 0) return <p className="muted">Aucune pièce à placer.</p>;
+  const tr = useT().workshop.partsTray;
+  if (items.length === 0) return <p className="muted">{tr.empty}</p>;
   return (
-    <ul className="tray-items" aria-label="Pièces à placer">
+    <ul className="tray-items" aria-label={tr.label}>
       {items.map((item) => {
         const ref = item.partRef.replace(/\.dat$/i, '');
         const name = colourName?.(item.colorCode) ?? null;
@@ -54,15 +57,15 @@ export function PartsTray({ items, heldKey, colourOf, colourName, templates, onP
               type="button"
               className={held ? 'tray-item held' : 'tray-item'}
               aria-pressed={held}
-              aria-label={`Pièce ${ref}, ${name ?? `couleur ${item.colorCode}`}, ${item.remaining} à poser${template ? '' : ' (forme indisponible)'}`}
-              title={`${ref} · ${name ?? 'couleur'} (${item.colorCode}) · ${item.remaining}/${item.total} à poser`}
+              aria-label={tr.itemLabel(ref, name, item.colorCode, item.remaining, !template)}
+              title={tr.itemTitle(ref, name, item.colorCode, item.remaining, item.total)}
               data-testid={`tray-${item.partKey}-${item.colorCode}`}
               onClick={() => onPick(item)}
             >
               <PartThumb template={template} colour={colourOf(item.colorCode)} />
               <span className="count">×{item.remaining}</span>
               <span className="ref">{ref}</span>
-              {held && <span className="held-badge" aria-hidden>en main</span>}
+              {held && <span className="held-badge" aria-hidden>{tr.held}</span>}
             </button>
           </li>
         );

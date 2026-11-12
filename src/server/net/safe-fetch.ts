@@ -2,6 +2,7 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 import { readFileSync } from 'node:fs';
+import { msgs } from '@/i18n/runtime';
 
 // Server-only. The ONLY way the application contacts the Internet (P8), and only when the user
 // clicks a button that asks for it. GET over HTTPS to a fixed list of hosts; the address is checked
@@ -74,7 +75,7 @@ export function checkedLookup(resolve: typeof dnsLookup = dnsLookup): LookupFunc
       if (err) return callback(err, '', 0);
       const list = addresses as LookupAddress[];
       if (list.length === 0 || !list.every((a) => isPublicAddress(a.address))) {
-        const e: NodeJS.ErrnoException = new Error(`${hostname} : adresse non publique refusée.`);
+        const e: NodeJS.ErrnoException = new Error(msgs().server.net.nonPublicAddress(hostname));
         e.code = 'EPRIVATEADDR';
         return callback(e, '', 0);
       }
@@ -98,12 +99,12 @@ export function allowedUrl(raw: string | URL, policy: Pick<FetchPolicy, 'hosts'>
   try {
     url = new URL(raw);
   } catch {
-    throw new NetError('FORBIDDEN_URL', 'Adresse invalide.');
+    throw new NetError('FORBIDDEN_URL', msgs().server.net.invalidAddress);
   }
   if (url.protocol !== 'https:' || url.username || url.password || (url.port !== '' && url.port !== '443') || !policy.hosts.includes(url.hostname.toLowerCase())) {
-    throw new NetError('FORBIDDEN_URL', `Adresse non autorisée : ${url.protocol}//${url.hostname}.`);
+    throw new NetError('FORBIDDEN_URL', msgs().server.net.addressNotAllowed(`${url.protocol}//${url.hostname}`));
   }
-  if (isIP(url.hostname.replace(/^\[|\]$/g, '')) !== 0) throw new NetError('FORBIDDEN_URL', 'Adresse IP littérale refusée.');
+  if (isIP(url.hostname.replace(/^\[|\]$/g, '')) !== 0) throw new NetError('FORBIDDEN_URL', msgs().server.net.literalIpRefused);
   return url;
 }
 
@@ -122,28 +123,28 @@ export async function safeGet(raw: string, policy: FetchPolicy, transport: Trans
         res = await transport(url, { 'user-agent': USER_AGENT, accept: '*/*', ...policy.headers }, controller.signal);
       } catch (e) {
         if (e instanceof NetError) throw e;
-        if (controller.signal.aborted) throw new NetError('TIMEOUT', `Délai dépassé (${Math.round(policy.timeoutMs / 1000)} s).`);
-        throw new NetError('NETWORK', `Connexion impossible à ${url.hostname} (${(e as NodeJS.ErrnoException).code ?? 'réseau'}).`);
+        if (controller.signal.aborted) throw new NetError('TIMEOUT', msgs().server.net.timeout(Math.round(policy.timeoutMs / 1000)));
+        throw new NetError('NETWORK', msgs().server.net.connectionFailed(url.hostname, (e as NodeJS.ErrnoException).code ?? msgs().server.net.network));
       }
       if (res.status >= 300 && res.status < 400) {
         drain(res.body);
         const location = res.headers.location;
-        if (typeof location !== 'string' || hop >= (policy.maxRedirects ?? 2)) throw new NetError('REDIRECT', `Redirection refusée depuis ${url.hostname}.`);
+        if (typeof location !== 'string' || hop >= (policy.maxRedirects ?? 2)) throw new NetError('REDIRECT', msgs().server.net.redirectRefused(url.hostname));
         try {
           url = allowedUrl(new URL(location, url), policy);
         } catch {
-          throw new NetError('REDIRECT', `Redirection vers un hôte non autorisé refusée (${safeHost(location, url)}).`);
+          throw new NetError('REDIRECT', msgs().server.net.redirectHostRefused(safeHost(location, url)));
         }
         continue;
       }
       if (res.status < 200 || res.status >= 300) {
         drain(res.body);
-        throw new NetError('HTTP', `${url.hostname} a répondu ${res.status}.`, res.status);
+        throw new NetError('HTTP', msgs().server.net.httpStatus(url.hostname, res.status), res.status);
       }
       const declared = Number(res.headers['content-length'] ?? 0);
       if (declared > policy.maxBytes) {
         drain(res.body);
-        throw new NetError('TOO_LARGE', `Réponse trop volumineuse (${Math.round(declared / 1024)} Ko > ${Math.round(policy.maxBytes / 1024)} Ko).`);
+        throw new NetError('TOO_LARGE', msgs().server.net.responseTooLargeDeclared(Math.round(declared / 1024), Math.round(policy.maxBytes / 1024)));
       }
       const parts: Buffer[] = [];
       let size = 0;
@@ -152,14 +153,14 @@ export async function safeGet(raw: string, policy: FetchPolicy, transport: Trans
           size += chunk.byteLength;
           if (size > policy.maxBytes) {
             controller.abort();
-            throw new NetError('TOO_LARGE', `Réponse trop volumineuse (limite ${Math.round(policy.maxBytes / 1024)} Ko).`);
+            throw new NetError('TOO_LARGE', msgs().server.net.responseTooLarge(Math.round(policy.maxBytes / 1024)));
           }
           parts.push(Buffer.from(chunk));
         }
       } catch (e) {
         if (e instanceof NetError) throw e;
-        if (controller.signal.aborted) throw new NetError('TIMEOUT', `Délai dépassé (${Math.round(policy.timeoutMs / 1000)} s).`);
-        throw new NetError('NETWORK', `Téléchargement interrompu (${(e as NodeJS.ErrnoException).code ?? 'réseau'}).`);
+        if (controller.signal.aborted) throw new NetError('TIMEOUT', msgs().server.net.timeout(Math.round(policy.timeoutMs / 1000)));
+        throw new NetError('NETWORK', msgs().server.net.downloadInterrupted((e as NodeJS.ErrnoException).code ?? msgs().server.net.network));
       }
       const type = res.headers['content-type'];
       return { status: res.status, url: url.toString(), contentType: typeof type === 'string' ? type : null, body: Buffer.concat(parts, size) };
@@ -178,7 +179,7 @@ function safeHost(location: string, base: URL): string {
   try {
     return new URL(location, base).hostname;
   } catch {
-    return 'adresse invalide';
+    return msgs().server.net.invalidAddressShort;
   }
 }
 

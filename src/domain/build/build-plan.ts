@@ -1,3 +1,4 @@
+import { msgs } from '../../i18n/runtime';
 import type { InstructionRef } from '../instructions/mapping';
 import type { BrickOccurrence, ExpandedModel, LDrawDocument } from '../ldraw/types';
 
@@ -39,7 +40,7 @@ export function buildStepPlan(doc: LDrawDocument, model: ExpandedModel): StepPla
   ]);
   const hasMarkers = [...usedSections].some((key) => key !== undefined && sectionsWithMarkers.has(key));
   if (!hasMarkers) {
-    return { kind: 'NO_STEPS', steps: [], notes: ['Aucune commande 0 STEP : modèle fini uniquement, montage libre.'] };
+    return { kind: 'NO_STEPS', steps: [], notes: [msgs().domain.buildPlan.noStepCommands] };
   }
 
   const directByInstance = new Map<string | null, BrickOccurrence[]>();
@@ -70,13 +71,13 @@ export function buildStepPlan(doc: LDrawDocument, model: ExpandedModel): StepPla
   flatten(null);
 
   if (raw.length <= 1) {
-    return { kind: 'NO_STEPS', steps: [], notes: ['Une seule étape exploitable : pas de séquence de montage, montage libre.'] };
+    return { kind: 'NO_STEPS', steps: [], notes: [msgs().domain.buildPlan.singleStep] };
   }
   const nested = model.submodelInstances.length > 0;
   const provenance: StepProvenance = nested ? 'LDRAW_NESTED' : 'LDRAW_ROOT';
   const steps = raw.map((s, index) => ({ id: `step-${index + 1}`, index, occurrenceIds: s.occurrenceIds, provenance, instanceId: s.instanceId }));
   const notes = nested
-    ? ['Étapes aplaties depuis les sous-modèles (stratégie documentée) ; elles ne correspondent pas forcément à la notice officielle.']
-    : ['Étapes lues dans les commandes 0 STEP du modèle principal ; elles ne correspondent pas forcément à la notice officielle.'];
+    ? [msgs().domain.buildPlan.flattenedSteps]
+    : [msgs().domain.buildPlan.rootSteps];
   return { kind: nested ? 'FLATTENED_STEPS' : 'ROOT_STEPS', steps, notes };
 }
